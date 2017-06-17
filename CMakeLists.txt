@@ -16,9 +16,6 @@
 cmake_minimum_required(VERSION 3.0)
 project(celadro)
 
-# we are modern people
-add_definitions(-std=c++11 -Wall -Wfloat-conversion)
-
 ################################################################################
 # directories
 ################################################################################
@@ -36,6 +33,9 @@ file(GLOB_RECURSE sources      src/*.cpp src/*.hpp)
 
 # main executable
 add_executable (celadro ${sources})
+target_compile_features(celadro PRIVATE cxx_range_for
+                                        cxx_constexpr
+                                        cxx_variadic_templates)
 
 ################################################################################
 # dependencies
@@ -47,6 +47,14 @@ find_package(Boost 1.36.0 COMPONENTS program_options REQUIRED)
 target_link_libraries(celadro PUBLIC
   ${Boost_LIBRARIES}
 )
+
+# openmp
+find_package(OpenMP)
+if(OPENMP_FOUND)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+else()
+  add_definitions(-DWITHOUT_OMP)
+endif()
 
 ################################################################################
 # testing
