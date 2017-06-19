@@ -32,9 +32,9 @@ void SetThreads()
   {
     // count the number of OpenMP threads
     unsigned count = 0;
-    PRAGMA_OMP(parallel)
+    PRAGMA_OMP(omp parallel)
     {
-      PRAGMA_OMP(atomic)
+      PRAGMA_OMP(omp atomic)
       ++count;
     }
     nthreads = count;

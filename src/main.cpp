@@ -200,12 +200,14 @@ int main(int argc, char **argv)
     }
 
     // multi-threading
+#ifdef _OPENMP
     if(nthreads)
     {
       if(verbose) cout << "multi-threading ... " << flush;
       SetThreads();
       if(verbose) cout << nthreads << " active threads" << endl;
     }
+#endif
 
     // preparation
     if(verbose)   cout << "preparation ... " << flush;

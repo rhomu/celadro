@@ -105,7 +105,7 @@ extern double time_step, lambda, R, c0, tracking, noise, zeta, beta, alpha;
 extern double division_rate, kappa, omega, f, f_walls, xi, J, D;
 extern double wall_thickness, wall_omega, wall_kappa;
 extern unsigned nsubsteps, verbose, margin, nphases, LX, LY, relax_time;
-extern unsigned division_relax_time, BC, relax_nsubsteps, npc;
+extern unsigned division_relax_time, BC, relax_nsubsteps, npc, nthreads;
 extern bool no_warning, stop_at_warning;
 extern std::string init_config;
 extern std::vector<double> gam, mu;
@@ -209,9 +209,9 @@ void Initialize()
 
   // compute tables
   for(unsigned i=0; i<LX; ++i)
-    com_x_table.push_back(1i*sin(-Pi+2.*Pi*i/LX));
+    com_x_table.push_back(complex<double>(0., sin(-Pi+2.*Pi*i/LX)));
   for(unsigned i=0; i<LY; ++i)
-    com_y_table.push_back(1i*sin(-Pi+2.*Pi*i/LY));
+    com_y_table.push_back(complex<double>(0., sin(-Pi+2.*Pi*i/LY)));
 
   // compute list of neighbours
   for(unsigned k=0; k<Size; ++k)
@@ -240,7 +240,7 @@ void AddCell(unsigned n, const array<unsigned, 2>& center)
   const auto radius = max(R/2., 4.);
 
   // create the cells at the centers we just computed
-  PRAGMA_OMP(parallel for num_threads(nthreads) if(nthreads))
+  PRAGMA_OMP(omp parallel for num_threads(nthreads) if(nthreads))
   for(unsigned k=0; k<Size; ++k)
   {
     const unsigned xk = GetXPosition(k);
@@ -663,8 +663,8 @@ inline void UpdateAtNode(unsigned n, unsigned k)
         - 2.*gam[n]*l
       )
       // advection term
-      - (alpha*pol[n][0]/*+velp[n][0]+velc[n][0]+velf[n][0]*/)*dx/xi
-      - (alpha*pol[n][1]/*+velp[n][1]+velc[n][1]+velf[n][1]*/)*dz/xi
+      - (alpha*pol[n][0]+velp[n][0]+velc[n][0]+velf[n][0])*dx/xi
+      - (alpha*pol[n][1]+velp[n][1]+velc[n][1]+velf[n][1])*dz/xi
       );
   }
 
@@ -835,7 +835,7 @@ void Update()
   // involving a derivative. This means that the field phi must be fully
   // updated first.
 
-  PRAGMA_OMP(parallel for num_threads(nthreads) if(nthreads))
+  PRAGMA_OMP(omp parallel for num_threads(nthreads) if(nthreads))
   for(unsigned n=0; n<nphases; ++n)
   {
     velp[n] = {0., 0.};
@@ -892,7 +892,7 @@ void Update()
   // We use this construction because it is much faster with OpenMP: the single
   // threaded portion of the code consists only of these swaps!
 
-  PRAGMA_OMP(parallel for num_threads(nthreads) if(nthreads))
+  PRAGMA_OMP(omp parallel for num_threads(nthreads) if(nthreads))
   for(unsigned k=0; k<Size; ++k) ReinitSquareAndSumAtNode(k);
 
   swap(sum, sum_cnt);
@@ -922,7 +922,7 @@ void Step()
   for(unsigned n=0; n<m; ++n) Divide(n);
 
   // compute center-of-mass velocity
-  PRAGMA_OMP(parallel for num_threads(nthreads) if(nthreads))
+  PRAGMA_OMP(omp parallel for num_threads(nthreads) if(nthreads))
   for(unsigned n=0; n<nphases; ++n)
   {
     vel[n]      = { (com[n][0]-com_prev[n][0])/time_step,
@@ -958,7 +958,7 @@ void UpdateSubDomainP(Ret (*fun)(unsigned, unsigned, Args...),
                                  Args&&... args)
 {
   // same but with openmp
-  PRAGMA_OMP(parallel for num_threads(nthreads) if(nthreads))
+  PRAGMA_OMP(omp parallel for num_threads(nthreads) if(nthreads))
   for(unsigned k=0; k<(M0-m0)*(M1-m1); ++k)
       // if you want to look it up, this is called a pointer
       // to member function and is an obscure C++ feature...

@@ -22,6 +22,13 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
 endif(NOT CMAKE_BUILD_TYPE)
 
+# set warning level
+if(MSVC)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Wall")
+elseif(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wno-long-long -pedantic")
+endif()
+
 ################################################################################
 # directories
 ################################################################################
@@ -55,6 +62,7 @@ target_link_libraries(celadro PUBLIC
 find_package(OpenMP)
 if(OPENMP_FOUND)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
 endif()
 
 ################################################################################

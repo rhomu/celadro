@@ -18,9 +18,8 @@
 #ifndef THREADS_HPP_
 #define THREADS_HPP_
 
-#if defined(_OPENMP)
-  #define PRAGMA(x) _Pragma(#x)
-  #define PRAGMA_OMP(x) PRAGMA("omp " #x)
+#ifdef _OPENMP
+  #define PRAGMA_OMP(x) _Pragma(#x)
 #else
   #define PRAGMA_OMP(cmd) {}
 #endif
