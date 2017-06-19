@@ -34,6 +34,8 @@ std::vector<std::vector<double>> V;
 std::vector<std::vector<double>> potential;
 /** Predicted potential in a P(C)^n step */
 std::vector<std::vector<double>> potential_old;
+/** Neighbours list */
+std::vector<std::array<double, 9>> neighbours;
 /** Active velocity angle */
 std::vector<double> theta;
 /** Area associated with a phase field */
@@ -90,25 +92,63 @@ std::vector<std::complex<double>> com_y;
 std::vector<std::complex<double>> com_x_table, com_y_table;
 /** Needa store? (yes this is dirty) */
 bool store;
+/** Division flag */
+bool division = false;
 /** Pre-computed coefficients */
 double C1, C2, C3;
+/* Total size of the domain */
+unsigned Size;
 /** @} */
 
 // from parameters.cpp
-extern double time_step, lambda, R;
-extern unsigned nsubsteps, verbose, margin, nphases, LX, LY;
+extern double time_step, lambda, R, c0, tracking, noise, zeta, beta, alpha;
+extern double division_rate, kappa, omega, f, f_walls, xi, J, D;
+extern double wall_thickness, wall_omega, wall_kappa;
+extern unsigned nsubsteps, verbose, margin, nphases, LX, LY, relax_time;
+extern unsigned division_relax_time, BC, relax_nsubsteps, npc;
 extern bool no_warning, stop_at_warning;
+extern std::string init_config;
 extern std::vector<double> gam, mu;
+extern std::vector<unsigned> birth_bdries;
 
 using namespace std;
 
+// =============================================================================
+// Helper functions
+
+/** Get the domain x position of a node from its absolute index */
+unsigned GetXPosition(unsigned k)
+{ return k/LY; }
+/** Get the domain y position of a node from its absolute index */
+unsigned GetYPosition(unsigned k)
+{ return k%LY; }
+
+unsigned GetDomainIndex(unsigned x, unsigned y)
+{ return y + LY*x; }
+
+/** Coordinate (x, y) of neighbours / directions */
+constexpr static std::array<int, 2> directions[] = {
+  { 0, 0},
+  { 1, 0},
+  {-1, 0},
+  { 0, 1},
+  { 0,-1},
+  { 1, 1},
+  {-1,-1},
+  {-1, 1},
+  { 1,-1}
+};
+
+// =============================================================================
+// Implementation
+
 void InitializeFields()
 {
-  phi.resize(nphases, vector<double>(LX*LY, 0.));
-  phi_old.resize(nphases, vector<double>(LX*LY, 0.));
-  V.resize(nphases, vector<double>(LX*LY, 0.));
-  potential.resize(nphases, vector<double>(LX*LY, 0.));
-  potential_old.resize(nphases, vector<double>(LX*LY, 0.));
+  phi.resize(nphases, vector<double>(Size, 0.));
+  phi_old.resize(nphases, vector<double>(Size, 0.));
+  V.resize(nphases, vector<double>(Size, 0.));
+  potential.resize(nphases, vector<double>(Size, 0.));
+  potential_old.resize(nphases, vector<double>(Size, 0.));
   area.resize(nphases, 0.);
   area_cnt.resize(nphases, 0.);
   domain_min.resize(nphases, {0, 0});
@@ -128,32 +168,34 @@ void InitializeFields()
   S_order.resize(nphases, 0.);
   S_angle.resize(nphases, 0.);
   theta.resize(nphases, 0.);
-  //torque.resize(nphases, 0.);
 }
 
 void Initialize()
 {
+  Size = LX*LY;
+
   // initialize memory
-  walls.resize(LX*LY, 0.);
-  walls_dx.resize(LX*LY, 0.);
-  walls_dy.resize(LX*LY, 0.);
-  walls_laplace.resize(LX*LY, 0.);
-  sum.resize(LX*LY, 0.);
-  sum_cnt.resize(LX*LY, 0.);
-  square.resize(LX*LY, 0.);
-  square_cnt.resize(LX*LY, 0.);
-  Px.resize(LX*LY, 0.);
-  Py.resize(LX*LY, 0.);
-  Theta.resize(LX*LY, 0.);
-  Q00.resize(LX*LY, 0.);
-  Q01.resize(LX*LY, 0.);
-  Px_cnt.resize(LX*LY, 0.);
-  Py_cnt.resize(LX*LY, 0.);
-  Theta_cnt.resize(LX*LY, 0.);
-  Q00_cnt.resize(LX*LY, 0.);
-  Q01_cnt.resize(LX*LY, 0.);
-  P.resize(LX*LY, 0.);
-  P_cnt.resize(LX*LY, 0.);
+  walls.resize(Size, 0.);
+  walls_dx.resize(Size, 0.);
+  walls_dy.resize(Size, 0.);
+  walls_laplace.resize(Size, 0.);
+  sum.resize(Size, 0.);
+  sum_cnt.resize(Size, 0.);
+  square.resize(Size, 0.);
+  square_cnt.resize(Size, 0.);
+  Px.resize(Size, 0.);
+  Py.resize(Size, 0.);
+  Theta.resize(Size, 0.);
+  Q00.resize(Size, 0.);
+  Q01.resize(Size, 0.);
+  Px_cnt.resize(Size, 0.);
+  Py_cnt.resize(Size, 0.);
+  Theta_cnt.resize(Size, 0.);
+  Q00_cnt.resize(Size, 0.);
+  Q01_cnt.resize(Size, 0.);
+  P.resize(Size, 0.);
+  P_cnt.resize(Size, 0.);
+  neighbours.resize(Size);
   InitializeFields();
 
   // pre-compute coefficients
@@ -167,9 +209,19 @@ void Initialize()
 
   // compute tables
   for(unsigned i=0; i<LX; ++i)
-    com_x_table.push_back(exp(1i*(-Pi+2.*Pi*i/LX)));
+    com_x_table.push_back(1i*sin(-Pi+2.*Pi*i/LX));
   for(unsigned i=0; i<LY; ++i)
-    com_y_table.push_back(exp(1i*(-Pi+2.*Pi*i/LY)));
+    com_y_table.push_back(1i*sin(-Pi+2.*Pi*i/LY));
+
+  // compute list of neighbours
+  for(unsigned k=0; k<Size; ++k)
+  {
+    const long int x = GetXPosition(k);
+    const long int y = GetYPosition(k);
+    for(size_t v=0; v<9; ++v)
+       neighbours[k][v] = GetDomainIndex(modu(x + directions[v][0], LX),
+                                         modu(y + directions[v][1], LY));
+  }
 
   // check birth boundaries
   if(birth_bdries.size()==0)
@@ -181,7 +233,7 @@ void Initialize()
   division = (division_rate!=0.);
 }
 
-void AddCell(unsigned n, const array<unsigned, 2>& c)
+void AddCell(unsigned n, const array<unsigned, 2>& center)
 {
   // we create smaller cells that will then relax
   // this improves greatly the stability at the first steps
@@ -189,18 +241,18 @@ void AddCell(unsigned n, const array<unsigned, 2>& c)
 
   // create the cells at the centers we just computed
   PRAGMA_OMP(parallel for num_threads(nthreads) if(nthreads))
-  for(unsigned k=0; k<LX*LY; ++k)
+  for(unsigned k=0; k<Size; ++k)
   {
     const unsigned xk = GetXPosition(k);
     const unsigned yk = GetYPosition(k);
 
     // round shape (do not wrap if no PBC)
     if(
-        (BC==0 and pow(wrap(diff(yk, c[1]), LY), 2)
-         + pow(wrap(diff(xk, c[0]), LX), 2)<=ceil(radius*radius))
+        (BC==0 and pow(wrap(diff(yk, center[1]), LY), 2)
+         + pow(wrap(diff(xk, center[0]), LX), 2)<=ceil(radius*radius))
         or
-        (BC>=1 and pow(diff(yk, c[1]), 2)
-         + pow(diff(xk, c[0]), 2)<=ceil(radius*radius))
+        (BC>=1 and pow(diff(yk, center[1]), 2)
+         + pow(diff(xk, center[0]), 2)<=ceil(radius*radius))
       )
     {
       phi[n][k]     = 1.;
@@ -216,15 +268,15 @@ void AddCell(unsigned n, const array<unsigned, 2>& c)
     }
   }
 
-  this->c[n] = c0;
-  theta[n]   = 2.*Pi*random_real();
+  c[n]     = c0;
+  theta[n] = 2.*Pi*random_real();
 
   if(tracking)
   {
-    domain_min[n][0] = (c[0]+LX-margin)%LX;
-    domain_max[n][0] = (c[0]+margin)%LX;
-    domain_min[n][1] = (c[1]+LY-margin)%LY;
-    domain_max[n][1] = (c[1]+margin)%LY;
+    domain_min[n][0] = (center[0]+LX-margin)%LX;
+    domain_max[n][0] = (center[0]+margin)%LX;
+    domain_min[n][1] = (center[1]+LY-margin)%LY;
+    domain_max[n][1] = (center[1]+margin)%LY;
   }
   else
   {
@@ -242,7 +294,7 @@ void Configure()
   if(init_config=="random" and BC==0)
   {
     // target radius for spacing between cells
-    unsigned radius = sqrt(double(LX*LY/nphases)/Pi);
+    unsigned radius = sqrt(double(Size/nphases)/Pi);
     // list of all centers
     vector<array<unsigned, 2>> centers;
 
@@ -285,7 +337,7 @@ void Configure()
   else if(init_config=="random" and BC>=1)
   {
     // target radius for spacing between cells
-    unsigned radius = sqrt(double(LX*LY/nphases)/Pi);
+    unsigned radius = sqrt(double(Size/nphases)/Pi);
     // list of all centers
     vector<array<unsigned, 2>> centers;
 
@@ -381,12 +433,12 @@ void ConfigureWalls()
   {
   case 0:
     // no walls (pbc)
-    for(unsigned k=0; k<LX*LY; ++k)
+    for(unsigned k=0; k<Size; ++k)
       walls[k] = 0;
     break;
   case 1:
     // Exponentially falling phase-field:
-    for(unsigned k=0; k<LX*LY; ++k)
+    for(unsigned k=0; k<Size; ++k)
     {
       const double x = GetXPosition(k);
       const double y = GetYPosition(k);
@@ -401,7 +453,7 @@ void ConfigureWalls()
     break;
   // Same as above but channel.
   case 2:
-    for(unsigned k=0; k<LX*LY; ++k)
+    for(unsigned k=0; k<Size; ++k)
     {
       const auto y = GetYPosition(k);
 
@@ -412,7 +464,7 @@ void ConfigureWalls()
     break;
   // ellipse!
   case 3:
-    for(unsigned k=0; k<LX*LY; ++k)
+    for(unsigned k=0; k<Size; ++k)
     {
       const auto x = GetXPosition(k);
       const auto y = GetYPosition(k);
@@ -437,13 +489,13 @@ void ConfigureWalls()
   }
 
   // pre-compute derivatives
-  for(unsigned k=0; k<LX*LY; ++k)
+  for(unsigned k=0; k<Size; ++k)
   {
-    const auto& d  = get_neighbours(k);
+    const auto& d  = neighbours[k];
 
-    walls_dx[k] = derivX(walls, d, sB);
-    walls_dy[k] = derivY(walls, d, sB);
-    walls_laplace[k] = laplacian(walls, d, sD);
+    walls_dx[k] = derivX(walls, d, 1/12.);
+    walls_dy[k] = derivY(walls, d, 1/12.);
+    walls_laplace[k] = laplacian(walls, d, 1/12.);
   }
 }
 
@@ -472,6 +524,9 @@ void Pre()
   }
 }
 
+void Post()
+{}
+
 void PreRunStats()
 {
   // packing fraction
@@ -480,7 +535,7 @@ void PreRunStats()
     if(BC<=2)
       packing/= (birth_bdries[1]-birth_bdries[0])
                *(birth_bdries[3]-birth_bdries[2]);
-    if(BC==3) packing /= Pi*LX*LY/4.;
+    if(BC==3) packing /= Pi*Size/4.;
 
     cout << "Packing fraction = " << packing << endl;
   }
@@ -518,20 +573,20 @@ void RuntimeChecks()
 
 inline void UpdateFieldsAtNode(unsigned n, unsigned k)
 {
-  const auto& d  = get_neighbours(k);
+  const auto& d  = neighbours[k];
   // cell properties
   const auto& p  = phi[n][k];
-  const auto  l  = laplacian(phi[n], d, sD);
-  const auto  dx = derivX(phi[n], d, sB);
-  const auto  dy = derivY(phi[n], d, sB);
+  const auto  l  = laplacian(phi[n], d, 1/12.);
+  const auto  dx = derivX(phi[n], d, 1/12.);
+  const auto  dy = derivY(phi[n], d, 1/12.);
   // all-cells properties
-  const auto  ls   = laplacian(sum, d, sD);
-  const auto  dxs  = derivX(sum, d, sB);
-  const auto  dys  = derivY(sum, d, sB);
-  const auto  dxp0 = derivX(Px, d, sB);
-  const auto  dyp0 = derivY(Px, d, sB);
-  const auto  dxp1 = derivX(Py, d, sB);
-  const auto  dyp1 = derivY(Py, d, sB);
+  const auto  ls   = laplacian(sum, d, 1/12.);
+  const auto  dxs  = derivX(sum, d, 1/12.);
+  const auto  dys  = derivY(sum, d, 1/12.);
+  const auto  dxp0 = derivX(Px, d, 1/12.);
+  const auto  dyp0 = derivY(Px, d, 1/12.);
+  const auto  dxp1 = derivX(Py, d, 1/12.);
+  const auto  dyp1 = derivY(Py, d, 1/12.);
 
   const auto  lw = walls_laplace[k];
   const auto dxw = walls_dx[k];
@@ -573,15 +628,15 @@ inline void UpdateFieldsAtNode(unsigned n, unsigned k)
   // which one is the best
   //
   // alignment torque (orientational)
-  //const auto dxQ00 = derivX(Q00, d, sB);
-  //const auto dxQ01 = derivX(Q01, d, sB);
-  //const auto dyQ00 = derivY(Q00, d, sB);
-  //const auto dyQ01 = derivY(Q01, d, sB);
+  //const auto dxQ00 = derivX(Q00, d, 1/12.);
+  //const auto dxQ01 = derivX(Q01, d, 1/12.);
+  //const auto dyQ00 = derivY(Q00, d, 1/12.);
+  //const auto dyQ01 = derivY(Q01, d, 1/12.);
   //torque[n] += - 4*J1*(Q00[n]*(dx*dxQ01+dy*dyQ01)-Q01[n]*(dx*dxQ00+dy*dyQ00));
   //
   // alignment torque (directional)
-  //const auto  dxt  = derivX(Theta, d, sB);
-  //const auto  dyt  = derivY(Theta, d, sB);
+  //const auto  dxt  = derivX(Theta, d, 1/12.);
+  //const auto  dyt  = derivY(Theta, d, 1/12.);
   //torque[n] -= J1*(dx*dxt+dy*dyt - theta[n]*(dx*dxs+dy*dys));
   //
   // alignment torque (shear stress)
@@ -592,12 +647,12 @@ inline void UpdateAtNode(unsigned n, unsigned k)
 {
   // compute potential
   {
-    const auto& d  = get_neighbours(k);
+    const auto& d  = neighbours[k];
     const auto  p  = phi[n][k];
     const auto  a  = area[n];
-    const auto  dx = derivX(phi[n], d, sB);
-    const auto  dz = derivY(phi[n], d, sB);
-    const auto  l  = laplacian(phi[n], d, sD);
+    const auto  dx = derivX(phi[n], d, 1/12.);
+    const auto  dz = derivY(phi[n], d, 1/12.);
+    const auto  l  = laplacian(phi[n], d, 1/12.);
 
     potential[n][k] = (
       // free energy term
@@ -666,8 +721,8 @@ void ComputeCoM(unsigned n)
   // the strategy to deal with the periodic boundary conditions is to compute
   // all the integrals in Fourier space and come back at the end. This way the
   // periodicity of the domain is automatically taken into account.
-  const auto mx = arg(com_x[n]/static_cast<double>(LX*LY)) + Pi;
-  const auto my = arg(com_y[n]/static_cast<double>(LX*LY)) + Pi;
+  const auto mx = arg(com_x[n]/static_cast<double>(Size)) + Pi;
+  const auto my = arg(com_y[n]/static_cast<double>(Size)) + Pi;
   com[n] = { mx/2./Pi*LX, my/2./Pi*LY };
 }
 
@@ -682,10 +737,10 @@ void UpdateWindow(unsigned n)
 
 inline void UpdateStructureTensorAtNode(unsigned n, unsigned k)
 {
-  const auto& d  = get_neighbours(k);
+  const auto& d  = neighbours[k];
   const auto  p  = phi[n][k];
-  const auto  dx = 2*p*derivX(phi[n], d, sB);
-  const auto  dy = 2*p*derivY(phi[n], d, sB);
+  const auto  dx = 2*p*derivX(phi[n], d, 1/12.);
+  const auto  dy = 2*p*derivY(phi[n], d, 1/12.);
   S00[n] += 0.5*(dx*dx-dy*dy);
   S01[n] += dx*dy;
 }
@@ -753,7 +808,7 @@ void Divide(unsigned n)
     const double theta0 = theta[n] + Pi;
 
     PRAGMA_OMP(omp parallel for num_threads(nthreads) if(nthreads))
-    for(unsigned k=0; k<LX*LY; ++k)
+    for(unsigned k=0; k<Size; ++k)
     {
       const auto x = wrap(diff(unsigned(com[n][0]), GetXPosition(k)), LX);
       const auto y = wrap(diff(unsigned(com[n][1]), GetXPosition(k)), LY);
@@ -838,16 +893,16 @@ void Update()
   // threaded portion of the code consists only of these swaps!
 
   PRAGMA_OMP(parallel for num_threads(nthreads) if(nthreads))
-  for(unsigned k=0; k<LX*LY; ++k) ReinitSquareAndSumAtNode(k);
+  for(unsigned k=0; k<Size; ++k) ReinitSquareAndSumAtNode(k);
 
-  swap(sum.get_data(), sum_cnt.get_data());
-  swap(square.get_data(), square_cnt.get_data());
+  swap(sum, sum_cnt);
+  swap(square, square_cnt);
   swap(P, P_cnt);
-  swap(Theta.get_data(), Theta_cnt);
-  swap(Q00.get_data(), Q00_cnt);
-  swap(Q01.get_data(), Q01_cnt);
-  swap(Px.get_data(), Px_cnt.get_data());
-  swap(Py.get_data(), Py_cnt.get_data());
+  swap(Theta, Theta_cnt);
+  swap(Q00, Q00_cnt);
+  swap(Q01, Q01_cnt);
+  swap(Px, Px_cnt);
+  swap(Py, Py_cnt);
   swap(area, area_cnt);
 }
 
@@ -903,7 +958,7 @@ void UpdateSubDomainP(Ret (*fun)(unsigned, unsigned, Args...),
                                  Args&&... args)
 {
   // same but with openmp
-  #pragma omp parallel for num_threads(nthreads) if(nthreads)
+  PRAGMA_OMP(parallel for num_threads(nthreads) if(nthreads))
   for(unsigned k=0; k<(M0-m0)*(M1-m1); ++k)
       // if you want to look it up, this is called a pointer
       // to member function and is an obscure C++ feature...
@@ -971,4 +1026,27 @@ void UpdateDomain(Ret (*fun)(unsigned, unsigned, Args...),
     UpdateSubDomain(fun, n, domain_min[n][0], domain_min[n][1], domain_max[n][0], domain_max[n][1]);
 }
 
+// =============================================================================
+// serialization
 
+/** Serialization of parameters (in and out)*/
+template<class Archive>
+void SerializeFrame_impl(Archive& ar)
+{
+    ar & auto_name(phi)
+       & auto_name(area)
+       & auto_name(com)
+       & auto_name(S_order)
+       & auto_name(S_angle)
+       & auto_name(pol)
+       & auto_name(velp)
+       & auto_name(velf)
+       & auto_name(velc)
+       & auto_name(vel);
+    if(tracking) ar
+       & auto_name(domain_min)
+       & auto_name(domain_max);
+}
+
+void SerializeFrame(oarchive& ar)
+{ SerializeFrame_impl(ar); }

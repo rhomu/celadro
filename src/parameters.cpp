@@ -69,8 +69,6 @@ bool tracking = false;
 unsigned LX, LY;
 /** total number of nodes */
 unsigned N;
-/** number of threads */
-unsigned nthreads;
 /** Total number of time steps */
 unsigned nsteps;
 /** Time interval between data outputs */
@@ -99,8 +97,6 @@ double wall_thickness = 1.;
 double wall_kappa;
 /** Adhesion on the wall */
 double wall_omega;
-/** Division flag */
-bool division = false;
 /** Division rate */
 double division_rate = 0.;
 /** Relaxation time for division */
@@ -111,7 +107,8 @@ unsigned division_relax_time = 100;
  * which the cells are created when the initial config 'random' is choosen.
  * */
 std::vector<unsigned> birth_bdries;
-
+/** The definition of the walls (from run.cpp) */
+extern std::vector<double> walls;
 /** @} */
 
 
@@ -148,6 +145,15 @@ double D=1., J=1.;
 double c0, tauc;
 /** @} */
 
+
+/** Multi-threading parameters
+ * @{ */
+#ifdef _OPENMP
+/** number of threads */
+unsigned nthreads;
+#endif
+/** @} */
+
 using namespace std;
 namespace opt = boost::program_options;
 
@@ -170,10 +176,12 @@ void ParseProgramOptions(int ac, char **av)
      "input file")
     ("force-delete,f", opt::bool_switch(&force_delete),
      "force deletion of existing output file")
+#ifdef _OPENMP
     ("threads,t",
      opt::value<unsigned>(&nthreads)->default_value(0)->implicit_value(1),
      "number of threads (0=no multithreading, 1=OpenMP default, "
      ">1=your favorite number)")
+#endif
     ("compress,c", opt::bool_switch(&compress),
      "compress individual files using zip")
     ("compress-full", opt::bool_switch(&compress_full),
@@ -433,3 +441,37 @@ void PrintProgramOptions()
   // print the simulation parameters
   print_vm(vm, width);
 }
+
+// =============================================================================
+// serialization
+
+/** Serialization of parameters (in and out)*/
+template<class Archive>
+void SerializeParameters_impl(Archive& ar)
+{
+  ar & auto_name(gam)
+     & auto_name(mu)
+     & auto_name(nphases)
+     & auto_name(lambda)
+     & auto_name(kappa)
+     & auto_name(alpha)
+     & auto_name(R)
+     & auto_name(xi)
+     & auto_name(omega)
+     & auto_name(init_config)
+     & auto_name(zeta)
+     & auto_name(D)
+     & auto_name(J)
+     & auto_name(f)
+     & auto_name(f_walls)
+     & auto_name(wall_thickness)
+     & auto_name(wall_kappa)
+     & auto_name(wall_omega)
+     & auto_name(walls);
+
+  ar & auto_name(tracking)
+     & auto_name(margin);
+}
+
+void SerializeParameters(oarchive& ar)
+{ SerializeParameters_impl(ar); }

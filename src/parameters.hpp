@@ -15,8 +15,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef OPTIONS_HPP_
-#define OPTIONS_HPP_
+#ifndef PARAMETERS_HPP_
+#define PARAMETERS_HPP_
+
+#include "serialization.hpp"
 
 /** Declare and parse all program options
   *
@@ -41,4 +43,10 @@ void ProcessProgramOptions();
   * Simply prints all set parameters with a (somewhat) nice formatting. */
 void PrintProgramOptions();
 
-#endif//OPTIONS_HPP_
+/** Serialize parameters (output) */
+void SerializeParameters(oarchive&);
+
+/** Serialize parameters (input) (TBI)*/
+void SerializeParameters(iarchive&);
+
+#endif//PARAMETERS_HPP_

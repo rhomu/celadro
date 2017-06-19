@@ -17,6 +17,11 @@ cmake_minimum_required(VERSION 3.0)
 project(celadro)
 set(CMAKE_CXX_STANDARD 14)
 
+# default is release
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE Release)
+endif(NOT CMAKE_BUILD_TYPE)
+
 ################################################################################
 # directories
 ################################################################################
@@ -50,8 +55,6 @@ target_link_libraries(celadro PUBLIC
 find_package(OpenMP)
 if(OPENMP_FOUND)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
-else()
-  add_definitions(-DWITHOUT_OMP)
 endif()
 
 ################################################################################

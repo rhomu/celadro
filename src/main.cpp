@@ -17,11 +17,9 @@
 
 #include "header.hpp"
 #include "parameters.hpp"
-#include "threads.hpp"
 #include "run.hpp"
 #include "write.hpp"
 #include "tools.hpp"
-#include "error_msg.hpp"
 
 #ifdef DEBUG
 #include <fenv.h>

@@ -17,10 +17,11 @@
 
 #include "header.hpp"
 #include "write.hpp"
-#include "models.hpp"
 #include "error_msg.hpp"
 #include "random.hpp"
 #include "tools.hpp"
+#include "parameters.hpp"
+#include "run.hpp"
 
 using namespace std;
 
@@ -37,9 +38,6 @@ extern unsigned nsubsteps;
 extern bool compress, compress_full;
 extern string runname, output_dir;
 extern bool force_delete;
-// the model
-extern ModelPtr model;
-extern string model_name;
 extern vector<string> ext_str;
 
 void WriteFrame(unsigned t)
@@ -53,7 +51,7 @@ void WriteFrame(unsigned t)
     {
       oarchive ar(buffer, "frame", 1);
       // serialize
-      model.ptr->serialize_frame(ar);
+      SerializeFrame(ar);
 
       if(ar.bad_value()) throw error_msg("nan found while writing file.");
     }
@@ -95,10 +93,9 @@ void WriteParams()
          & auto_name(nsteps)
          & auto_name(nsubsteps)
          & auto_name(ninfo)
-         & auto_name(nstart)
-         & auto_name(model_name);
+         & auto_name(nstart);
       // ...and model parameters
-      model.ptr->serialize_params(ar);
+      SerializeParameters(ar);
 
       if(ar.bad_value()) throw error_msg("nan found while writing file.");
     }

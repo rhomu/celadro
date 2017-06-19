@@ -32,7 +32,6 @@
 #include <random>
 #include <map>
 #include <vector>
-#include <cmath>
 #include <complex>
 #include <array>
 #include <functional>
@@ -40,7 +39,9 @@
 #include <type_traits>
 #include <boost/program_options.hpp>
 #include <chrono>
+
 #include "error_msg.hpp"
+#include "threads.hpp"
 
 // =============================================================================
 // Constants

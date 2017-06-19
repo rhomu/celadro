@@ -48,6 +48,8 @@
  * The walls are implemented as if they were another cell... more to come here.
  */
 
+#include "serialization.hpp"
+
 // =============================================================================
 // Declarations
 
@@ -98,7 +100,7 @@ void Initialize();
 void Step();
 void Configure();
 void Pre();
-void Post() {};
+void Post();
 void PreRunStats();
 void RuntimeChecks();
 void RuntimeStats();
@@ -163,53 +165,10 @@ void ComputeShape(unsigned);
 /** Update the window for tracking */
 void UpdateWindow(unsigned);
 
-#if 0
-/** Serialization of parameters */
-template<class Archive>
-void serialize_params(Archive& ar)
-{
-  ar & auto_name(gamma)
-     & auto_name(mu)
-     & auto_name(nphases)
-     & auto_name(lambda)
-     & auto_name(kappa)
-     & auto_name(alpha)
-     & auto_name(R)
-     & auto_name(xi)
-     & auto_name(omega)
-     & auto_name(init_config)
-     & auto_name(zeta)
-     & auto_name(D)
-     & auto_name(J)
-     & auto_name(f)
-     & auto_name(f_walls)
-     & auto_name(wall_thickness)
-     & auto_name(wall_kappa)
-     & auto_name(wall_omega)
-     & auto_name(walls);
+/** Serialize frame (output) */
+void SerializeFrame(oarchive&);
 
-  ar & auto_name(tracking)
-     & auto_name(margin);
-}
-
-/** Serialization of the current frame */
-template<class Archive>
-void serialize_frame(Archive& ar)
-{
-  ar & auto_name(phi)
-     & auto_name(area)
-     & auto_name(com)
-     & auto_name(S_order)
-     & auto_name(S_angle)
-     & auto_name(pol)
-     & auto_name(velp)
-     & auto_name(velf)
-     & auto_name(velc)
-     & auto_name(vel);
-  if(tracking) ar
-     & auto_name(domain_min)
-     & auto_name(domain_max);
-}
-#endif
+/** Serialize frame (input) (TBI)*/
+void SerializeFrame(iarchive&);
 
 #endif//MODELS_PHASES_HPP_

@@ -18,10 +18,11 @@
 #ifndef THREADS_HPP_
 #define THREADS_HPP_
 
-#ifdef WITHOUT_OMP
-  #define PRAGMA_OMP(omp_cmd) 
+#if defined(_OPENMP)
+  #define PRAGMA(x) _Pragma(#x)
+  #define PRAGMA_OMP(x) PRAGMA("omp " #x)
 #else
-  #define PRAGMA_OMP(omp_cmd) _Pragma("omp " #omp_cmd)
+  #define PRAGMA_OMP(cmd) {}
 #endif
 
 void SetThreads();
