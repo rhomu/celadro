@@ -32,6 +32,7 @@
 #include <random>
 #include <map>
 #include <vector>
+#include <cmath>
 #include <complex>
 #include <array>
 #include <functional>

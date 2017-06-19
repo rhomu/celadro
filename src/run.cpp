@@ -90,12 +90,6 @@ std::vector<std::complex<double>> com_y;
 std::vector<std::complex<double>> com_x_table, com_y_table;
 /** Needa store? (yes this is dirty) */
 bool store;
-/** Boudaries for cell generation
- *
- * These are the boundaries (min and max x and y components) of the domain in
- * which the cells are created when the initial config 'random' is choosen.
- * */
-std::vector<unsigned> birth_bdries;
 /** Pre-computed coefficients */
 double C1, C2, C3;
 /** @} */

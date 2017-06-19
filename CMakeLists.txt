@@ -15,6 +15,7 @@
 
 cmake_minimum_required(VERSION 3.0)
 project(celadro)
+set(CMAKE_CXX_STANDARD 14)
 
 ################################################################################
 # directories
@@ -29,13 +30,10 @@ add_subdirectory(src)
 ################################################################################
 
 # use all files in src/
-file(GLOB_RECURSE sources      src/*.cpp src/*.hpp)
+file(GLOB_RECURSE sources src/*.cpp src/*.hpp)
 
 # main executable
 add_executable (celadro ${sources})
-target_compile_features(celadro PRIVATE cxx_range_for
-                                        cxx_constexpr
-                                        cxx_variadic_templates)
 
 ################################################################################
 # dependencies

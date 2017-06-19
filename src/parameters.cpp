@@ -16,8 +16,7 @@
  */
 
 #include "header.hpp"
-#include "models.hpp"
-#include "options.hpp"
+#include "parameters.hpp"
 #include "tools.hpp"
 #include "error_msg.hpp"
 #include "random.hpp"
@@ -36,9 +35,9 @@ unsigned verbose = 2;
 /** compress output? (we use zip) */
 bool compress, compress_full;
 /** name of the run */
-string runname;
+std::string runname;
 /** Output dir (or tmp dir before moving files to the archive) */
-string output_dir;
+std::string output_dir;
 /** write any output? */
 bool no_write = false;
 /** skip runtime warnings? */
@@ -48,7 +47,7 @@ bool stop_at_warning = false;
 /** padding for onscreen output */
 unsigned pad;
 /** name of the inpute file */
-string inputname = "";
+std::string inputname = "";
 /** Switches */
 bool force_delete;
 /** The random number seed */
@@ -106,6 +105,13 @@ bool division = false;
 double division_rate = 0.;
 /** Relaxation time for division */
 unsigned division_relax_time = 100;
+/** Boudaries for cell generation
+ *
+ * These are the boundaries (min and max x and y components) of the domain in
+ * which the cells are created when the initial config 'random' is choosen.
+ * */
+std::vector<unsigned> birth_bdries;
+
 /** @} */
 
 
