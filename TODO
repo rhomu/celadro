@@ -1,0 +1,4 @@
+* Rm and filesystem from C++
+* zip from cmake?
+* Create back object to hold all variables and separate functions into
+  different files (model.hpp, init.cpp, run.cpp, stats.cpp, etc).
