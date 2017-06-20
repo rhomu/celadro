@@ -301,12 +301,11 @@ void ParseProgramOptions(int ac, char **av)
   // reintialize vm in case we run this function twice
   vm = opt::variables_map();
 
-  // parse first the cmd line (no throw)
+  // parse first the cmd line
   opt::store(
     opt::command_line_parser(ac, av)
     .options(cmdline_options)
     .positional(p)
-    .allow_unregistered()
     .run(), vm);
   opt::notify(vm);
 
