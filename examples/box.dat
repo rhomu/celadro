@@ -6,7 +6,7 @@
 config    = random
 nsteps    = 10000
 ninfo     = 10
-LX        = 200
+LX        = 50
 LY        = 50
 nsubsteps = 20
 bc        = 1

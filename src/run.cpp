@@ -100,7 +100,7 @@ double C1, C2, C3;
 unsigned Size;
 /** @} */
 
-// from parameters.cpp
+// externals
 extern double time_step, lambda, R, c0, tracking, noise, zeta, beta, alpha;
 extern double division_rate, kappa, omega, f, f_walls, xi, J, D;
 extern double wall_thickness, wall_omega, wall_kappa;
@@ -209,9 +209,9 @@ void Initialize()
 
   // compute tables
   for(unsigned i=0; i<LX; ++i)
-    com_x_table.push_back(complex<double>(0., sin(-Pi+2.*Pi*i/LX)));
+    com_x_table.push_back({ cos(-Pi+2.*Pi*i/LX), sin(-Pi+2.*Pi*i/LX) });
   for(unsigned i=0; i<LY; ++i)
-    com_y_table.push_back(complex<double>(0., sin(-Pi+2.*Pi*i/LY)));
+    com_y_table.push_back({ cos(-Pi+2.*Pi*i/LY), sin(-Pi+2.*Pi*i/LY) });
 
   // compute list of neighbours
   for(unsigned k=0; k<Size; ++k)
@@ -407,7 +407,7 @@ void Configure()
 
     for(unsigned n=0; n<nphases; ++n)
       AddCell(n, {unsigned(LX/2+radius*(cos(n*theta)+noise*random_real())),
-                   unsigned(LY/2+radius*(sin(n*theta)+noise*random_real())) });
+                  unsigned(LY/2+radius*(sin(n*theta)+noise*random_real())) });
   }
   // ===========================================================================
   // single cell in the middle
@@ -786,6 +786,7 @@ inline void ReinitSquareAndSumAtNode(unsigned k)
   Py[k]     = 0;
 }
 
+/*
 void Divide(unsigned n)
 {
   // work in progress
@@ -824,7 +825,7 @@ void Divide(unsigned n)
       phi[m][k] = .5*(1.-tanh(-d/l))*p;
     }
   }
-}
+}*/
 
 void Update()
 {
@@ -918,8 +919,8 @@ void Step()
     Update();
 
   // division
-  const auto m = nphases; // this is needed because we might increment nphases
-  for(unsigned n=0; n<m; ++n) Divide(n);
+  //const auto m = nphases; // this is needed because we might increment nphases
+  //for(unsigned n=0; n<m; ++n) Divide(n);
 
   // compute center-of-mass velocity
   PRAGMA_OMP(omp parallel for num_threads(nthreads) if(nthreads))

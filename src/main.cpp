@@ -32,7 +32,6 @@ chrono::duration<double> write_duration;
 
 /** pure eyecandy */
 string title = R"(
-
                    ______     __          __
                   / ____/__  / /___ _____/ /________
                  / /   / _ \/ / __ `/ __  / ___/ __ \

@@ -2,8 +2,7 @@
 # This is an example runcard.
 #
 
-# model and initial configuration
-model     = phases
+# initial configuration
 config    = random
 nsteps    = 10000
 ninfo     = 10
