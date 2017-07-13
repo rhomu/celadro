@@ -16,490 +16,17 @@
  */
 
 #include "header.hpp"
-#include "run.hpp"
+#include "model.hpp"
 #include "random.hpp"
 #include "derivatives.hpp"
 #include "tools.hpp"
 
-/** Simulation variables
- * @{ */
-
-/** Phases */
-std::vector<std::vector<double>> phi;
-/** Predicted phi in a PC^n step */
-std::vector<std::vector<double>> phi_old;
-/** V = delta F / delta phi */
-std::vector<std::vector<double>> V;
-/** Potential: -V/2 - adv. term */
-std::vector<std::vector<double>> potential;
-/** Predicted potential in a P(C)^n step */
-std::vector<std::vector<double>> potential_old;
-/** Neighbours list */
-std::vector<std::array<double, 9>> neighbours;
-/** Active velocity angle */
-std::vector<double> theta;
-/** Area associated with a phase field */
-std::vector<double> area;
-/** Counter for computing the area */
-std::vector<double> area_cnt;
-/** Sum of phi at each node */
-std::vector<double> sum, sum_cnt;
-/** Sum of square phi at each node */
-std::vector<double> square, square_cnt;
-/** Phase-field for the walls */
-std::vector<double> walls, walls_dx, walls_dy, walls_laplace;
-/** Cell polarity */
-std::vector<std::array<double, 2>> pol;
-/** Passive velocities */
-std::vector<std::array<double, 2>> velp;
-/** Contraction velocities */
-std::vector<std::array<double, 2>> velc;
-/** Friction velocities */
-std::vector<std::array<double, 2>> velf;
-/** Total com velocity */
-std::vector<std::array<double, 2>> vel;
-/** Center-of-mass */
-std::vector<std::array<double, 2>> com, com_prev;
-/** Overall polarization of the tissue */
-std::vector<double> Px, Py, Px_cnt, Py_cnt;
-/** Contractility */
-std::vector<double> c;
-/** Shape parameter: order */
-std::vector<double> S_order;
-/** Shape parameter: angle */
-std::vector<double> S_angle;
-/** Structure tensor */
-std::vector<double> S00, S01;
-/** Polarity tensor */
-std::vector<double> Q00, Q01;
-std::vector<double> Theta;
-std::vector<double> Theta_cnt;
-/** Counters for polarity tensor */
-std::vector<double> Q00_cnt, Q01_cnt;
-/** Internal pressure */
-std::vector<double> P, P_cnt;
-/** Min of the boundaries of the domains and center of mass */
-std::vector<std::array<unsigned, 2>> domain_min;
-/** Max of the boundaries of the domains and center of mass */
-std::vector<std::array<unsigned, 2>> domain_max;
-/** Counter to compute com in Fourier space */
-std::vector<std::complex<double>> com_x;
-/** Counter to compute com in Fourier space */
-std::vector<std::complex<double>> com_y;
-/** Precomputed tables for sin and cos (as complex numbers) used in the
- * computation of the com.
- * */
-std::vector<std::complex<double>> com_x_table, com_y_table;
-/** Needa store? (yes this is dirty) */
-bool store;
-/** Division flag */
-bool division = false;
-/** Pre-computed coefficients */
-double C1, C2, C3;
-/* Total size of the domain */
-unsigned Size;
-/** @} */
-
-// externals
-extern double time_step, lambda, R, c0, tracking, noise, zeta, beta, alpha;
-extern double division_rate, kappa, omega, f, f_walls, xi, J, D;
-extern double wall_thickness, wall_omega, wall_kappa;
-extern unsigned nsubsteps, verbose, margin, nphases, LX, LY, relax_time;
-extern unsigned division_relax_time, BC, relax_nsubsteps, npc, nthreads;
-extern bool no_warning, stop_at_warning;
-extern std::string init_config;
-extern std::vector<double> gam, mu;
-extern std::vector<unsigned> birth_bdries;
-
 using namespace std;
 
-// =============================================================================
-// Helper functions
+/** Needa store? (yes this is against my will) */
+bool store;
 
-/** Get the domain x position of a node from its absolute index */
-unsigned GetXPosition(unsigned k)
-{ return k/LY; }
-/** Get the domain y position of a node from its absolute index */
-unsigned GetYPosition(unsigned k)
-{ return k%LY; }
-
-unsigned GetDomainIndex(unsigned x, unsigned y)
-{ return y + LY*x; }
-
-/** Coordinate (x, y) of neighbours / directions */
-constexpr static std::array<int, 2> directions[] = {
-  { 0, 0},
-  { 1, 0},
-  {-1, 0},
-  { 0, 1},
-  { 0,-1},
-  { 1, 1},
-  {-1,-1},
-  {-1, 1},
-  { 1,-1}
-};
-
-// =============================================================================
-// Implementation
-
-void InitializeFields()
-{
-  phi.resize(nphases, vector<double>(Size, 0.));
-  phi_old.resize(nphases, vector<double>(Size, 0.));
-  V.resize(nphases, vector<double>(Size, 0.));
-  potential.resize(nphases, vector<double>(Size, 0.));
-  potential_old.resize(nphases, vector<double>(Size, 0.));
-  area.resize(nphases, 0.);
-  area_cnt.resize(nphases, 0.);
-  domain_min.resize(nphases, {0, 0});
-  domain_max.resize(nphases, {LX, LY});
-  com.resize(nphases, {0., 0.});
-  com_prev.resize(nphases, {0., 0.});
-  pol.resize(nphases, {0., 0.});
-  velp.resize(nphases, {0., 0.});
-  velc.resize(nphases, {0., 0.});
-  velf.resize(nphases, {0., 0.});
-  vel.resize(nphases, {0., 0.});
-  com_x.resize(nphases, 0.);
-  com_y.resize(nphases, 0.);
-  c.resize(nphases, 0);
-  S00.resize(nphases, 0.);
-  S01.resize(nphases, 0.);
-  S_order.resize(nphases, 0.);
-  S_angle.resize(nphases, 0.);
-  theta.resize(nphases, 0.);
-}
-
-void Initialize()
-{
-  Size = LX*LY;
-
-  // initialize memory
-  walls.resize(Size, 0.);
-  walls_dx.resize(Size, 0.);
-  walls_dy.resize(Size, 0.);
-  walls_laplace.resize(Size, 0.);
-  sum.resize(Size, 0.);
-  sum_cnt.resize(Size, 0.);
-  square.resize(Size, 0.);
-  square_cnt.resize(Size, 0.);
-  Px.resize(Size, 0.);
-  Py.resize(Size, 0.);
-  Theta.resize(Size, 0.);
-  Q00.resize(Size, 0.);
-  Q01.resize(Size, 0.);
-  Px_cnt.resize(Size, 0.);
-  Py_cnt.resize(Size, 0.);
-  Theta_cnt.resize(Size, 0.);
-  Q00_cnt.resize(Size, 0.);
-  Q01_cnt.resize(Size, 0.);
-  P.resize(Size, 0.);
-  P_cnt.resize(Size, 0.);
-  neighbours.resize(Size);
-  InitializeFields();
-
-  // pre-compute coefficients
-  C1 = 60./lambda/lambda;
-  C2 = Pi*R*R;
-  C3 = C1/lambda/lambda;
-
-  // extend the parameters with the last given value
-  gam.resize(nphases, gam.back());
-  mu.resize(nphases, mu.back());
-
-  // compute tables
-  for(unsigned i=0; i<LX; ++i)
-    com_x_table.push_back({ cos(-Pi+2.*Pi*i/LX), sin(-Pi+2.*Pi*i/LX) });
-  for(unsigned i=0; i<LY; ++i)
-    com_y_table.push_back({ cos(-Pi+2.*Pi*i/LY), sin(-Pi+2.*Pi*i/LY) });
-
-  // compute list of neighbours
-  for(unsigned k=0; k<Size; ++k)
-  {
-    const long int x = GetXPosition(k);
-    const long int y = GetYPosition(k);
-    for(size_t v=0; v<9; ++v)
-       neighbours[k][v] = GetDomainIndex(modu(x + directions[v][0], LX),
-                                         modu(y + directions[v][1], LY));
-  }
-
-  // check birth boundaries
-  if(birth_bdries.size()==0)
-    birth_bdries = {0, LX, 0, LY};
-  else if(birth_bdries.size()!=4)
-    throw error_msg("Birth boundaries have wrong format, see help.");
-
-  // set flags
-  division = (division_rate!=0.);
-}
-
-void AddCell(unsigned n, const array<unsigned, 2>& center)
-{
-  // we create smaller cells that will then relax
-  // this improves greatly the stability at the first steps
-  const auto radius = max(R/2., 4.);
-
-  // create the cells at the centers we just computed
-  PRAGMA_OMP(omp parallel for num_threads(nthreads) if(nthreads))
-  for(unsigned k=0; k<Size; ++k)
-  {
-    const unsigned xk = GetXPosition(k);
-    const unsigned yk = GetYPosition(k);
-
-    // round shape (do not wrap if no PBC)
-    if(
-        (BC==0 and pow(wrap(diff(yk, center[1]), LY), 2)
-         + pow(wrap(diff(xk, center[0]), LX), 2)<=ceil(radius*radius))
-        or
-        (BC>=1 and pow(diff(yk, center[1]), 2)
-         + pow(diff(xk, center[0]), 2)<=ceil(radius*radius))
-      )
-    {
-      phi[n][k]     = 1.;
-      phi_old[n][k] = 1.;
-      area[n]      += 1.;
-      square[k]    += 1.;
-      sum[k]       += 1.;
-    }
-    else
-    {
-      phi[n][k]     = 0.;
-      phi_old[n][k] = 0.;
-    }
-  }
-
-  c[n]     = c0;
-  theta[n] = 2.*Pi*random_real();
-
-  if(tracking)
-  {
-    domain_min[n][0] = (center[0]+LX-margin)%LX;
-    domain_max[n][0] = (center[0]+margin)%LX;
-    domain_min[n][1] = (center[1]+LY-margin)%LY;
-    domain_max[n][1] = (center[1]+margin)%LY;
-  }
-  else
-  {
-    domain_min[n][0] = 0u;
-    domain_max[n][0] = LX;
-    domain_min[n][1] = 0u;
-    domain_max[n][1] = LY;
-  }
-}
-
-void Configure()
-{
-  // ===========================================================================
-  // adding cells at random while trying to keep their center non overlapping
-  if(init_config=="random" and BC==0)
-  {
-    // target radius for spacing between cells
-    unsigned radius = sqrt(double(Size/nphases)/Pi);
-    // list of all centers
-    vector<array<unsigned, 2>> centers;
-
-    for(unsigned n=0; n<nphases; ++n)
-    {
-      // generate new center while trying to keep safe distance
-      while(true)
-      {
-        const array<unsigned, 2> center = {
-          static_cast<unsigned>(birth_bdries[0]
-              +random_real()*(birth_bdries[1]-birth_bdries[0])),
-          static_cast<unsigned>(birth_bdries[2]
-              +random_real()*(birth_bdries[3]-birth_bdries[2]))
-        };
-
-        bool is_overlapping = false;
-        for(const auto& c : centers)
-        {
-          if(pow(wrap(diff(center[0], c[0]), LX), 2)
-              + pow(wrap(diff(center[1], c[1]), LY), 2) < 0.9*radius*radius)
-          {
-            is_overlapping = true;
-            break;
-          }
-        }
-
-        if(!is_overlapping)
-        {
-          centers.emplace_back(center);
-          break;
-        }
-      }
-
-      // add cell
-      AddCell(n, centers.back());
-    }
-  }
-  // ===========================================================================
-  // same but with walls: we need to be careful not to create cells on the wall
-  else if(init_config=="random" and BC>=1)
-  {
-    // target radius for spacing between cells
-    unsigned radius = sqrt(double(Size/nphases)/Pi);
-    // list of all centers
-    vector<array<unsigned, 2>> centers;
-
-    for(unsigned n=0; n<nphases; ++n)
-    {
-      // generate new center while trying to keep safe distance
-      while(true)
-      {
-        const array<unsigned, 2> center = {
-          static_cast<unsigned>(birth_bdries[0]
-              +random_real()*(birth_bdries[1]-birth_bdries[0])),
-          static_cast<unsigned>(birth_bdries[2]
-              +random_real()*(birth_bdries[3]-birth_bdries[2]))
-        };
-
-        // detect walls
-        // ... box only
-        if(BC==1)
-          if(center[0]<0.9*R or LX-center[0]<0.9*R) continue;
-        // ... box and channel
-        if(BC==1 or BC==2)
-          if(center[1]<0.9*R or LY-center[1]<0.9*R) continue;
-        // ... ellipse
-        if(BC==3)
-        {
-          // compute distance from the elliptic wall
-          // ... angle of the current point (from center of the domain)
-          const auto theta = atan2(LY/2.-center[1], LX/2.-center[0]);
-          // ... small helper function to compute radius
-          auto rad = [](auto x, auto y) { return sqrt(x*x + y*y); };
-          // ... distance is the difference between wall and current point
-          const auto d = rad(LX/2.*cos(theta), LY/2.*sin(theta))
-                        -rad(LX/2.-center[0], LY/2.-center[1]);
-
-          if(d<0.9*R) continue;
-        }
-
-        // overlapp between cells
-        bool is_overlapping = false;
-        for(const auto& c : centers)
-        {
-          if(pow(wrap(diff(center[0], c[0]), LX), 2)
-              + pow(wrap(diff(center[1], c[1]), LY), 2) < 0.9*radius*radius)
-          {
-            is_overlapping = true;
-            break;
-          }
-        }
-
-        if(!is_overlapping)
-        {
-          centers.emplace_back(center);
-          break;
-        }
-      }
-
-      // add cell
-      AddCell(n, centers.back());
-    }
-  }
-  // ===========================================================================
-  // cluster of close cells in the center
-  else if(init_config=="cluster")
-  {
-    const double theta  = 2*Pi/nphases;
-    const double radius = R + nphases - 2;
-
-    for(unsigned n=0; n<nphases; ++n)
-      AddCell(n, {unsigned(LX/2+radius*(cos(n*theta)+noise*random_real())),
-                  unsigned(LY/2+radius*(sin(n*theta)+noise*random_real())) });
-  }
-  // ===========================================================================
-  // single cell in the middle
-  else if(init_config=="single")
-  {
-    if(nphases!=1)
-      throw error_msg("error: initial conditions require "
-                      "nphases=1.");
-
-    AddCell(0, {LX/2, LY/2});
-  }
-  else throw error_msg("error: initial configuration '",
-      init_config, "' unknown.");
-
-  // ===========================================================================
-  // Initialize the walls
-  ConfigureWalls();
-}
-
-void ConfigureWalls()
-{
-  switch(BC)
-  {
-  case 0:
-    // no walls (pbc)
-    for(unsigned k=0; k<Size; ++k)
-      walls[k] = 0;
-    break;
-  case 1:
-    // Exponentially falling phase-field:
-    for(unsigned k=0; k<Size; ++k)
-    {
-      const double x = GetXPosition(k);
-      const double y = GetYPosition(k);
-
-      // this is the easiest way: each wall contributes as an exponentially
-      // falling potential and we do not care about overalps
-      walls[k] =   exp(-y/wall_thickness)
-                 + exp(-x/wall_thickness)
-                 + exp(-(LX-1-x)/wall_thickness)
-                 + exp(-(LY-1-y)/wall_thickness);
-    }
-    break;
-  // Same as above but channel.
-  case 2:
-    for(unsigned k=0; k<Size; ++k)
-    {
-      const auto y = GetYPosition(k);
-
-      // exponentially falling on both sides
-      walls[k] = exp(-double(y)/wall_thickness)
-        + exp(-double(LY-y-1)/wall_thickness);
-    }
-    break;
-  // ellipse!
-  case 3:
-    for(unsigned k=0; k<Size; ++k)
-    {
-      const auto x = GetXPosition(k);
-      const auto y = GetYPosition(k);
-
-      // compute distance from the elliptic wall
-      // ... angle of the current point (from center of the domain)
-      const auto theta = atan2(LY/2.-y, LX/2.-x);
-      // ... small helper function to compute radius
-      const auto rad = [](auto x, auto y) { return sqrt(x*x + y*y); };
-      // ... distance is the difference between wall and current point
-      const auto d = rad(LX/2.*cos(theta), LY/2.*sin(theta))
-                    -rad(LX/2.-x, LY/2.-y);
-      // set the wall
-      if(d<0)
-        walls[k] = 1.;
-      else
-        walls[k] = exp(-d/wall_thickness);
-    }
-    break;
-  default:
-    throw error_msg("boundary condition unknown.");
-  }
-
-  // pre-compute derivatives
-  for(unsigned k=0; k<Size; ++k)
-  {
-    const auto& d  = neighbours[k];
-
-    walls_dx[k] = derivX(walls, d, 1/12.);
-    walls_dy[k] = derivY(walls, d, 1/12.);
-    walls_laplace[k] = laplacian(walls, d, 1/12.);
-  }
-}
-
-void Pre()
+void Model::Pre()
 {
   // we make the system relax (without activity)
   if(relax_time>0)
@@ -524,10 +51,10 @@ void Pre()
   }
 }
 
-void Post()
+void Model::Post()
 {}
 
-void PreRunStats()
+void Model::PreRunStats()
 {
   // packing fraction
   {
@@ -541,12 +68,12 @@ void PreRunStats()
   }
 }
 
-void RuntimeStats()
+void Model::RuntimeStats()
 {
   // TBD
 }
 
-void RuntimeChecks()
+void Model::RuntimeChecks()
 {
   // check that the area is more or less conserved (15%)
   for(const auto a : area)
@@ -571,22 +98,23 @@ void RuntimeChecks()
   }
 }
 
-inline void UpdateFieldsAtNode(unsigned n, unsigned k)
+void Model::UpdateFieldsAtNode(unsigned n, unsigned k)
 {
-  const auto& d  = neighbours[k];
+  const auto& s = neighbors[k];
+
   // cell properties
   const auto& p  = phi[n][k];
-  const auto  l  = laplacian(phi[n], d, 1/12.);
-  const auto  dx = derivX(phi[n], d, 1/12.);
-  const auto  dy = derivY(phi[n], d, 1/12.);
+  const auto  l  = laplacian(phi[n], s);
+  const auto  dx = derivX(phi[n], s);
+  const auto  dy = derivY(phi[n], s);
   // all-cells properties
-  const auto  ls   = laplacian(sum, d, 1/12.);
-  const auto  dxs  = derivX(sum, d, 1/12.);
-  const auto  dys  = derivY(sum, d, 1/12.);
-  const auto  dxp0 = derivX(Px, d, 1/12.);
-  const auto  dyp0 = derivY(Px, d, 1/12.);
-  const auto  dxp1 = derivX(Py, d, 1/12.);
-  const auto  dyp1 = derivY(Py, d, 1/12.);
+  const auto  ls   = laplacian(sum, s);
+  const auto  dxs  = derivX(sum, s);
+  const auto  dys  = derivY(sum, s);
+  const auto  dxp0 = derivX(Px, s);
+  const auto  dyp0 = derivY(Px, s);
+  const auto  dxp1 = derivX(Py, s);
+  const auto  dyp1 = derivY(Py, s);
 
   const auto  lw = walls_laplace[k];
   const auto dxw = walls_dx[k];
@@ -628,31 +156,32 @@ inline void UpdateFieldsAtNode(unsigned n, unsigned k)
   // which one is the best
   //
   // alignment torque (orientational)
-  //const auto dxQ00 = derivX(Q00, d, 1/12.);
-  //const auto dxQ01 = derivX(Q01, d, 1/12.);
-  //const auto dyQ00 = derivY(Q00, d, 1/12.);
-  //const auto dyQ01 = derivY(Q01, d, 1/12.);
+  //const auto dxQ00 = derivX(Q00, s);
+  //const auto dxQ01 = derivX(Q01, s);
+  //const auto dyQ00 = derivY(Q00, s);
+  //const auto dyQ01 = derivY(Q01, s);
   //torque[n] += - 4*J1*(Q00[n]*(dx*dxQ01+dy*dyQ01)-Q01[n]*(dx*dxQ00+dy*dyQ00));
   //
   // alignment torque (directional)
-  //const auto  dxt  = derivX(Theta, d, 1/12.);
-  //const auto  dyt  = derivY(Theta, d, 1/12.);
+  //const auto  dxt  = derivX(Theta, s);
+  //const auto  dyt  = derivY(Theta, s);
   //torque[n] -= J1*(dx*dxt+dy*dyt - theta[n]*(dx*dxs+dy*dys));
   //
   // alignment torque (shear stress)
   //torque[n] -= J1*zeta*(2*Q00[n]*dx*dy + Q01[n]*(dx*dx-dy*dy));
 }
 
-inline void UpdateAtNode(unsigned n, unsigned k)
+void Model::UpdateAtNode(unsigned n, unsigned k)
 {
   // compute potential
   {
-    const auto& d  = neighbours[k];
+    const auto& s = neighbors[k];
+
     const auto  p  = phi[n][k];
     const auto  a  = area[n];
-    const auto  dx = derivX(phi[n], d, 1/12.);
-    const auto  dz = derivY(phi[n], d, 1/12.);
-    const auto  l  = laplacian(phi[n], d, 1/12.);
+    const auto  dx = derivX(phi[n], s);
+    const auto  dz = derivY(phi[n], s);
+    const auto  l  = laplacian(phi[n], s);
 
     potential[n][k] = (
       // free energy term
@@ -688,7 +217,7 @@ inline void UpdateAtNode(unsigned n, unsigned k)
   }
 }
 
-void UpdatePolarization(unsigned n)
+void Model::UpdatePolarization(unsigned n)
 {
   // Polarization...
   array<double, 2> v = {
@@ -716,7 +245,7 @@ void UpdatePolarization(unsigned n)
   //c[n]  -= time_step*(c[n]-beta*c0*area_cnt[n]/C2)/tauc;
 }
 
-void ComputeCoM(unsigned n)
+void Model::ComputeCoM(unsigned n)
 {
   // the strategy to deal with the periodic boundary conditions is to compute
   // all the integrals in Fourier space and come back at the end. This way the
@@ -726,7 +255,7 @@ void ComputeCoM(unsigned n)
   com[n] = { mx/2./Pi*LX, my/2./Pi*LY };
 }
 
-void UpdateWindow(unsigned n)
+void Model::UpdateWindow(unsigned n)
 {
   // update walls
   domain_min[n][0] = (static_cast<unsigned>(round(com[n][0])) + LX - margin)%LX;
@@ -735,17 +264,18 @@ void UpdateWindow(unsigned n)
   domain_max[n][1] = (static_cast<unsigned>(round(com[n][1])) + margin)%LY;
 }
 
-inline void UpdateStructureTensorAtNode(unsigned n, unsigned k)
+void Model::UpdateStructureTensorAtNode(unsigned n, unsigned k)
 {
-  const auto& d  = neighbours[k];
+  const auto& s = neighbors[k];
+
   const auto  p  = phi[n][k];
-  const auto  dx = 2*p*derivX(phi[n], d, 1/12.);
-  const auto  dy = 2*p*derivY(phi[n], d, 1/12.);
+  const auto  dx = 2*p*derivX(phi[n], s);
+  const auto  dy = 2*p*derivY(phi[n], s);
   S00[n] += 0.5*(dx*dx-dy*dy);
   S01[n] += dx*dy;
 }
 
-void ComputeShape(unsigned n)
+void Model::ComputeShape(unsigned n)
 {
   // shape: we remap the 2x2 traceless symmetric matrix to polar coord for ease
   // of manipulation
@@ -753,7 +283,7 @@ void ComputeShape(unsigned n)
   S_angle[n] = atan2(S01[n], S00[n])/2.;
 }
 
-inline void SquareAndSumAtNode(unsigned n, unsigned k)
+void Model::SquareAndSumAtNode(unsigned n, unsigned k)
 {
   const auto p = phi[n][k];
 
@@ -773,7 +303,7 @@ inline void SquareAndSumAtNode(unsigned n, unsigned k)
   //Q00_cnt[k] += p*p*(-c[n]-zeta*S_order[n]*cos(2*S_angle[n]));
 }
 
-inline void ReinitSquareAndSumAtNode(unsigned k)
+inline void Model::ReinitSquareAndSumAtNode(unsigned k)
 {
   // reinit values
   sum[k]    = 0;
@@ -827,7 +357,7 @@ void Divide(unsigned n)
   }
 }*/
 
-void Update()
+void Model::Update()
 {
   // 1) Compute induced force and passive velocity
   //
@@ -845,7 +375,7 @@ void Update()
     //torque[n] = 0.;
 
     // update in restricted domain only
-    UpdateDomain(&UpdateFieldsAtNode, n);
+    UpdateDomain(&Model::UpdateFieldsAtNode, n);
   }
 
   // 2) Predictor-corrector function for updating the phase fields
@@ -858,7 +388,7 @@ void Update()
   for(unsigned n=0; n<nphases; ++n)
   {
     // only update fields in the restricted domain of field n
-    UpdateDomain(&UpdateAtNode, n);
+    UpdateDomain(&Model::UpdateAtNode, n);
     // because the polarisation dynamics is first
     // order (euler-maruyama) we need to update only
     // once per predictor-corrector step
@@ -868,7 +398,7 @@ void Update()
     // update domain walls
     if(tracking) UpdateWindow(n);
     // update structure tensor
-    UpdateDomain(&UpdateStructureTensorAtNode, n);
+    UpdateDomain(&Model::UpdateStructureTensorAtNode, n);
     // and get shape
     ComputeShape(n);
 
@@ -886,7 +416,7 @@ void Update()
 
   for(unsigned n=0; n<nphases; ++n)
     // update only domain (in parallel, each node to a different core)
-    UpdateDomainP(&SquareAndSumAtNode, n);
+    UpdateDomainP(&Model::SquareAndSumAtNode, n);
 
   // 4) Reinit counters and swap to get correct values
   //
@@ -907,7 +437,7 @@ void Update()
   swap(area, area_cnt);
 }
 
-void Step()
+void Model::Step()
 {
   // first sweeps produces estimate of values
   store = true; // ok this is really bad :-(
@@ -936,7 +466,7 @@ void Step()
 // Helper functions
 
 template<typename Ret, typename ...Args>
-void UpdateSubDomain(Ret (*fun)(unsigned, unsigned, Args...),
+void Model::UpdateSubDomain(Ret (Model::*fun)(unsigned, unsigned, Args...),
                                 unsigned n,
                                 unsigned m0, unsigned m1,
                                 unsigned M0, unsigned M1,
@@ -947,12 +477,12 @@ void UpdateSubDomain(Ret (*fun)(unsigned, unsigned, Args...),
     for(unsigned j=m1; j<M1; ++j)
       // if you want to look it up, this is called a pointer
       // to member function and is an obscure C++ feature...
-      (*fun)(n, GetDomainIndex(i, j),
+      (this->*fun)(n, GetDomainIndex(i, j),
                 std::forward<Args>(args)...);
 }
 
 template<typename Ret, typename ...Args>
-void UpdateSubDomainP(Ret (*fun)(unsigned, unsigned, Args...),
+void Model::UpdateSubDomainP(Ret (Model::*fun)(unsigned, unsigned, Args...),
                                  unsigned n,
                                  unsigned m0, unsigned m1,
                                  unsigned M0, unsigned M1,
@@ -963,12 +493,12 @@ void UpdateSubDomainP(Ret (*fun)(unsigned, unsigned, Args...),
   for(unsigned k=0; k<(M0-m0)*(M1-m1); ++k)
       // if you want to look it up, this is called a pointer
       // to member function and is an obscure C++ feature...
-      (*fun)(n, GetDomainIndex(m0+k%(M0-m0), m1+k/(M0-m0)),
+      (this->*fun)(n, GetDomainIndex(m0+k%(M0-m0), m1+k/(M0-m0)),
                 std::forward<Args>(args)...);
 }
 
 template<typename Ret, typename ...Args>
-void UpdateDomainP(Ret (*fun)(unsigned, unsigned, Args...),
+void Model::UpdateDomainP(Ret (Model::*fun)(unsigned, unsigned, Args...),
                               unsigned n, Args&&... args)
 {
   if(domain_min[n][0]>=domain_max[n][0] and
@@ -998,7 +528,7 @@ void UpdateDomainP(Ret (*fun)(unsigned, unsigned, Args...),
 }
 
 template<typename Ret, typename ...Args>
-void UpdateDomain(Ret (*fun)(unsigned, unsigned, Args...),
+void Model::UpdateDomain(Ret (Model::*fun)(unsigned, unsigned, Args...),
                              unsigned n, Args&&... args)
 {
   if(domain_min[n][0]>=domain_max[n][0] and
@@ -1026,28 +556,3 @@ void UpdateDomain(Ret (*fun)(unsigned, unsigned, Args...),
     // domain is in the middle
     UpdateSubDomain(fun, n, domain_min[n][0], domain_min[n][1], domain_max[n][0], domain_max[n][1]);
 }
-
-// =============================================================================
-// serialization
-
-/** Serialization of parameters (in and out)*/
-template<class Archive>
-void SerializeFrame_impl(Archive& ar)
-{
-    ar & auto_name(phi)
-       & auto_name(area)
-       & auto_name(com)
-       & auto_name(S_order)
-       & auto_name(S_angle)
-       & auto_name(pol)
-       & auto_name(velp)
-       & auto_name(velf)
-       & auto_name(velc)
-       & auto_name(vel);
-    if(tracking) ar
-       & auto_name(domain_min)
-       & auto_name(domain_max);
-}
-
-void SerializeFrame(oarchive& ar)
-{ SerializeFrame_impl(ar); }

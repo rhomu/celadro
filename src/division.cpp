@@ -15,34 +15,5 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "threads.hpp"
-
-/** Multi-threading parameters
- * @{ */
-#ifdef _OPENMP
-/** number of threads */
-unsigned nthreads;
-#endif
-/** @} */
-
-/** Init multi-threading
-  *
-  * Somewhow omp_get_num_threads() is not working properly with gcc... so we
-  * need to use this trick to get the standard number of threads. Or I am too
-  * dumb to use omp...
-  * */
-void SetThreads()
-{
-  // if nthreads is 1 we use the default number of threads from OpenMP
-  if(nthreads == 1)
-  {
-    // count the number of OpenMP threads
-    unsigned count = 0;
-    PRAGMA_OMP(omp parallel)
-    {
-      PRAGMA_OMP(omp atomic)
-      ++count;
-    }
-    nthreads = count;
-  }
-}
+#include "header.hpp"
+#include "model.hpp"

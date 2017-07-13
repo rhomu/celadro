@@ -83,9 +83,9 @@ namespace detail
     -> decltype (
         // begin/end and operator !=
         std::begin(std::declval<T&>()) != std::end(std::declval<T&>()),
-        // operator ++
+        // operator ++ on begin iterator
         ++std::declval<decltype(std::begin(std::declval<T&>()))&>(),
-        // operator*
+        // operator* on begin iterator
         *std::begin(std::declval<T&>()),
         // value type
         std::declval<typename T::value_type>(),
@@ -346,7 +346,7 @@ namespace detail
 
 /** Most of the magic is happening here
   *
-  * This function is merely a shortcut for calling the wrapper...
+  * This function is merely a shortcut for calling the wrapper.
   * */
 template<class T>
 void oarchive::serialize(const T& t)

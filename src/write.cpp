@@ -16,12 +16,8 @@
  */
 
 #include "header.hpp"
-#include "write.hpp"
-#include "error_msg.hpp"
+#include "model.hpp"
 #include "random.hpp"
-#include "tools.hpp"
-#include "parameters.hpp"
-#include "run.hpp"
 
 using namespace std;
 
@@ -40,7 +36,7 @@ extern string runname, output_dir;
 extern bool force_delete;
 extern vector<string> ext_str;
 
-void WriteFrame(unsigned t)
+void Model::WriteFrame(unsigned t)
 {
   // construct output name
   const string oname = inline_str(output_dir, "frame", t, ".json");
@@ -75,7 +71,7 @@ void WriteFrame(unsigned t)
   }
 }
 
-void WriteParams()
+void Model::WriteParams()
 {
   // a name that makes sense
   const string oname = inline_str(output_dir, "parameters.json");
@@ -119,7 +115,7 @@ void WriteParams()
   }
 }
 
-void ClearOutput()
+void Model::ClearOutput()
 {
   if(compress_full)
   {
@@ -186,7 +182,7 @@ void ClearOutput()
   }
 }
 
-void CreateOutputDir()
+void Model::CreateOutputDir()
 {
   // if full compression is on: we need to create a random tmp directory
   if(compress_full)

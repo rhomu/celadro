@@ -37,11 +37,16 @@
 #include <functional>
 #include <memory>
 #include <type_traits>
-#include <boost/program_options.hpp>
 #include <chrono>
 
 #include "error_msg.hpp"
 #include "threads.hpp"
+#include "tools.hpp"
+#include "vec.hpp"
+
+// boost program_options
+#include <boost/program_options.hpp>
+namespace opt = boost::program_options;
 
 // =============================================================================
 // Constants
