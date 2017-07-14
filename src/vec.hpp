@@ -34,7 +34,13 @@ struct vec
 
   vec() = default;
   vec(const vec& v) = default;
-  vec& operator=(const vec& v) = default;
+
+  vec& operator=(const vec& v)
+  {
+    for(size_t i = 0; i<D; ++i)
+      data[i] = v.data[i];
+    return *this;
+  }
 
   vec& operator+=(const vec& v)
   {
