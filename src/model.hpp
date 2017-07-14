@@ -31,8 +31,10 @@ using coord = vec<unsigned, 2>;
 
 /** Model class
  *
- *
- * blablabalb mainly used to scatter the implementation among different files.
+ * This class contains the whole program and is mainly used to be able to
+ * scatter the implementation to different files without having to declare
+ * every single variable extern. The architecture has not been really thought
+ * through and one should not create two of these objects.
  * */
 struct Model
 {
@@ -47,10 +49,6 @@ struct Model
   std::vector<field> phi;
   /** Predicted phi in a PC^n step */
   std::vector<field> phi_old;
-  /** Lower corner of each restricted region */
-  std::vector<coord> position;
-  /** Memory offset of each region */
-  std::vector<coord> offset;
   /** V = delta F / delta phi */
   std::vector<field> V;
   /** Potential: -V/2 - adv. term */
@@ -99,11 +97,7 @@ struct Model
   std::vector<double> Q00_cnt, Q01_cnt;
   /** Internal pressure */
   std::vector<double> P, P_cnt;
-  /** Min of the boundaries of the domains and center of mass */
-  std::vector<coord> domain_min;
-  /** Max of the boundaries of the domains and center of mass */
-  std::vector<coord> domain_max;
-  /** Counter to compute com in Fourier space */
+   /** Counter to compute com in Fourier space */
   std::vector<std::complex<double>> com_x;
   /** Counter to compute com in Fourier space */
   std::vector<std::complex<double>> com_y;
@@ -117,6 +111,18 @@ struct Model
   double C1, C2, C3;
   /* Total size of the domain */
   unsigned Size;
+  /** @} */
+
+  /** Domain managment
+   * @{ */
+
+  /** Memory offset for each domain */
+  std::vector<coord> offset;
+  /** Min of the boundaries of the domains and center of mass */
+  std::vector<coord> domain_min;
+  /** Max of the boundaries of the domains and center of mass */
+  std::vector<coord> domain_max;
+
   /** @} */
 
   /** Program options
@@ -269,7 +275,7 @@ struct Model
 
   /** Serialization of parameters (in and out)*/
   template<class Archive>
-  void SerializeParameters_impl(Archive& ar)
+  void SerializeParameters(Archive& ar)
   {
     ar & auto_name(gam)
        & auto_name(mu)
@@ -295,12 +301,9 @@ struct Model
        & auto_name(margin);
   }
 
-  void SerializeParameters(oarchive& ar)
-  { SerializeParameters_impl(ar); }
-
   /** Serialization of parameters (in and out)*/
   template<class Archive>
-  void SerializeFrame_impl(Archive& ar)
+  void SerializeFrame(Archive& ar)
   {
       ar & auto_name(phi)
          & auto_name(area)
@@ -316,9 +319,6 @@ struct Model
          & auto_name(domain_min)
          & auto_name(domain_max);
   }
-
-  void SerializeFrame(oarchive& ar)
-  { SerializeFrame_impl(ar); }
 
   // =========================================================================
   // Program managment. Implemented in main.cpp
