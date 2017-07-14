@@ -69,9 +69,9 @@ void Model::ParseProgramOptions(int ac, char **av)
   // model specific options
   opt::options_description simulation("Simulation options");
   simulation.add_options()
-    ("LX", opt::value<unsigned>(&LX),
+    ("LX", opt::value<unsigned>(&Size[0]),
      "# of nodes in the x direction")
-    ("LY", opt::value<unsigned>(&LY),
+    ("LY", opt::value<unsigned>(&Size[1]),
      "# of nodes in the y direction")
     ("nsteps", opt::value<unsigned>(&nsteps),
      "iterate this many steps in total")

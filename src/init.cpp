@@ -22,32 +22,32 @@ using namespace std;
 
 void Model::Initialize()
 {
-  Size = LX*LY;
+  N = Size[0]*Size[1];
 
   // initialize memory
-  walls.resize(Size, 0.);
-  walls_dx.resize(Size, 0.);
-  walls_dy.resize(Size, 0.);
-  walls_laplace.resize(Size, 0.);
-  sum.resize(Size, 0.);
-  sum_cnt.resize(Size, 0.);
-  square.resize(Size, 0.);
-  square_cnt.resize(Size, 0.);
-  Px.resize(Size, 0.);
-  Py.resize(Size, 0.);
-  Theta.resize(Size, 0.);
-  Q00.resize(Size, 0.);
-  Q01.resize(Size, 0.);
-  Px_cnt.resize(Size, 0.);
-  Py_cnt.resize(Size, 0.);
-  Theta_cnt.resize(Size, 0.);
-  Q00_cnt.resize(Size, 0.);
-  Q01_cnt.resize(Size, 0.);
-  P.resize(Size, 0.);
-  P_cnt.resize(Size, 0.);
+  walls.resize(N, 0.);
+  walls_dx.resize(N, 0.);
+  walls_dy.resize(N, 0.);
+  walls_laplace.resize(N, 0.);
+  sum.resize(N, 0.);
+  sum_cnt.resize(N, 0.);
+  square.resize(N, 0.);
+  square_cnt.resize(N, 0.);
+  Px.resize(N, 0.);
+  Py.resize(N, 0.);
+  Theta.resize(N, 0.);
+  Q00.resize(N, 0.);
+  Q01.resize(N, 0.);
+  Px_cnt.resize(N, 0.);
+  Py_cnt.resize(N, 0.);
+  Theta_cnt.resize(N, 0.);
+  Q00_cnt.resize(N, 0.);
+  Q01_cnt.resize(N, 0.);
+  P.resize(N, 0.);
+  P_cnt.resize(N, 0.);
 
   // the patch is the region over which we compute each cell
-  const unsigned PatchSize = LX*LY;//2*margin+1;
+  const unsigned PatchSize = N;//2*margin+1;
 
   phi.resize(nphases, vector<double>(PatchSize, 0.));
   phi_old.resize(nphases, vector<double>(PatchSize, 0.));
@@ -58,7 +58,7 @@ void Model::Initialize()
   area.resize(nphases, 0.);
   area_cnt.resize(nphases, 0.);
   domain_min.resize(nphases, {0, 0});
-  domain_max.resize(nphases, {LX, LY});
+  domain_max.resize(nphases, Size);
   com.resize(nphases, {0., 0.});
   com_prev.resize(nphases, {0., 0.});
   pol.resize(nphases, {0., 0.});
@@ -85,19 +85,19 @@ void Model::Initialize()
   mu.resize(nphases, mu.back());
 
   // compute tables
-  for(unsigned i=0; i<LX; ++i)
-    com_x_table.push_back({ cos(-Pi+2.*Pi*i/LX), sin(-Pi+2.*Pi*i/LX) });
-  for(unsigned i=0; i<LY; ++i)
-    com_y_table.push_back({ cos(-Pi+2.*Pi*i/LY), sin(-Pi+2.*Pi*i/LY) });
+  for(unsigned i=0; i<Size[0]; ++i)
+    com_x_table.push_back({ cos(-Pi+2.*Pi*i/Size[0]), sin(-Pi+2.*Pi*i/Size[0]) });
+  for(unsigned i=0; i<Size[1]; ++i)
+    com_y_table.push_back({ cos(-Pi+2.*Pi*i/Size[1]), sin(-Pi+2.*Pi*i/Size[1]) });
 
   // check birth boundaries
   if(birth_bdries.size()==0)
-    birth_bdries = {0, LX, 0, LY};
+    birth_bdries = {0, Size[0], 0, Size[1]};
   else if(birth_bdries.size()!=4)
     throw error_msg("Birth boundaries have wrong format, see help.");
 
   // check margin size
-  if(2*margin+1>LX or 2*margin+1>LY)
+  if(2*margin+1>Size[0] or 2*margin+1>Size[1])
     throw error_msg("Margin is too large for domain size.");
 
   // set flags
@@ -106,15 +106,15 @@ void Model::Initialize()
 
 void Model::InitializeNeighbors()
 {
-  neighbors.resize(GetSize());
+  neighbors.resize(N);
 
   // define the neighbours, accounting for the periodic boundaries
-  for(unsigned k=0; k<GetSize(); ++k)
+  for(unsigned k=0; k<N; ++k)
   {
     const unsigned x = GetXPosition(k);
     const unsigned y = GetYPosition(k);
     for(int dx=-1; dx<=1; ++dx)
       for(int dy=-1; dy<=1; ++dy)
-        neighbors[k][dx][dy] = GetDomainIndex( (x+LX+dx)%LX, (y+LY+dy)%LY );
+        neighbors[k][dx][dy] = GetDomainIndex( (x+Size[0]+dx)%Size[0], (y+Size[1]+dy)%Size[1] );
   }
 }

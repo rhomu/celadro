@@ -62,7 +62,7 @@ void Model::PreRunStats()
     if(BC<=2)
       packing/= (birth_bdries[1]-birth_bdries[0])
                *(birth_bdries[3]-birth_bdries[2]);
-    if(BC==3) packing /= Pi*Size/4.;
+    if(BC==3) packing /= Pi*N/4.;
 
     cout << "Packing fraction = " << packing << endl;
   }
@@ -250,18 +250,22 @@ void Model::ComputeCoM(unsigned n)
   // the strategy to deal with the periodic boundary conditions is to compute
   // all the integrals in Fourier space and come back at the end. This way the
   // periodicity of the domain is automatically taken into account.
-  const auto mx = arg(com_x[n]/static_cast<double>(Size)) + Pi;
-  const auto my = arg(com_y[n]/static_cast<double>(Size)) + Pi;
-  com[n] = { mx/2./Pi*LX, my/2./Pi*LY };
+  const auto mx = arg(com_x[n]/static_cast<double>(N)) + Pi;
+  const auto my = arg(com_y[n]/static_cast<double>(N)) + Pi;
+  com[n] = { mx/2./Pi*Size[0], my/2./Pi*Size[1] };
 }
 
 void Model::UpdateWindow(unsigned n)
 {
-  // update walls
-  domain_min[n][0] = (static_cast<unsigned>(round(com[n][0])) + LX - margin)%LX;
-  domain_min[n][1] = (static_cast<unsigned>(round(com[n][1])) + LY - margin)%LY;
-  domain_max[n][0] = (static_cast<unsigned>(round(com[n][0])) + margin)%LX;
-  domain_max[n][1] = (static_cast<unsigned>(round(com[n][1])) + margin)%LY;
+  // obtain the new location of the domain min and max
+  vec<coord, 2> new_min[n] = {
+    (static_cast<unsigned>(round(com[n][0])) + Size[0] - margin)%Size[0],
+    (static_cast<unsigned>(round(com[n][1])) + Size[1] - margin)%Size[1]
+  };
+  vec<coord, 2> new_max[n] = {
+    (static_cast<unsigned>(round(com[n][0])) + margin)%Size[0],
+    (static_cast<unsigned>(round(com[n][1])) + margin)%Size[1]
+  };
 }
 
 void Model::UpdateStructureTensorAtNode(unsigned n, unsigned k)
@@ -383,7 +387,7 @@ void Model::Update()
   // threaded portion of the code consists only of these swaps!
 
   PRAGMA_OMP(omp parallel for num_threads(nthreads) if(nthreads))
-  for(unsigned k=0; k<Size; ++k) ReinitSquareAndSumAtNode(k);
+  for(unsigned k=0; k<N; ++k) ReinitSquareAndSumAtNode(k);
 
   swap(sum, sum_cnt);
   swap(square, square_cnt);
@@ -407,7 +411,7 @@ void Model::Step()
   for(unsigned i=0; i<npc; ++i)
     Update();
 
-  // division
+  // division (TBI)
   //const auto m = nphases; // this is needed because we might increment nphases
   //for(unsigned n=0; n<m; ++n) Divide(n);
 
@@ -464,21 +468,21 @@ void Model::UpdateDomainP(Ret (Model::*fun)(unsigned, unsigned, Args...),
      domain_min[n][1]>=domain_max[n][1])
   {
     // domain is across the corners
-    UpdateSubDomainP(fun, n, domain_min[n][0], domain_min[n][1], LX, LY);
+    UpdateSubDomainP(fun, n, domain_min[n][0], domain_min[n][1], Size[0], Size[1]);
     UpdateSubDomainP(fun, n, 0u, 0u, domain_max[n][0], domain_max[n][1]);
-    UpdateSubDomainP(fun, n, domain_min[n][0], 0u, LX, domain_max[n][1]);
-    UpdateSubDomainP(fun, n, 0u, domain_min[n][1], domain_max[n][0], LY);
+    UpdateSubDomainP(fun, n, domain_min[n][0], 0u, Size[0], domain_max[n][1]);
+    UpdateSubDomainP(fun, n, 0u, domain_min[n][1], domain_max[n][0], Size[1]);
   }
   else if(domain_min[n][0]>=domain_max[n][0])
   {
     // domain is across the left/right border
-    UpdateSubDomainP(fun, n, domain_min[n][0], domain_min[n][1], LX, domain_max[n][1]);
+    UpdateSubDomainP(fun, n, domain_min[n][0], domain_min[n][1], Size[0], domain_max[n][1]);
     UpdateSubDomainP(fun, n, 0u, domain_min[n][1], domain_max[n][0], domain_max[n][1]);
   }
   else if(domain_min[n][1]>=domain_max[n][1])
   {
     // domain is across the up/down border
-    UpdateSubDomainP(fun, n, domain_min[n][0], domain_min[n][1], domain_max[n][0], LY);
+    UpdateSubDomainP(fun, n, domain_min[n][0], domain_min[n][1], domain_max[n][0], Size[1]);
     UpdateSubDomainP(fun, n, domain_min[n][0], 0u, domain_max[n][0], domain_max[n][1]);
   }
   else
@@ -494,21 +498,21 @@ void Model::UpdateDomain(Ret (Model::*fun)(unsigned, unsigned, Args...),
      domain_min[n][1]>=domain_max[n][1])
   {
     // domain is across the corners
-    UpdateSubDomain(fun, n, domain_min[n][0], domain_min[n][1], LX, LY);
+    UpdateSubDomain(fun, n, domain_min[n][0], domain_min[n][1], Size[0], Size[1]);
     UpdateSubDomain(fun, n, 0u, 0u, domain_max[n][0], domain_max[n][1]);
-    UpdateSubDomain(fun, n, domain_min[n][0], 0u, LX, domain_max[n][1]);
-    UpdateSubDomain(fun, n, 0u, domain_min[n][1], domain_max[n][0], LY);
+    UpdateSubDomain(fun, n, domain_min[n][0], 0u, Size[0], domain_max[n][1]);
+    UpdateSubDomain(fun, n, 0u, domain_min[n][1], domain_max[n][0], Size[1]);
   }
   else if(domain_min[n][0]>=domain_max[n][0])
   {
     // domain is across the left/right border
-    UpdateSubDomain(fun, n, domain_min[n][0], domain_min[n][1], LX, domain_max[n][1]);
+    UpdateSubDomain(fun, n, domain_min[n][0], domain_min[n][1], Size[0], domain_max[n][1]);
     UpdateSubDomain(fun, n, 0u, domain_min[n][1], domain_max[n][0], domain_max[n][1]);
   }
   else if(domain_min[n][1]>=domain_max[n][1])
   {
     // domain is across the up/down border
-    UpdateSubDomain(fun, n, domain_min[n][0], domain_min[n][1], domain_max[n][0], LY);
+    UpdateSubDomain(fun, n, domain_min[n][0], domain_min[n][1], domain_max[n][0], Size[1]);
     UpdateSubDomain(fun, n, domain_min[n][0], 0u, domain_max[n][0], domain_max[n][1]);
   }
   else

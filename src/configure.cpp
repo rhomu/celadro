@@ -30,15 +30,15 @@ void Model::AddCell(unsigned n, const coord& center)
 
   // create the cells at the centers we just computed
   PRAGMA_OMP(omp parallel for num_threads(nthreads) if(nthreads))
-  for(unsigned k=0; k<Size; ++k)
+  for(unsigned k=0; k<N; ++k)
   {
     const unsigned xk = GetXPosition(k);
     const unsigned yk = GetYPosition(k);
 
     // round shape (do not wrap if no PBC)
     if(
-        (BC==0 and pow(wrap(diff(yk, center[1]), LY), 2)
-         + pow(wrap(diff(xk, center[0]), LX), 2)<=ceil(radius*radius))
+        (BC==0 and pow(wrap(diff(yk, center[1]), Size[1]), 2)
+         + pow(wrap(diff(xk, center[0]), Size[0]), 2)<=ceil(radius*radius))
         or
         (BC>=1 and pow(diff(yk, center[1]), 2)
          + pow(diff(xk, center[0]), 2)<=ceil(radius*radius))
@@ -62,17 +62,13 @@ void Model::AddCell(unsigned n, const coord& center)
 
   if(tracking)
   {
-    domain_min[n][0] = (center[0]+LX-margin)%LX;
-    domain_max[n][0] = (center[0]+margin)%LX;
-    domain_min[n][1] = (center[1]+LY-margin)%LY;
-    domain_max[n][1] = (center[1]+margin)%LY;
+    domain_min[n] = (center+Size-margin)%Size;
+    domain_max[n] = (center+margin)%Size;
   }
   else
   {
-    domain_min[n][0] = 0u;
-    domain_max[n][0] = LX;
-    domain_min[n][1] = 0u;
-    domain_max[n][1] = LY;
+    domain_min[n] = { 0u, 0u };
+    domain_max[n] = Size;
   }
 }
 
@@ -83,7 +79,7 @@ void Model::Configure()
   if(init_config=="random" and BC==0)
   {
     // target radius for spacing between cells
-    unsigned radius = sqrt(double(Size/nphases)/Pi);
+    unsigned radius = sqrt(double(N/nphases)/Pi);
     // list of all centers
     vector<coord> centers;
 
@@ -102,8 +98,8 @@ void Model::Configure()
         bool is_overlapping = false;
         for(const auto& c : centers)
         {
-          if(pow(wrap(diff(center[0], c[0]), LX), 2)
-              + pow(wrap(diff(center[1], c[1]), LY), 2) < 0.9*radius*radius)
+          if(pow(wrap(diff(center[0], c[0]), Size[0]), 2)
+              + pow(wrap(diff(center[1], c[1]), Size[1]), 2) < 0.9*radius*radius)
           {
             is_overlapping = true;
             break;
@@ -126,7 +122,7 @@ void Model::Configure()
   else if(init_config=="random" and BC>=1)
   {
     // target radius for spacing between cells
-    unsigned radius = sqrt(double(Size/nphases)/Pi);
+    unsigned radius = sqrt(double(N/nphases)/Pi);
     // list of all centers
     vector<coord> centers;
 
@@ -145,21 +141,21 @@ void Model::Configure()
         // detect walls
         // ... box only
         if(BC==1)
-          if(center[0]<0.9*R or LX-center[0]<0.9*R) continue;
+          if(center[0]<0.9*R or Size[0]-center[0]<0.9*R) continue;
         // ... box and channel
         if(BC==1 or BC==2)
-          if(center[1]<0.9*R or LY-center[1]<0.9*R) continue;
+          if(center[1]<0.9*R or Size[1]-center[1]<0.9*R) continue;
         // ... ellipse
         if(BC==3)
         {
           // compute distance from the elliptic wall
           // ... angle of the current point (from center of the domain)
-          const auto theta = atan2(LY/2.-center[1], LX/2.-center[0]);
+          const auto theta = atan2(Size[1]/2.-center[1], Size[0]/2.-center[0]);
           // ... small helper function to compute radius
           auto rad = [](auto x, auto y) { return sqrt(x*x + y*y); };
           // ... distance is the difference between wall and current point
-          const auto d = rad(LX/2.*cos(theta), LY/2.*sin(theta))
-                        -rad(LX/2.-center[0], LY/2.-center[1]);
+          const auto d = rad(Size[0]/2.*cos(theta), Size[1]/2.*sin(theta))
+                        -rad(Size[0]/2.-center[0], Size[1]/2.-center[1]);
 
           if(d<0.9*R) continue;
         }
@@ -168,8 +164,8 @@ void Model::Configure()
         bool is_overlapping = false;
         for(const auto& c : centers)
         {
-          if(pow(wrap(diff(center[0], c[0]), LX), 2)
-              + pow(wrap(diff(center[1], c[1]), LY), 2) < 0.9*radius*radius)
+          if(pow(wrap(diff(center[0], c[0]), Size[0]), 2)
+              + pow(wrap(diff(center[1], c[1]), Size[1]), 2) < 0.9*radius*radius)
           {
             is_overlapping = true;
             break;
@@ -195,8 +191,8 @@ void Model::Configure()
     const double radius = R + nphases - 2;
 
     for(unsigned n=0; n<nphases; ++n)
-      AddCell(n, {unsigned(LX/2+radius*(cos(n*theta)+noise*random_real())),
-                  unsigned(LY/2+radius*(sin(n*theta)+noise*random_real())) });
+      AddCell(n, {unsigned(Size[0]/2+radius*(cos(n*theta)+noise*random_real())),
+                  unsigned(Size[1]/2+radius*(sin(n*theta)+noise*random_real())) });
   }
   // ===========================================================================
   // single cell in the middle
@@ -206,7 +202,7 @@ void Model::Configure()
       throw error_msg("error: initial conditions require "
                       "nphases=1.");
 
-    AddCell(0, {LX/2, LY/2});
+    AddCell(0, {Size[0]/2, Size[1]/2});
   }
   else throw error_msg("error: initial configuration '",
       init_config, "' unknown.");
@@ -218,12 +214,12 @@ void Model::ConfigureWalls()
   {
   case 0:
     // no walls (pbc)
-    for(unsigned k=0; k<Size; ++k)
+    for(unsigned k=0; k<N; ++k)
       walls[k] = 0;
     break;
   case 1:
     // Exponentially falling phase-field:
-    for(unsigned k=0; k<Size; ++k)
+    for(unsigned k=0; k<N; ++k)
     {
       const double x = GetXPosition(k);
       const double y = GetYPosition(k);
@@ -232,36 +228,36 @@ void Model::ConfigureWalls()
       // falling potential and we do not care about overalps
       walls[k] =   exp(-y/wall_thickness)
                  + exp(-x/wall_thickness)
-                 + exp(-(LX-1-x)/wall_thickness)
-                 + exp(-(LY-1-y)/wall_thickness);
+                 + exp(-(Size[0]-1-x)/wall_thickness)
+                 + exp(-(Size[1]-1-y)/wall_thickness);
     }
     break;
   // Same as above but channel.
   case 2:
-    for(unsigned k=0; k<Size; ++k)
+    for(unsigned k=0; k<N; ++k)
     {
       const auto y = GetYPosition(k);
 
       // exponentially falling on both sides
       walls[k] = exp(-double(y)/wall_thickness)
-        + exp(-double(LY-y-1)/wall_thickness);
+        + exp(-double(Size[1]-y-1)/wall_thickness);
     }
     break;
   // ellipse!
   case 3:
-    for(unsigned k=0; k<Size; ++k)
+    for(unsigned k=0; k<N; ++k)
     {
       const auto x = GetXPosition(k);
       const auto y = GetYPosition(k);
 
       // compute distance from the elliptic wall
       // ... angle of the current point (from center of the domain)
-      const auto theta = atan2(LY/2.-y, LX/2.-x);
+      const auto theta = atan2(Size[1]/2.-y, Size[0]/2.-x);
       // ... small helper function to compute radius
       const auto rad = [](auto x, auto y) { return sqrt(x*x + y*y); };
       // ... distance is the difference between wall and current point
-      const auto d = rad(LX/2.*cos(theta), LY/2.*sin(theta))
-                    -rad(LX/2.-x, LY/2.-y);
+      const auto d = rad(Size[0]/2.*cos(theta), Size[1]/2.*sin(theta))
+                    -rad(Size[0]/2.-x, Size[1]/2.-y);
       // set the wall
       if(d<0)
         walls[k] = 1.;
@@ -274,7 +270,7 @@ void Model::ConfigureWalls()
   }
 
   // pre-compute derivatives
-  for(unsigned k=0; k<Size; ++k)
+  for(unsigned k=0; k<N; ++k)
   {
     const auto& s = neighbors[k];
 

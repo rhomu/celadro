@@ -109,8 +109,6 @@ struct Model
   bool division = false;
   /** Pre-computed coefficients */
   double C1, C2, C3;
-  /* Total size of the domain */
-  unsigned Size;
   /** @} */
 
   /** Domain managment
@@ -172,7 +170,7 @@ struct Model
    * @{ */
 
   /** size of the system */
-  unsigned LX, LY;
+  vec<unsigned, 2> Size;
   /** total number of nodes */
   unsigned N;
   /** Total number of time steps */
@@ -494,19 +492,15 @@ struct Model
 
   /** Gives x position corresponding to a grid index */
   unsigned GetXPosition(unsigned k) const
-  { return k/LY; }
+  { return k/Size[1]; }
 
   /** Gives y position corresponding to a grid index */
   unsigned GetYPosition(unsigned k) const
-  { return k%LY; }
+  { return k%Size[1]; }
 
   /** Get grod index from position */
   unsigned GetDomainIndex(unsigned x, unsigned y) const
-  { return y + LY*x; }
-
-  /** Returns total grid size */
-  unsigned GetSize() const
-  { return LX*LY; }
+  { return y + Size[1]*x; }
 };
 
 #endif//MODEL_HPP_

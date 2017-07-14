@@ -21,21 +21,6 @@
 
 using namespace std;
 
-// =============================================================================
-// Serialization
-
-// parameters
-extern unsigned LX, LY, BC;
-extern unsigned N;
-extern unsigned ninfo;
-extern unsigned nstart;
-extern unsigned nsteps;
-extern unsigned nsubsteps;
-extern bool compress, compress_full;
-extern string runname, output_dir;
-extern bool force_delete;
-extern vector<string> ext_str;
-
 void Model::WriteFrame(unsigned t)
 {
   // construct output name
@@ -83,8 +68,7 @@ void Model::WriteParams()
       // serialize
       oarchive ar(buffer, "parameters", 1);
       // ...program parameters...
-      ar & auto_name(LX)
-         & auto_name(LY)
+      ar & auto_name(Size)
          & auto_name(BC)
          & auto_name(nsteps)
          & auto_name(nsubsteps)
