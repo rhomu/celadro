@@ -122,11 +122,10 @@ struct vec
 
   // for serialization
   using value_type = T;
-
   auto begin() { return data.begin(); }
-  auto end()   { return data.begin(); }
+  auto end()   { return data.end(); }
   auto begin() const { return data.begin(); }
-  auto end()   const { return data.begin(); }
+  auto end()   const { return data.end(); }
 };
 
 // =============================================================================
