@@ -75,20 +75,20 @@ void Model::RuntimeStats()
 
 void Model::RuntimeChecks()
 {
-  // check that the area is more or less conserved (15%)
+  // check that the area is more or less conserved (20%)
   for(const auto a : area)
-    if(abs(1.-a/C2)>.15)
+    if(abs(1.-a/C2)>.2)
       throw warning_msg("area is not conserved.");
 
   for(unsigned n=0; n<nphases; ++n)
   {
-    // check that the cells are not leaking, i.e. that at least 95% of the
+    // check that the cells are not leaking, i.e. that at least 90% of the
     // contributions to the area comes from inside the cell (>1/2).
     double a = 0.;
     // compute area of points outside the cell (<1/2)
     for(const auto v : phi[n]) if(v<.5) a += v*v;
     // check that it is less than 5%
-    if(a/area[n]>.05)
+    if(a/area[n]>.90)
       throw warning_msg("your cells are leaking!");
 
     // check that the phase fields stay between 0 and 1
