@@ -4,16 +4,16 @@
 
 # initial configuration
 config    = random
-nsteps    = 10000
+nsteps    = 2000
 ninfo     = 10
 LX        = 50
 LY        = 50
-nsubsteps = 20
+nsubsteps = 5
 bc        = 1
 
 # model parameters...
 # ...number of phases
-nphases = 15
+nphases = 5
 # ...elastic constants for each phase
 gamma   = .05
 # ...area energy penalty for each phase
@@ -29,12 +29,12 @@ xi    = 1
 # ...adhesion
 omega = 0
 # ...cell-cell friction
-friction = 0.3
+friction = 0.1
 # ...cell-wall friction
-friction-walls = 0.6
+friction-walls = 0
 
 # initial configuration options...
-relax-time = 100
+relax-time = 50
 
 # wall options
 wall-thickness = .5
@@ -43,7 +43,7 @@ wall-omega     = 0
 
 # dynamics of the polarisation
 D = .05
-J = .3
+J = .05
 
 # dynamics of the contractility
 alpha = 0.1

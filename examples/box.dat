@@ -4,7 +4,7 @@
 
 # initial configuration
 config    = random
-nsteps    = 10000
+nsteps    = 1000
 ninfo     = 10
 LX        = 100
 LY        = 100
