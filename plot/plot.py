@@ -33,7 +33,7 @@ def get_velocity_field(phases, vel):
     return np.array(v)
 
 def phasefields(frame, engine=plt):
-    """Plot all phase fields."""
+    """Plot all phase fields"""
     for p in frame.phi:
         engine.contour(np.arange(0, frame.parameters['Size'][0]),
                        np.arange(0, frame.parameters['Size'][1]),
@@ -43,38 +43,36 @@ def phasefields(frame, engine=plt):
                        #color='mediumblue'
                        colors='k')
 
-def phasefieldsdens(frame, engine=plt):
-    """Plot all phase fields."""
-    totphi = np.zeros(frame.parameters['LX']*frame.parameters['LY'])
-    for i in range(0, len(frame.phi)):
+def interfaces(frame, engine=plt):
+    """Plot the interfaces density"""
+    totphi = np.zeros(frame.parameters['Size'])
+    for i in range(len(frame.phi)):
         totphi += frame.phi[i]*frame.parameters['walls']
         for j in range(i+1, len(frame.phi)):
             totphi += frame.phi[i]*frame.phi[j]
-    #totphi += frame.parameters['walls']*frame.parameters['walls']
 
-    totphi = totphi.reshape((frame.parameters['LX'], frame.parameters['LY'])).T
     cmap = LinearSegmentedColormap.from_list('mycmap', ['grey', 'white'])
-    engine.imshow(totphi, interpolation='lanczos', cmap=cmap, origin='lower')
+    engine.imshow(totphi.T, interpolation='lanczos', cmap=cmap, origin='lower')
 
-def phasefieldsarea(frame, engine=plt):
-    """Plot all phase fields."""
+def solidarea(frame, engine=plt):
+    """Plot all phase fields with solid colours corresponding to individual areas"""
     for i in range(len(frame.phi)):
         p = frame.phi[i]
-        engine.contourf(np.arange(0, frame.parameters['LX']),
-                       np.arange(0, frame.parameters['LY']),
-                       p.reshape((frame.parameters['LX'], frame.parameters['LY'])).T,
-                       #levels = [1e-10, 1e-5, .5])
-                       levels = [.5, 10.],
-                       #color='mediumblue'
-                       colors=str(frame.area[i]/(np.pi*frame.parameters['R']**2)))
+        engine.contourf(np.arange(0, frame.parameters['Size'][0]),
+                        np.arange(0, frame.parameters['Size'][1]),
+                        frame.phi[i],
+                        #levels = [1e-10, 1e-5, .5])
+                        levels = [.5, 10.],
+                        #color='mediumblue'
+                        colors=str(frame.area[i]/(np.pi*frame.parameters['R']**2)))
 
 def com(frame, engine=plt):
-    """Plot the center-of-mass of each cell. This is not working with PBC yet..."""
+    """Plot the center-of-mass of each cell"""
     for c in frame.com:
         engine.plot(c[0], c[1], 'ro')
 
 def ellipses(frame, engine=plt):
-    """Plot the shape-ellipses of each cell."""
+    """Plot the shape-ellipses of each cell"""
     for n in range(frame.parameters['nphases']):
         radius = np.sqrt(frame.area[n]/np.pi/(1-frame.Q_order[n]**2))
         print frame.Q_order[n], radius
@@ -107,7 +105,7 @@ def velp(frame, engine=plt):
         engine.arrow(c[0], c[1], a*v[0], a*v[1], color='b')
 
 def pol(frame, engine=plt):
-    """Print active part of the velocity"""
+    """Print polarisation of each cell"""
     for i in range(frame.parameters['nphases']):
         p = frame.phi[i].reshape((frame.parameters['LX'], frame.parameters['LY']))
         c = get_com(p)
@@ -135,7 +133,6 @@ def vela(frame, engine=plt):
         a = frame.parameters['alpha']/frame.parameters['xi']*frame.parameters['ninfo']*frame.parameters['nsubsteps']
         engine.arrow(c[0], c[1], a*v[0], a*v[1], color='r')
 
-
 def vel(frame, engine=plt):
     """Print active part of the velocity"""
     for i in range(frame.parameters['nphases']):
@@ -148,38 +145,34 @@ def vel(frame, engine=plt):
 
 def phase(frame, n, engine=plt):
     """Plot single phase as a density plot"""
-    f = np.array(frame.phi[n])
-    f = f.reshape([frame.parameters['LX'], frame.parameters['LY']])
-    cax = engine.imshow(f.T, interpolation='lanczos', cmap='Greys', origin='lower'
-#, clim=(0., 1.)
-)
+    cax = engine.imshow(frame.phi[n], interpolation='lanczos', cmap='Greys', origin='lower'
+                        #, clim=(0., 1.)
+                        )
     cbar = plt.colorbar(cax)
 
-def velocity_field(frame, size=3, engine=plt):
+def velocityfield(frame, size=15, engine=plt):
     """Plot the total veloctity field assiciated with the cells"""
-    v = get_velocity_field(frame.phi, frame.vela+frame.veli)
-    vx = np.array([ i[0] for i in v ]).reshape((frame.parameters['LX'], frame.parameters['LY']))
-    vy = np.array([ i[1] for i in v ]).reshape((frame.parameters['LX'], frame.parameters['LY']))
+    v = get_velocity_field(frame.phi, frame.parameters['alpha']*frame.pol+frame.velp)
+    vx = np.array([ i[0] for i in v ])
+    vy = np.array([ i[1] for i in v ])
     vx = ndimage.filters.uniform_filter(vx, size=size, mode='constant')
     vy = ndimage.filters.uniform_filter(vy, size=size, mode='constant')
-    cax = engine.quiver(np.arange(0, frame.parameters['LX']),
-                        np.arange(0, frame.parameters['LY']),
+    cax = engine.quiver(np.arange(0, frame.parameters['Size'][0]),
+                        np.arange(0, frame.parameters['Size'][1]),
                         vx.T, vy.T,
                         pivot='tail', units='dots', scale_units='dots')
 
 def walls(frame, engine=plt):
     """Plot the wall phase-field"""
-    f = frame.parameters['walls']
-    f = f.reshape([frame.parameters['LX'], frame.parameters['LY']])
-    cax = engine.imshow(f.T, cmap='Greys', origin='lower', clim=(0., 1.))
+    cax = engine.imshow(frame.parameters['walls'], cmap='Greys', origin='lower', clim=(0., 1.))
 
 def domain(frame, n, engine=plt):
     """Plot the restricted domain of a single cell"""
     plot = lambda m, M: engine.fill([ m[0], M[0], M[0], m[0], m[0], None ],
                                     [ m[1], m[1], M[1], M[1], m[1], None ],
                                     color = 'b', alpha=0.04)
-    LX = frame.parameters['LX']
-    LY = frame.parameters['LY']
+    LX = frame.parameters['Size'][0]
+    LY = frame.parameters['Size'][0]
     m = frame.domain_min[n]
     M = frame.domain_max[n]
 

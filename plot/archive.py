@@ -25,8 +25,8 @@ class archive(archive_base.archive):
 
     def __init__(self, path):
         super(archive, self).__init__(path)
-        walls = self.parameters['walls']
-        walls = np.reshape(self.walls, self.Size)
+        self.parameters['walls'] = np.reshape(self.parameters['walls'], self.Size)
+        self.__dict__.update(self.parameters)
 
     def read_frame(self, frame):
         frame = super(archive, self).read_frame(frame)
