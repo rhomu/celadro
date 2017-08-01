@@ -148,7 +148,6 @@ vec<T, D> operator+(const vec<T, D>& v, const T& t)
   return ret;
 }
 
-
 template<class T, size_t D>
 vec<T, D> operator+(const T& t, const vec<T, D>& v)
 {
@@ -168,7 +167,6 @@ vec<T, D> operator-(const vec<T, D>& v, const T& t)
   return ret;
 }
 
-
 template<class T, size_t D>
 vec<T, D> operator-(const T& t, const vec<T, D>& v)
 {
@@ -186,7 +184,6 @@ vec<T, D> operator*(const vec<T, D>& v, const T& t)
     ret[i] = v.data[i]*t;
   return ret;
 }
-
 
 template<class T, size_t D>
 vec<T, D> operator*(const T& t, const vec<T, D>& v)
@@ -227,6 +224,5 @@ vec<unsigned, D> operator%(const vec<unsigned, D>& a, const vec<unsigned, D>& b)
     ret.data[i] %= b.data[i];
   return ret;
 }
-
 
 #endif//VEC_HPP_
