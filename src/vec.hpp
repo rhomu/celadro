@@ -126,6 +126,8 @@ struct vec
   template<class U, size_t E> friend
   vec<U, E> operator*(const vec<U, E>&, const U&);
   template<class U, size_t E> friend
+  vec<U, E> operator/(const vec<U, E>&, const U&);
+  template<class U, size_t E> friend
   std::ostream& operator<<(std::ostream&, const vec<U, E>&);
 
   // for serialization
@@ -191,6 +193,15 @@ vec<T, D> operator*(const T& t, const vec<T, D>& v)
   vec<T, D> ret;
   for(size_t i = 0; i<D; ++i)
     ret[i] = v.data[i]*t;
+  return ret;
+}
+
+template<class T, size_t D>
+vec<T, D> operator/(const vec<T, D>& v, const T& t)
+{
+  vec<T, D> ret;
+  for(size_t i = 0; i<D; ++i)
+    ret[i] = v.data[i]/t;
   return ret;
 }
 
