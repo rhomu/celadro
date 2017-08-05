@@ -130,6 +130,15 @@ struct vec
   template<class U, size_t E> friend
   std::ostream& operator<<(std::ostream&, const vec<U, E>&);
 
+  template<class U>
+  explicit operator vec<U, D>() const
+  {
+    vec<U, D> ret;
+    for(size_t i = 0; i<D; ++i)
+      ret[i] = U(data[i]);
+    return ret;
+  }
+
   // for serialization
   using value_type = T;
   auto begin() { return data.begin(); }
@@ -158,7 +167,6 @@ vec<T, D> operator+(const T& t, const vec<T, D>& v)
     ret[i] = v.data[i] + t;
   return ret;
 }
-
 
 template<class T, size_t D>
 vec<T, D> operator-(const vec<T, D>& v, const T& t)
