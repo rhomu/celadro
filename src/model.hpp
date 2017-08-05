@@ -44,7 +44,7 @@ struct Model
   /** List of neighbours
    *
    * WHY? */
-  std::vector<stencil> neighbors;
+  std::vector<stencil> neighbors, neighbors_patch;
   /** Phase fields */
   std::vector<field> phi;
   /** Predicted phi in a PC^n step */
@@ -77,8 +77,6 @@ struct Model
   std::vector<vec<double, 2>> velf;
   /** Total com velocity */
   std::vector<vec<double, 2>> vel;
-  /** Center-of-mass */
-  std::vector<vec<double, 2>> com, com_prev;
   /** Overall polarization of the tissue */
   std::vector<double> Px, Py, Px_cnt, Py_cnt;
   /** Contractility */
@@ -97,14 +95,6 @@ struct Model
   std::vector<double> Q00_cnt, Q01_cnt;
   /** Internal pressure */
   std::vector<double> P, P_cnt;
-   /** Counter to compute com in Fourier space */
-  std::vector<std::complex<double>> com_x;
-  /** Counter to compute com in Fourier space */
-  std::vector<std::complex<double>> com_y;
-  /** Precomputed tables for sin and cos (as complex numbers) used in the
-   * computation of the com.
-   * */
-  std::vector<std::complex<double>> com_x_table, com_y_table;
   /** Division flag */
   bool division = false;
   /** Pre-computed coefficients */
@@ -114,12 +104,24 @@ struct Model
   /** Domain managment
    * @{ */
 
-  /** Memory offset for each domain */
+  /** Min of the boundaries of the patches and center of mass */
+  std::vector<coord> patch_min;
+  /** Max of the boundaries of the patches and center of mass */
+  std::vector<coord> patch_max;
+  /** Size of the patch (set by margin) */
+  coord patch_size;
+  /** Total number of nodes in a patch */
+  unsigned patch_N;
+  /** Memory offset for each patch */
   std::vector<coord> offset;
-  /** Min of the boundaries of the domains and center of mass */
-  std::vector<coord> domain_min;
-  /** Max of the boundaries of the domains and center of mass */
-  std::vector<coord> domain_max;
+  /** Center-of-mass */
+  std::vector<vec<double, 2>> com, com_prev;
+  /** Counter to compute com in Fourier space */
+  std::vector<std::complex<double>> com_x, com_y;
+  /** Precomputed tables for sin and cos (as complex numbers) used in the
+   * computation of the com.
+   * */
+  std::vector<std::complex<double>> com_x_table, com_y_table;
 
   /** @} */
 
@@ -160,8 +162,6 @@ struct Model
   unsigned relax_time;
   /** Value of nsubstep to use for initialization */
   unsigned relax_nsubsteps;
-  /** Enable tracking? */
-  bool tracking = false;
   /** Total time spent writing output */
   std::chrono::duration<double> write_duration;
   /** @} */
@@ -189,7 +189,7 @@ struct Model
   unsigned BC;
   /** angle in degrees (input variable only) */
   double angle_deg;
-  /** Margin for the definition of domains */
+  /** Margin for the definition of patches */
   unsigned margin;
   /** Intial configuration */
   std::string init_config;
@@ -293,10 +293,9 @@ struct Model
        & auto_name(wall_thickness)
        & auto_name(wall_kappa)
        & auto_name(wall_omega)
-       & auto_name(walls);
-
-    ar & auto_name(tracking)
-       & auto_name(margin);
+       & auto_name(walls)
+       & auto_name(margin)
+       & auto_name(patch_size);
   }
 
   /** Serialization of parameters (in and out)*/
@@ -304,6 +303,7 @@ struct Model
   void SerializeFrame(Archive& ar)
   {
       ar & auto_name(phi)
+         & auto_name(offset)
          & auto_name(area)
          & auto_name(com)
          & auto_name(S_order)
@@ -312,10 +312,9 @@ struct Model
          & auto_name(velp)
          & auto_name(velf)
          & auto_name(velc)
-         & auto_name(vel);
-      if(tracking) ar
-         & auto_name(domain_min)
-         & auto_name(domain_max);
+         & auto_name(vel)
+         & auto_name(patch_min)
+         & auto_name(patch_max);
   }
 
   // =========================================================================
@@ -359,6 +358,9 @@ struct Model
 
   /** Add cell with number n at a certain position */
   void AddCell(unsigned n, const coord& center);
+
+  /** Subfunction for AddCell() */
+  void AddCellAtNode(unsigned n, unsigned k, const coord& center);
 
   /** Set initial condition for the fields */
   void Configure();
@@ -443,13 +445,13 @@ struct Model
   /** Update fields */
   void Update();
 
-  /** Update the window for tracking */
-  void UpdateWindow(unsigned);
+  /** Update the moving patch following each cell */
+  void UpdatePatch(unsigned);
 
   /** Helper function
    *
-   * Update the fields in a square domain that is entirely contained inside the
-   * domain, i.e. that is not wrapping around the borders.
+   * Update the fields in a square patch that is entirely contained inside the
+   * patch, i.e. that is not wrapping around the borders.
    * */
   template<typename Ret, typename ...Args>
   void UpdateSubDomain(Ret (Model::*)(unsigned, unsigned, Args...),
@@ -462,7 +464,7 @@ struct Model
                         unsigned, Args&&... args);
   /** Helper function
    *
-   * This function is used to updated the fields only in a restricted domain
+   * This function is used to updated the fields only in a restricted patch
    * around the cell center. One needs to be careful because of the periodic
    * boundary conditions. The template argument is the function used to update
    * the fields at each node (called ***AtNode()).
@@ -501,6 +503,134 @@ struct Model
   /** Get grod index from position */
   unsigned GetDomainIndex(unsigned x, unsigned y) const
   { return y + Size[1]*x; }
+
+  /** Get index on the patch of phi from grid coordinate */
+  unsigned GetPhiIndex(unsigned n, unsigned x, unsigned y) const
+  {
+    coord p = {x, y};
+
+    // get difference to the patch min
+    p = (p + Size - patch_min[n])%Size;
+    // correct for offset
+    p = (p + 2u*patch_size + 1u - offset[n])%(2u*patch_size+1u);
+    // remap linearly
+    return p[1] + (2u*patch_size[1] + 1u)*p[0];
+  }
+
+  /** Get index on the patch of phi from grid index */
+  unsigned GetPhiIndex(unsigned n, unsigned k)
+  {
+    return GetPhiIndex(n, GetXPosition(k), GetYPosition(k));
+  }
 };
+
+// =============================================================================
+// Implementation
+
+template<typename Ret, typename ...Args>
+void Model::UpdateSubDomain(Ret (Model::*fun)(unsigned, unsigned, Args...),
+                                unsigned n,
+                                unsigned m0, unsigned m1,
+                                unsigned M0, unsigned M1,
+                                Args&&... args)
+{
+  // only update on the subregion
+  for(unsigned i=m0; i<M0; ++i)
+    for(unsigned j=m1; j<M1; ++j)
+      (this->*fun)(n, GetDomainIndex(i, j),
+                std::forward<Args>(args)...);
+}
+
+template<typename Ret, typename ...Args>
+void Model::UpdateSubDomainP(Ret (Model::*fun)(unsigned, unsigned, Args...),
+                                 unsigned n,
+                                 unsigned m0, unsigned m1,
+                                 unsigned M0, unsigned M1,
+                                 Args&&... args)
+{
+  // same but with openmp
+  PRAGMA_OMP(omp parallel for num_threads(nthreads) if(nthreads))
+  for(unsigned k=0; k<(M0-m0)*(M1-m1); ++k)
+      (this->*fun)(n, GetDomainIndex(m0+k%(M0-m0), m1+k/(M0-m0)),
+                std::forward<Args>(args)...);
+}
+
+template<typename Ret, typename ...Args>
+void Model::UpdateDomainP(Ret (Model::*fun)(unsigned, unsigned, Args...),
+                              unsigned n, Args&&... args)
+{
+  if(patch_min[n][0]>=patch_max[n][0] and
+     patch_min[n][1]>=patch_max[n][1])
+  {
+    // patch is across the corners
+    UpdateSubDomainP(fun, n, patch_min[n][0], patch_min[n][1], Size[0], Size[1],
+                     std::forward<Args>(args)...);
+    UpdateSubDomainP(fun, n, 0u, 0u, patch_max[n][0], patch_max[n][1],
+                     std::forward<Args>(args)...);
+    UpdateSubDomainP(fun, n, patch_min[n][0], 0u, Size[0], patch_max[n][1],
+                     std::forward<Args>(args)...);
+    UpdateSubDomainP(fun, n, 0u, patch_min[n][1], patch_max[n][0], Size[1],
+                     std::forward<Args>(args)...);
+  }
+  else if(patch_min[n][0]>=patch_max[n][0])
+  {
+    // patch is across the left/right border
+    UpdateSubDomainP(fun, n, patch_min[n][0], patch_min[n][1], Size[0], patch_max[n][1],
+                     std::forward<Args>(args)...);
+    UpdateSubDomainP(fun, n, 0u, patch_min[n][1], patch_max[n][0], patch_max[n][1],
+                     std::forward<Args>(args)...);
+  }
+  else if(patch_min[n][1]>=patch_max[n][1])
+  {
+    // patch is across the up/down border
+    UpdateSubDomainP(fun, n, patch_min[n][0], patch_min[n][1], patch_max[n][0], Size[1],
+                     std::forward<Args>(args)...);
+    UpdateSubDomainP(fun, n, patch_min[n][0], 0u, patch_max[n][0], patch_max[n][1],
+                     std::forward<Args>(args)...);
+  }
+  else
+    // patch is in the middle
+    UpdateSubDomainP(fun, n, patch_min[n][0], patch_min[n][1], patch_max[n][0], patch_max[n][1],
+                     std::forward<Args>(args)...);
+}
+
+template<typename Ret, typename ...Args>
+void Model::UpdateDomain(Ret (Model::*fun)(unsigned, unsigned, Args...),
+                             unsigned n, Args&&... args)
+{
+  if(patch_min[n][0]>=patch_max[n][0] and
+     patch_min[n][1]>=patch_max[n][1])
+  {
+    // patch is across the corners
+    UpdateSubDomain(fun, n, patch_min[n][0], patch_min[n][1], Size[0], Size[1],
+                    std::forward<Args>(args)...);
+    UpdateSubDomain(fun, n, 0u, 0u, patch_max[n][0], patch_max[n][1],
+                    std::forward<Args>(args)...);
+    UpdateSubDomain(fun, n, patch_min[n][0], 0u, Size[0], patch_max[n][1],
+                    std::forward<Args>(args)...);
+    UpdateSubDomain(fun, n, 0u, patch_min[n][1], patch_max[n][0], Size[1],
+                    std::forward<Args>(args)...);
+  }
+  else if(patch_min[n][0]>=patch_max[n][0])
+  {
+    // patch is across the left/right border
+    UpdateSubDomain(fun, n, patch_min[n][0], patch_min[n][1], Size[0], patch_max[n][1],
+                    std::forward<Args>(args)...);
+    UpdateSubDomain(fun, n, 0u, patch_min[n][1], patch_max[n][0], patch_max[n][1],
+                    std::forward<Args>(args)...);
+  }
+  else if(patch_min[n][1]>=patch_max[n][1])
+  {
+    // patch is across the up/down border
+    UpdateSubDomain(fun, n, patch_min[n][0], patch_min[n][1], patch_max[n][0], Size[1],
+                    std::forward<Args>(args)...);
+    UpdateSubDomain(fun, n, patch_min[n][0], 0u, patch_max[n][0], patch_max[n][1],
+                    std::forward<Args>(args)...);
+  }
+  else
+    // patch is in the middle
+    UpdateSubDomain(fun, n, patch_min[n][0], patch_min[n][1], patch_max[n][0], patch_max[n][1],
+                    std::forward<Args>(args)...);
+}
 
 #endif//MODEL_HPP_

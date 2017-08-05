@@ -8,7 +8,7 @@ nsteps    = 2000
 ninfo     = 10
 LX        = 50
 LY        = 50
-nsubsteps = 5
+nsubsteps = 8
 bc        = 1
 
 # model parameters...

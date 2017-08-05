@@ -38,8 +38,7 @@ inline double derivY(const field& f, const stencil& s)
 /** Five-point finite difference laplacian */
 inline double laplacian(const field& f, const stencil& s)
 {
-  return ( f[s[+1][0]] + f[s[0][+1]] + f[s[-1][0]] + f[s[0][-1]] - 4.*f[s[0][0]] );
-
+  return f[s[+1][0]] + f[s[0][+1]] + f[s[-1][0]] + f[s[0][-1]] - 4.*f[s[0][0]];
 }
 
 #endif//DERIVATIVES_HPP_

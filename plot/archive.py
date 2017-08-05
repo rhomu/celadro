@@ -30,8 +30,25 @@ class archive(archive_base.archive):
 
     def read_frame(self, frame):
         frame = super(archive, self).read_frame(frame)
-        # reshape
-        frame.phi = [ np.reshape(p, self.Size) for p in frame.phi ]
+
+        # array sizes
+        lx, ly = self.Size
+        px, py = map(lambda x: 2*x+1, self.patch_size)
+
+        phi = []
+        for i in range(len(frame.phi)):
+            p = np.reshape(frame.phi[i], (px, py))
+            # compensate for offset
+            p = np.roll(p, frame.offset[i], axis=(0,1))
+            # extend to full size
+            p = np.concatenate((p, np.zeros((px, ly-py))), axis=1)
+            p = np.concatenate((p, np.zeros((lx-px, ly))), axis=0)
+            # put in right postition
+            p = np.roll(p, frame.patch_min[i], axis=(0,1))
+            # save
+            phi.append(p)
+        frame.phi = phi
+
         return frame
 
 def loadarchive(path):

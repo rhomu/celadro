@@ -116,8 +116,6 @@ void Model::ParseProgramOptions(int ac, char **av)
       "Strength of alignment torque")
     ("D", opt::value<double>(&D),
       "Rotational diffusion constant")
-    ("tracking", opt::bool_switch(&tracking),
-     "enable tracking of cells in subregions only")
     ("wall-thickness", opt::value<double>(&wall_thickness),
       "Wall thickness (typical decay length)")
     ("wall-kappa", opt::value<double>(&wall_kappa)->default_value(kappa),

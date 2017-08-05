@@ -100,13 +100,15 @@ void Model::RuntimeChecks()
 
 void Model::UpdateFieldsAtNode(unsigned n, unsigned k)
 {
-  const auto& s = neighbors[k];
+  const unsigned q = GetPhiIndex(n, k);
+  const auto&    s = neighbors[k];
+  const auto&   sq = neighbors_patch[q];
 
   // cell properties
-  const auto& p  = phi[n][k];
-  const auto  l  = laplacian(phi[n], s);
-  const auto  dx = derivX(phi[n], s);
-  const auto  dy = derivY(phi[n], s);
+  const auto& p  = phi[n][q];
+  const auto  l  = laplacian(phi[n], sq);
+  const auto  dx = derivX(phi[n], sq);
+  const auto  dy = derivY(phi[n], sq);
   // all-cells properties
   const auto  ls   = laplacian(sum, s);
   const auto  dxs  = derivX(sum, s);
@@ -135,7 +137,7 @@ void Model::UpdateFieldsAtNode(unsigned n, unsigned k)
       );
 
   // potential
-  V[n][k]     = force;
+  V[n][q]     = force;
   // passive force
   velp[n][0] += dx*force;
   velp[n][1] += dy*force;
@@ -173,19 +175,20 @@ void Model::UpdateFieldsAtNode(unsigned n, unsigned k)
 
 void Model::UpdateAtNode(unsigned n, unsigned k)
 {
+  const unsigned q = GetPhiIndex(n, k);
+  const auto&   sq = neighbors_patch[q];
+
   // compute potential
   {
-    const auto& s = neighbors[k];
-
-    const auto  p  = phi[n][k];
+    const auto  p  = phi[n][q];
     const auto  a  = area[n];
-    const auto  dx = derivX(phi[n], s);
-    const auto  dz = derivY(phi[n], s);
-    const auto  l  = laplacian(phi[n], s);
+    const auto  dx = derivX(phi[n], sq);
+    const auto  dz = derivY(phi[n], sq);
+    const auto  l  = laplacian(phi[n], sq);
 
-    potential[n][k] = (
+    potential[n][q] = (
       // free energy term
-      -.5*V[n][k]
+      -.5*V[n][q]
       -.5*(
         + C1*gam[n]*p*(1.-p)*(1.-2.*p)
         - 2.*mu[n]*(1.-a/C2)*2.*p
@@ -200,17 +203,17 @@ void Model::UpdateAtNode(unsigned n, unsigned k)
   // store values
   if(store)
   {
-    potential_old[n][k] = potential[n][k];
-    phi_old[n][k]       = phi[n][k];
+    potential_old[n][q] = potential[n][q];
+    phi_old[n][q]       = phi[n][q];
   }
 
   // predictor-corrector
   {
-    double p = phi_old[n][k]
-               + time_step*.5*(potential[n][k] + potential_old[n][k]);
+    double p = phi_old[n][q]
+               + time_step*.5*(potential[n][q] + potential_old[n][q]);
 
     // update for next call
-    phi[n][k]    = p;
+    phi[n][q]    = p;
     com_x[n]    += com_x_table[GetXPosition(k)]*p;
     com_y[n]    += com_y_table[GetYPosition(k)]*p;
     area_cnt[n] += p*p;
@@ -236,7 +239,7 @@ void Model::UpdatePolarization(unsigned n)
   theta[n] += time_step*J*torque + sqrt(time_step)*D*random_normal();
 
   // update polarisation and contractility
-  pol[n] = {cos(theta[n]), sin(theta[n])};
+  pol[n] = { cos(theta[n]), sin(theta[n]) };
 
   // dynamics of the contractility: needs some cleaning up once settled
   //
@@ -255,26 +258,34 @@ void Model::ComputeCoM(unsigned n)
   com[n] = { mx/2./Pi*Size[0], my/2./Pi*Size[1] };
 }
 
-void Model::UpdateWindow(unsigned n)
+void Model::UpdatePatch(unsigned n)
 {
-  // obtain the new location of the domain min and max
-  vec<coord, 2> new_min[n] = {
-    (static_cast<unsigned>(round(com[n][0])) + Size[0] - margin)%Size[0],
-    (static_cast<unsigned>(round(com[n][1])) + Size[1] - margin)%Size[1]
+  // obtain the new location of the patch min and max
+  const coord new_min = {
+    (static_cast<unsigned>(round(com[n][0])) + Size[0] - patch_size[0])%Size[0],
+    (static_cast<unsigned>(round(com[n][1])) + Size[1] - patch_size[1])%Size[1]
   };
-  vec<coord, 2> new_max[n] = {
-    (static_cast<unsigned>(round(com[n][0])) + margin)%Size[0],
-    (static_cast<unsigned>(round(com[n][1])) + margin)%Size[1]
+  const coord new_max = {
+    (static_cast<unsigned>(round(com[n][0])) + patch_size[0])%Size[0],
+    (static_cast<unsigned>(round(com[n][1])) + patch_size[1])%Size[1]
   };
+
+  // update offset if needed (remember that the patch has fixed size)
+  offset[n] = (offset[n] + 2u*patch_size + 1u - new_min + patch_min[n])%(2u*patch_size+1u);
+
+  patch_min[n] = new_min;
+  patch_max[n] = new_max;
 }
 
 void Model::UpdateStructureTensorAtNode(unsigned n, unsigned k)
 {
-  const auto& s = neighbors[k];
+  const unsigned q = GetPhiIndex(n, k);
+  const auto&   sq = neighbors_patch[q];
 
-  const auto  p  = phi[n][k];
-  const auto  dx = 2*p*derivX(phi[n], s);
-  const auto  dy = 2*p*derivY(phi[n], s);
+  const auto  p  = phi[n][q];
+  const auto  dx = 2*p*derivX(phi[n], sq);
+  const auto  dy = 2*p*derivY(phi[n], sq);
+
   S00[n] += 0.5*(dx*dx-dy*dy);
   S01[n] += dx*dy;
 }
@@ -289,7 +300,7 @@ void Model::ComputeShape(unsigned n)
 
 void Model::SquareAndSumAtNode(unsigned n, unsigned k)
 {
-  const auto p = phi[n][k];
+  const auto p = phi[n][GetPhiIndex(n, k)];
 
   // we swap counters and values afterwards
   sum_cnt[k]    += p;
@@ -337,7 +348,7 @@ void Model::Update()
     velf[n] = {0., 0.};
     //torque[n] = 0.;
 
-    // update in restricted domain only
+    // update in restricted patch only
     UpdateDomain(&Model::UpdateFieldsAtNode, n);
   }
 
@@ -350,7 +361,7 @@ void Model::Update()
   PRAGMA_OMP(omp parallel for num_threads(nthreads) if(nthreads))
   for(unsigned n=0; n<nphases; ++n)
   {
-    // only update fields in the restricted domain of field n
+    // only update fields in the restricted patch of field n
     UpdateDomain(&Model::UpdateAtNode, n);
     // because the polarisation dynamics is first
     // order (euler-maruyama) we need to update only
@@ -358,8 +369,8 @@ void Model::Update()
     if(store) UpdatePolarization(n);
     // update center of mass
     ComputeCoM(n);
-    // update domain walls
-    if(tracking) UpdateWindow(n);
+    // update patch boundaries
+    UpdatePatch(n);
     // update structure tensor
     UpdateDomain(&Model::UpdateStructureTensorAtNode, n);
     // and get shape
@@ -378,7 +389,7 @@ void Model::Update()
   // previous loop.
 
   for(unsigned n=0; n<nphases; ++n)
-    // update only domain (in parallel, each node to a different core)
+    // update only patch (in parallel, each node to a different core)
     UpdateDomainP(&Model::SquareAndSumAtNode, n);
 
   // 4) Reinit counters and swap to get correct values
@@ -423,99 +434,4 @@ void Model::Step()
                     (com[n][1]-com_prev[n][1])/time_step };
     com_prev[n] = com[n];
   }
-}
-
-// =============================================================================
-// Helper functions
-
-template<typename Ret, typename ...Args>
-void Model::UpdateSubDomain(Ret (Model::*fun)(unsigned, unsigned, Args...),
-                                unsigned n,
-                                unsigned m0, unsigned m1,
-                                unsigned M0, unsigned M1,
-                                Args&&... args)
-{
-  // only update on the subregion
-  for(unsigned i=m0; i<M0; ++i)
-    for(unsigned j=m1; j<M1; ++j)
-      // if you want to look it up, this is called a pointer
-      // to member function and is an obscure C++ feature...
-      (this->*fun)(n, GetDomainIndex(i, j),
-                std::forward<Args>(args)...);
-}
-
-template<typename Ret, typename ...Args>
-void Model::UpdateSubDomainP(Ret (Model::*fun)(unsigned, unsigned, Args...),
-                                 unsigned n,
-                                 unsigned m0, unsigned m1,
-                                 unsigned M0, unsigned M1,
-                                 Args&&... args)
-{
-  // same but with openmp
-  PRAGMA_OMP(omp parallel for num_threads(nthreads) if(nthreads))
-  for(unsigned k=0; k<(M0-m0)*(M1-m1); ++k)
-      // if you want to look it up, this is called a pointer
-      // to member function and is an obscure C++ feature...
-      (this->*fun)(n, GetDomainIndex(m0+k%(M0-m0), m1+k/(M0-m0)),
-                std::forward<Args>(args)...);
-}
-
-template<typename Ret, typename ...Args>
-void Model::UpdateDomainP(Ret (Model::*fun)(unsigned, unsigned, Args...),
-                              unsigned n, Args&&... args)
-{
-  if(domain_min[n][0]>=domain_max[n][0] and
-     domain_min[n][1]>=domain_max[n][1])
-  {
-    // domain is across the corners
-    UpdateSubDomainP(fun, n, domain_min[n][0], domain_min[n][1], Size[0], Size[1]);
-    UpdateSubDomainP(fun, n, 0u, 0u, domain_max[n][0], domain_max[n][1]);
-    UpdateSubDomainP(fun, n, domain_min[n][0], 0u, Size[0], domain_max[n][1]);
-    UpdateSubDomainP(fun, n, 0u, domain_min[n][1], domain_max[n][0], Size[1]);
-  }
-  else if(domain_min[n][0]>=domain_max[n][0])
-  {
-    // domain is across the left/right border
-    UpdateSubDomainP(fun, n, domain_min[n][0], domain_min[n][1], Size[0], domain_max[n][1]);
-    UpdateSubDomainP(fun, n, 0u, domain_min[n][1], domain_max[n][0], domain_max[n][1]);
-  }
-  else if(domain_min[n][1]>=domain_max[n][1])
-  {
-    // domain is across the up/down border
-    UpdateSubDomainP(fun, n, domain_min[n][0], domain_min[n][1], domain_max[n][0], Size[1]);
-    UpdateSubDomainP(fun, n, domain_min[n][0], 0u, domain_max[n][0], domain_max[n][1]);
-  }
-  else
-    // domain is in the middle
-    UpdateSubDomainP(fun, n, domain_min[n][0], domain_min[n][1], domain_max[n][0], domain_max[n][1]);
-}
-
-template<typename Ret, typename ...Args>
-void Model::UpdateDomain(Ret (Model::*fun)(unsigned, unsigned, Args...),
-                             unsigned n, Args&&... args)
-{
-  if(domain_min[n][0]>=domain_max[n][0] and
-     domain_min[n][1]>=domain_max[n][1])
-  {
-    // domain is across the corners
-    UpdateSubDomain(fun, n, domain_min[n][0], domain_min[n][1], Size[0], Size[1]);
-    UpdateSubDomain(fun, n, 0u, 0u, domain_max[n][0], domain_max[n][1]);
-    UpdateSubDomain(fun, n, domain_min[n][0], 0u, Size[0], domain_max[n][1]);
-    UpdateSubDomain(fun, n, 0u, domain_min[n][1], domain_max[n][0], Size[1]);
-  }
-  else if(domain_min[n][0]>=domain_max[n][0])
-  {
-    // domain is across the left/right border
-    UpdateSubDomain(fun, n, domain_min[n][0], domain_min[n][1], Size[0], domain_max[n][1]);
-    UpdateSubDomain(fun, n, 0u, domain_min[n][1], domain_max[n][0], domain_max[n][1]);
-  }
-  else if(domain_min[n][1]>=domain_max[n][1])
-  {
-    // domain is across the up/down border
-    UpdateSubDomain(fun, n, domain_min[n][0], domain_min[n][1], domain_max[n][0], Size[1]);
-    UpdateSubDomain(fun, n, domain_min[n][0], 0u, domain_max[n][0], domain_max[n][1]);
-  }
-  else
-    // domain is in the middle
-    UpdateSubDomain(fun, n, domain_min[n][0], domain_min[n][1], domain_max[n][0], domain_max[n][1]);
 }

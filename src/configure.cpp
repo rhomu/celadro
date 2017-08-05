@@ -22,54 +22,50 @@
 
 using namespace std;
 
-void Model::AddCell(unsigned n, const coord& center)
+void Model::AddCellAtNode(unsigned n, unsigned k, const coord& center)
 {
+  const unsigned xk = GetXPosition(k);
+  const unsigned yk = GetYPosition(k);
+  const unsigned q  = GetPhiIndex(n, xk, yk);
+
   // we create smaller cells that will then relax
   // this improves greatly the stability at the first steps
   const auto radius = max(R/2., 4.);
 
-  // create the cells at the centers we just computed
-  PRAGMA_OMP(omp parallel for num_threads(nthreads) if(nthreads))
-  for(unsigned k=0; k<N; ++k)
+  // round shape (do not wrap if no PBC)
+  if(
+      (BC==0 and pow(wrap(diff(yk, center[1]), Size[1]), 2)
+       + pow(wrap(diff(xk, center[0]), Size[0]), 2)<=ceil(radius*radius))
+      or
+      (BC>=1 and pow(diff(yk, center[1]), 2)
+       + pow(diff(xk, center[0]), 2)<=ceil(radius*radius))
+    )
   {
-    const unsigned xk = GetXPosition(k);
-    const unsigned yk = GetYPosition(k);
-
-    // round shape (do not wrap if no PBC)
-    if(
-        (BC==0 and pow(wrap(diff(yk, center[1]), Size[1]), 2)
-         + pow(wrap(diff(xk, center[0]), Size[0]), 2)<=ceil(radius*radius))
-        or
-        (BC>=1 and pow(diff(yk, center[1]), 2)
-         + pow(diff(xk, center[0]), 2)<=ceil(radius*radius))
-      )
-    {
-      phi[n][k]     = 1.;
-      phi_old[n][k] = 1.;
-      area[n]      += 1.;
-      square[k]    += 1.;
-      sum[k]       += 1.;
-    }
-    else
-    {
-      phi[n][k]     = 0.;
-      phi_old[n][k] = 0.;
-    }
-  }
-
-  c[n]     = c0;
-  theta[n] = 2.*Pi*random_real();
-
-  if(tracking)
-  {
-    domain_min[n] = (center+Size-margin)%Size;
-    domain_max[n] = (center+margin)%Size;
+    phi[n][q]     = 1.;
+    phi_old[n][q] = 1.;
+    area[n]      += 1.;
+    square[k]    += 1.;
+    sum[k]       += 1.;
   }
   else
   {
-    domain_min[n] = { 0u, 0u };
-    domain_max[n] = Size;
+    phi[n][q]     = 0.;
+    phi_old[n][q] = 0.;
   }
+}
+
+void Model::AddCell(unsigned n, const coord& center)
+{
+  // update patch coordinates
+  patch_min[n] = (center+Size-patch_size)%Size;
+  patch_max[n] = (center+patch_size+1u)%Size;
+
+  // create the cells at the centers we just computed
+  UpdateDomain(&Model::AddCellAtNode, n ,center);
+
+  c[n]     = c0;
+  theta[n] = 2.*Pi*random_real();
+  com[n]   = vec<double, 2>(center);
 }
 
 void Model::Configure()
@@ -149,7 +145,7 @@ void Model::Configure()
         if(BC==3)
         {
           // compute distance from the elliptic wall
-          // ... angle of the current point (from center of the domain)
+          // ... angle of the current point (from center of the patch)
           const auto theta = atan2(Size[1]/2.-center[1], Size[0]/2.-center[0]);
           // ... small helper function to compute radius
           auto rad = [](auto x, auto y) { return sqrt(x*x + y*y); };

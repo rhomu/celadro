@@ -25,18 +25,18 @@
  * A stencil is a list of 9 (in two dimensions) grid indices of a point and its
  * neighbourhood. The convention is the following: if s is a given stencil, then
  * s[0][0] is the grid coordinate of the central point, s[1][0] the coordinate
- * of the point to its right, etc.
+ * of the point to its right, s[-1][0] the point to its left, etc.
  * */
 struct stencil
 {
   struct shifted_array
   {
-    std::array<int, 3> data;
+    std::array<unsigned, 3> data;
 
-    int& operator[](int i)
+    unsigned& operator[](int i)
     { return data[i+1]; }
 
-    const int& operator[](int i) const
+    const unsigned& operator[](int i) const
     { return data[i+1]; }
   };
 

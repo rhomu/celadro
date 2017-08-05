@@ -24,7 +24,7 @@ void Model::Initialize()
 {
   N = Size[0]*Size[1];
 
-  // initialize memory
+  // initialize memory for global fields
   walls.resize(N, 0.);
   walls_dx.resize(N, 0.);
   walls_dy.resize(N, 0.);
@@ -46,19 +46,25 @@ void Model::Initialize()
   P.resize(N, 0.);
   P_cnt.resize(N, 0.);
 
-  // the patch is the region over which we compute each cell
-  const unsigned PatchSize = N;//2*margin+1;
+  // rectifies margin in case it is bigger than domain
+  patch_size = {
+    min(margin, Size[0]/2 - 1 + (Size[0]%2)),
+    min(margin, Size[1]/2 - 1 + (Size[1]%2))
+  };
+  patch_N = (2u*patch_size[0]+1u)*(2u*patch_size[1]+1u);
 
-  phi.resize(nphases, vector<double>(PatchSize, 0.));
-  phi_old.resize(nphases, vector<double>(PatchSize, 0.));
-  V.resize(nphases, vector<double>(PatchSize, 0.));
-  potential.resize(nphases, vector<double>(PatchSize, 0.));
-  potential_old.resize(nphases, vector<double>(PatchSize, 0.));
+  // allocate memory for qties defined on the patches
+  phi.resize(nphases, vector<double>(patch_N, 0.));
+  phi_old.resize(nphases, vector<double>(patch_N, 0.));
+  V.resize(nphases, vector<double>(patch_N, 0.));
+  potential.resize(nphases, vector<double>(patch_N, 0.));
+  potential_old.resize(nphases, vector<double>(patch_N, 0.));
 
+  // allocate memory for cell properties
   area.resize(nphases, 0.);
   area_cnt.resize(nphases, 0.);
-  domain_min.resize(nphases, {0, 0});
-  domain_max.resize(nphases, Size);
+  patch_min.resize(nphases, {0, 0});
+  patch_max.resize(nphases, Size);
   com.resize(nphases, {0., 0.});
   com_prev.resize(nphases, {0., 0.});
   pol.resize(nphases, {0., 0.});
@@ -74,6 +80,7 @@ void Model::Initialize()
   S_order.resize(nphases, 0.);
   S_angle.resize(nphases, 0.);
   theta.resize(nphases, 0.);
+  offset.resize(nphases, {0u, 25u});
 
   // pre-compute coefficients
   C1 = 60./lambda/lambda;
@@ -96,10 +103,6 @@ void Model::Initialize()
   else if(birth_bdries.size()!=4)
     throw error_msg("Birth boundaries have wrong format, see help.");
 
-  // check margin size
-  if(2*margin+1>Size[0] or 2*margin+1>Size[1])
-    throw error_msg("Margin is too large for domain size.");
-
   // set flags
   division = (division_rate!=0.);
 }
@@ -107,6 +110,7 @@ void Model::Initialize()
 void Model::InitializeNeighbors()
 {
   neighbors.resize(N);
+  neighbors_patch.resize(patch_N);
 
   // define the neighbours, accounting for the periodic boundaries
   for(unsigned k=0; k<N; ++k)
@@ -116,5 +120,23 @@ void Model::InitializeNeighbors()
     for(int dx=-1; dx<=1; ++dx)
       for(int dy=-1; dy<=1; ++dy)
         neighbors[k][dx][dy] = GetDomainIndex( (x+Size[0]+dx)%Size[0], (y+Size[1]+dy)%Size[1] );
+  }
+
+  // define the neighbours, accounting for the periodic boundaries
+  const unsigned lx = 2u*patch_size[0]+1u;
+  const unsigned ly = 2u*patch_size[1]+1u;
+  for(unsigned k=0; k<patch_N; ++k)
+  {
+    const unsigned x = k/ly;
+    const unsigned y = k%ly;
+    for(int dx=-1; dx<=1; ++dx)
+    {
+      for(int dy=-1; dy<=1; ++dy)
+      {
+        const unsigned u = (x+lx+dx)%lx;
+        const unsigned v = (y+ly+dy)%ly;
+        neighbors_patch[k][dx][dy] = v + u*ly;
+      }
+    }
   }
 }

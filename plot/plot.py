@@ -145,7 +145,7 @@ def vel(frame, engine=plt):
 
 def phase(frame, n, engine=plt):
     """Plot single phase as a density plot"""
-    cax = engine.imshow(frame.phi[n], interpolation='lanczos', cmap='Greys', origin='lower'
+    cax = engine.imshow(frame.phi[n].T, interpolation='lanczos', cmap='Greys', origin='lower'
                         #, clim=(0., 1.)
                         )
     cbar = plt.colorbar(cax)
@@ -166,15 +166,14 @@ def walls(frame, engine=plt):
     """Plot the wall phase-field"""
     cax = engine.imshow(frame.parameters['walls'], cmap='Greys', origin='lower', clim=(0., 1.))
 
-def domain(frame, n, engine=plt):
-    """Plot the restricted domain of a single cell"""
+def patch(frame, n, engine=plt):
+    """Plot the restricted patch of a single cell"""
     plot = lambda m, M: engine.fill([ m[0], M[0], M[0], m[0], m[0], None ],
                                     [ m[1], m[1], M[1], M[1], m[1], None ],
                                     color = 'b', alpha=0.04)
-    LX = frame.parameters['Size'][0]
-    LY = frame.parameters['Size'][0]
-    m = frame.domain_min[n]
-    M = frame.domain_max[n]
+    LX, LY = frame.parameters['Size']
+    m = frame.patch_min[n]
+    M = frame.patch_max[n]
 
     if(m[0]==M[0]):
         m[0] += 1e-1
@@ -197,10 +196,10 @@ def domain(frame, n, engine=plt):
     else:
         plot(m, M)
 
-def domains(frame, engine=plt):
-    """Plot the restricted domains of each cell"""
+def patches(frame, engine=plt):
+    """Plot the restricted patches of each cell"""
     for n in range(frame.parameters['nphases']):
-        domain(frame, n, engine)
+        patch(frame, n, engine)
 
 def masks(frame, engine=plt):
     """Plot division/death masks"""

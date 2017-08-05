@@ -154,7 +154,10 @@ std::string vec2str(const T& iterable)
   return s.str();
 }
 
-/** Split string */
+/** Split string
+ *
+ * My most famous contribution to stack overflow.
+ * */
 inline std::vector<std::string> split(const std::string& s, char sep=' ')
 {
   std::vector<std::string> words;

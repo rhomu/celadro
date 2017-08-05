@@ -1,4 +1,12 @@
-* Rm and filesystem from C++
+TODO:
+====
+* Rm and filesystem from C++17
 * zip from cmake?
+* implement nice git flow (master, hotfix, etc)
+
+DONE:
+====
+* Replace derivatives with midpoint stencils.
 * Create back object to hold all variables and separate functions into
-  different files (model.hpp, init.cpp, run.cpp, stats.cpp, etc).
+  different files (model.hpp, init.cpp, update.cpp, stats.cpp, etc).
+  -> simplify serialization
