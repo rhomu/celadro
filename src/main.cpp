@@ -41,57 +41,54 @@ string title = R"(
 
 void Model::Algorithm()
 {
-  for(unsigned t=0; t<nsteps; ++t)
+  // number of steps between two writes
+  const unsigned streak_length = nsubsteps*ninfo;
+
+  for(unsigned t=0; t<nsteps; t+=ninfo)
   {
-    if(t%ninfo==0)
+    // write current frame
+    if(!no_write and t>=nstart)
     {
-      // write current frame
-      if(!no_write and t>=nstart)
-      {
-        const auto start = chrono::steady_clock::now();
+      const auto start = chrono::steady_clock::now();
 
-        try
-        {
-          WriteFrame(t);
-        }
-        catch(...) {
-          cerr << "error" << endl;
-          throw;
-        }
-
-        write_duration += chrono::steady_clock::now() - start;
-      }
-
-      // some verbose
-      if(verbose>1) cout << '\n';
-      if(verbose)
-        cout << "timesteps t = " << setw(pad) << setfill(' ') << right
-                                   << t << " to "
-                                   << setw(pad) << setfill(' ') << right
-                                   << t+ninfo << endl;
-      if(verbose>1) cout << string(width, '-') << endl;
-    }
-
-    // do the computation
-    for(unsigned s=0; s<nsubsteps; ++s) Step();
-
-    // runtime stats and checks
-    if(t%ninfo==0)
-    {
       try
       {
-        if(verbose>1) RuntimeStats();
-        RuntimeChecks();
+        WriteFrame(t);
       }
-      catch(error_msg e)
-      {
+      catch(...) {
+        cerr << "error" << endl;
         throw;
       }
-      catch(warning_msg e)
-      {
-        if(stop_at_warning) throw;
-        else if(verbose and !no_warning) cerr << "warning: " << e.what() << "\n";
-      }
+
+      write_duration += chrono::steady_clock::now() - start;
+    }
+
+    // some verbose
+    if(verbose>1) cout << '\n';
+    if(verbose)
+      cout << "timesteps t = " << setw(pad) << setfill(' ') << right
+                                 << t << " to "
+                                 << setw(pad) << setfill(' ') << right
+                                 << t+ninfo << endl;
+    if(verbose>1) cout << string(width, '-') << endl;
+
+    // do the computation
+    for(unsigned s=0; s<streak_length; ++s) Step();
+
+    // runtime stats and checks
+    try
+    {
+      if(verbose>1) RuntimeStats();
+      RuntimeChecks();
+    }
+    catch(error_msg e)
+    {
+      throw;
+    }
+    catch(warning_msg e)
+    {
+      if(stop_at_warning) throw;
+      else if(verbose and !no_warning) cerr << "warning: " << e.what() << "\n";
     }
   }
 
