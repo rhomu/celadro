@@ -109,7 +109,7 @@ struct Model
   /** Max of the boundaries of the patches and center of mass */
   std::vector<coord> patch_max;
   /** Size of the patch (set by margin) */
-  coord patch_size;
+  coord patch_size, patch_margin;
   /** Total number of nodes in a patch */
   unsigned patch_N;
   /** Memory offset for each patch */
@@ -294,7 +294,7 @@ struct Model
        & auto_name(wall_kappa)
        & auto_name(wall_omega)
        & auto_name(walls)
-       & auto_name(margin)
+       & auto_name(patch_margin)
        & auto_name(patch_size);
   }
 
@@ -500,7 +500,7 @@ struct Model
   unsigned GetYPosition(unsigned k) const
   { return k%Size[1]; }
 
-  /** Get grod index from position */
+  /** Get grid index from position */
   unsigned GetDomainIndex(unsigned x, unsigned y) const
   { return y + Size[1]*x; }
 
@@ -508,13 +508,12 @@ struct Model
   unsigned GetPhiIndex(unsigned n, unsigned x, unsigned y) const
   {
     coord p = {x, y};
-
     // get difference to the patch min
     p = (p + Size - patch_min[n])%Size;
     // correct for offset
-    p = (p + 2u*patch_size + 1u - offset[n])%(2u*patch_size+1u);
+    p = (p + patch_size - offset[n])%patch_size;
     // remap linearly
-    return p[1] + (2u*patch_size[1] + 1u)*p[0];
+    return p[1] + patch_size[1]*p[0];
   }
 
   /** Get index on the patch of phi from grid index */

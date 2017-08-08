@@ -57,8 +57,8 @@ void Model::AddCellAtNode(unsigned n, unsigned k, const coord& center)
 void Model::AddCell(unsigned n, const coord& center)
 {
   // update patch coordinates
-  patch_min[n] = (center+Size-patch_size)%Size;
-  patch_max[n] = (center+patch_size+1u)%Size;
+  patch_min[n] = (center+Size-patch_margin)%Size;
+  patch_max[n] = (center+patch_margin-1u)%Size;
 
   // create the cells at the centers we just computed
   UpdateDomain(&Model::AddCellAtNode, n ,center);

@@ -52,4 +52,4 @@ tauc  = 5
 zeta  = 0 #-0.012
 c0    = 0 #.018
 
-margin = 25
+margin = 30

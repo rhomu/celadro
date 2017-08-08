@@ -224,7 +224,6 @@ void Model::Run()
   }
 }
 
-
 /** Program entry */
 int main(int argc, char **argv)
 {

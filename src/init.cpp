@@ -46,12 +46,21 @@ void Model::Initialize()
   P.resize(N, 0.);
   P_cnt.resize(N, 0.);
 
+  // check parameters
+  if(margin<R)
+    throw error_msg("Margin is too small, make it bigger than R.");
+  if(alpha/nsubsteps>=.5)
+    throw error_msg("Cell speed is too high with respect to the step size.");
+
   // rectifies margin in case it is bigger than domain
-  patch_size = {
+  // and compensate for the boundary layer
+  patch_margin = {
     min(margin, Size[0]/2 - 1 + (Size[0]%2)),
     min(margin, Size[1]/2 - 1 + (Size[1]%2))
   };
-  patch_N = (2u*patch_size[0]+1u)*(2u*patch_size[1]+1u);
+  // total size including bdry layer
+  patch_size = 2u*patch_margin + 1u;
+  patch_N = patch_size[0]*patch_size[1];
 
   // allocate memory for qties defined on the patches
   phi.resize(nphases, vector<double>(patch_N, 0.));
@@ -80,7 +89,7 @@ void Model::Initialize()
   S_order.resize(nphases, 0.);
   S_angle.resize(nphases, 0.);
   theta.resize(nphases, 0.);
-  offset.resize(nphases, {0u, 25u});
+  offset.resize(nphases, {0u, 0u});
 
   // pre-compute coefficients
   C1 = 60./lambda/lambda;
@@ -122,9 +131,9 @@ void Model::InitializeNeighbors()
         neighbors[k][dx][dy] = GetDomainIndex( (x+Size[0]+dx)%Size[0], (y+Size[1]+dy)%Size[1] );
   }
 
-  // define the neighbours, accounting for the periodic boundaries
-  const unsigned lx = 2u*patch_size[0]+1u;
-  const unsigned ly = 2u*patch_size[1]+1u;
+  // define the neighbours, accounting for the boundary layer
+  const unsigned lx = patch_size[0];
+  const unsigned ly = patch_size[1];
   for(unsigned k=0; k<patch_N; ++k)
   {
     const unsigned x = k/ly;

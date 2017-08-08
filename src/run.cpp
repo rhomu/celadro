@@ -218,6 +218,15 @@ void Model::UpdateAtNode(unsigned n, unsigned k)
     com_y[n]    += com_y_table[GetYPosition(k)]*p;
     area_cnt[n] += p*p;
   }
+
+  // update structure tensor
+  Model::UpdateStructureTensorAtNode(n, k);
+
+  // reinit values: we do reinit values here for the simple reason that it is
+  // faster than having a supplementary loop afterwards. There is a 'race
+  // condition' in principle here but since we are setting evth back to 0 it
+  // should be fine
+  ReinitSquareAndSumAtNode(k);
 }
 
 void Model::UpdatePolarization(unsigned n)
@@ -262,17 +271,20 @@ void Model::UpdatePatch(unsigned n)
 {
   // obtain the new location of the patch min and max
   const coord new_min = {
-    (static_cast<unsigned>(round(com[n][0])) + Size[0] - patch_size[0])%Size[0],
-    (static_cast<unsigned>(round(com[n][1])) + Size[1] - patch_size[1])%Size[1]
+    (static_cast<unsigned>(round(com[n][0])) + Size[0] - patch_margin[0])%Size[0],
+    (static_cast<unsigned>(round(com[n][1])) + Size[1] - patch_margin[1])%Size[1]
   };
   const coord new_max = {
-    (static_cast<unsigned>(round(com[n][0])) + patch_size[0])%Size[0],
-    (static_cast<unsigned>(round(com[n][1])) + patch_size[1])%Size[1]
+    (static_cast<unsigned>(round(com[n][0])) + patch_margin[0] - 1u)%Size[0],
+    (static_cast<unsigned>(round(com[n][1])) + patch_margin[1] - 1u)%Size[1]
   };
+  coord displacement = (Size + new_min - patch_min[n])%Size;
+  // I guess there is somehthing better than this...
+  if(displacement[0]==Size[0]-1u) displacement[0] = patch_size[0]-1u;
+  if(displacement[1]==Size[1]-1u) displacement[1] = patch_size[1]-1u;
 
-  // update offset if needed (remember that the patch has fixed size)
-  offset[n] = (offset[n] + 2u*patch_size + 1u - new_min + patch_min[n])%(2u*patch_size+1u);
-
+  // update offset and patch location
+  offset[n]    = ( offset[n] + patch_size - displacement )%patch_size;
   patch_min[n] = new_min;
   patch_max[n] = new_max;
 }
@@ -320,7 +332,6 @@ void Model::SquareAndSumAtNode(unsigned n, unsigned k)
 
 inline void Model::ReinitSquareAndSumAtNode(unsigned k)
 {
-  // reinit values
   sum[k]    = 0;
   square[k] = 0;
   P[k]      = 0;
@@ -369,12 +380,10 @@ void Model::Update()
     if(store) UpdatePolarization(n);
     // update center of mass
     ComputeCoM(n);
+    // get shape
+    ComputeShape(n);
     // update patch boundaries
     UpdatePatch(n);
-    // update structure tensor
-    UpdateDomain(&Model::UpdateStructureTensorAtNode, n);
-    // and get shape
-    ComputeShape(n);
 
     // reinit for next round
     com_x[n] = com_y[n] = area[n] = 0.;
@@ -396,9 +405,6 @@ void Model::Update()
   //
   // We use this construction because it is much faster with OpenMP: the single
   // threaded portion of the code consists only of these swaps!
-
-  PRAGMA_OMP(omp parallel for num_threads(nthreads) if(nthreads))
-  for(unsigned k=0; k<N; ++k) ReinitSquareAndSumAtNode(k);
 
   swap(sum, sum_cnt);
   swap(square, square_cnt);

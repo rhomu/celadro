@@ -33,7 +33,7 @@ class archive(archive_base.archive):
 
         # array sizes
         lx, ly = self.Size
-        px, py = map(lambda x: 2*x+1, self.patch_size)
+        px, py = self.patch_size
 
         phi = []
         for i in range(len(frame.phi)):
