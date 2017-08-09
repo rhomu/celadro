@@ -43,7 +43,11 @@ struct Model
 
   /** List of neighbours
    *
-   * WHY? */
+   * The list of neighbours is used for computing the derivatives and is pre-
+   * computed during initialization. The neighbours_patch variable has the same
+   * role but for a region of the size of the cell patches (they all have the
+   * same size).
+   * */
   std::vector<stencil> neighbors, neighbors_patch;
   /** Phase fields */
   std::vector<field> phi;
@@ -88,9 +92,7 @@ struct Model
   /** Structure tensor */
   std::vector<double> S00, S01;
   /** Polarity tensor */
-  std::vector<double> Q00, Q01;
-  std::vector<double> Theta;
-  std::vector<double> Theta_cnt;
+  std::vector<double> Q00, Q01, Theta, Theta_cnt;
   /** Counters for polarity tensor */
   std::vector<double> Q00_cnt, Q01_cnt;
   /** Internal pressure */
