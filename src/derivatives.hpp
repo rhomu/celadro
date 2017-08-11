@@ -41,4 +41,23 @@ inline double laplacian(const field& f, const stencil& s)
   return f[s[+1][0]] + f[s[0][+1]] + f[s[-1][0]] + f[s[0][-1]] - 4.*f[s[0][0]];
 }
 
+/** Symmetric finite difference derivative along the x direction (arrays) */
+inline double derivX(double *f, const stencil& s)
+{
+  return .5*( f[s[+1][0]] - f[s[-1][0]] );
+}
+
+/** Symmetric finite difference derivative along the y direction (arrays) */
+inline double derivY(double *f, const stencil& s)
+{
+  return .5*( f[s[0][+1]] - f[s[0][-1]] );
+}
+
+/** Five-point finite difference laplacian (arrays) */
+inline double laplacian(double *f, const stencil& s)
+{
+  return f[s[+1][0]] + f[s[0][+1]] + f[s[-1][0]] + f[s[0][-1]] - 4.*f[s[0][0]];
+}
+
+
 #endif//DERIVATIVES_HPP_

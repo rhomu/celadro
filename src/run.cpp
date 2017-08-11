@@ -22,7 +22,7 @@
 #include "tools.hpp"
 
 using namespace std;
-
+#include "run.cu"
 /** Needa store? (yes this is against my will) */
 bool store;
 
@@ -381,7 +381,7 @@ void Model::Update()
     // update center of mass
     ComputeCoM(n);
     // get shape
-    ComputeShape(n);
+    //ComputeShape(n);
     // update patch boundaries
     UpdatePatch(n);
 
