@@ -26,7 +26,7 @@ void Model::AddCellAtNode(unsigned n, unsigned k, const coord& center)
 {
   const unsigned xk = GetXPosition(k);
   const unsigned yk = GetYPosition(k);
-  const unsigned q  = GetPhiIndex(n, xk, yk);
+  const unsigned q  = GetPatchIndex(n, {xk, yk});
 
   // we create smaller cells that will then relax
   // this improves greatly the stability at the first steps

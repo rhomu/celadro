@@ -49,6 +49,7 @@ struct Model
    * same size).
    * */
   std::vector<stencil> neighbors, neighbors_patch;
+
   /** Phase fields */
   std::vector<field> phi;
   /** Predicted phi in a PC^n step */
@@ -97,10 +98,11 @@ struct Model
   std::vector<double> Q00_cnt, Q01_cnt;
   /** Internal pressure */
   std::vector<double> P, P_cnt;
-  /** Division flag */
-  bool division = false;
-  /** Pre-computed coefficients */
-  double C1, C2, C3;
+  /** Elasticity */
+  std::vector<double> gam;
+  /** Energy penalty for area */
+  std::vector<double> mu;
+
   /** @} */
 
   /** Domain managment
@@ -218,10 +220,6 @@ struct Model
   /** Cell properties
    * @{ */
 
-  /** Elasticity */
-  std::vector<double> gam;
-  /** Energy penalty for area */
-  std::vector<double> mu;
   /** Interface thickness */
   double lambda;
   /**  Interaction stength */
@@ -246,6 +244,10 @@ struct Model
   double D=1., J=1.;
   /** Contractility parameters */
   double c0, tauc;
+  /** Division flag */
+  bool division = false;
+  /** Pre-computed coefficients */
+  double C1, C2, C3;
 
   /** @} */
   /** Multi-threading parameters
@@ -494,22 +496,25 @@ struct Model
   // ===========================================================================
   // Tools
 
-  /** Gives x position corresponding to a grid index */
+  /** Gives domain coordinate corresponding to a domain index */
+  coord GetPosition(unsigned k) const
+  { return { GetXPosition(k), GetYPosition(k) }; }
+
+  /** Gives domain x-coordinate corresponding to a domain index */
   unsigned GetXPosition(unsigned k) const
   { return k/Size[1]; }
 
-  /** Gives y position corresponding to a grid index */
+  /** Gives domain y-coordinate corresponding to a domain index */
   unsigned GetYPosition(unsigned k) const
   { return k%Size[1]; }
 
-  /** Get grid index from position */
-  unsigned GetDomainIndex(unsigned x, unsigned y) const
-  { return y + Size[1]*x; }
+  /** Get domain index from domain coordinates */
+  unsigned GetIndex(const coord& p) const
+  { return p[1] + Size[1]*p[0]; }
 
-  /** Get index on the patch of phi from grid coordinate */
-  unsigned GetPhiIndex(unsigned n, unsigned x, unsigned y) const
+  /** Get patch index from domain coordinates */
+  unsigned GetPatchIndex(unsigned n, coord p) const
   {
-    coord p = {x, y};
     // get difference to the patch min
     p = (p + Size - patch_min[n])%Size;
     // correct for offset
@@ -518,10 +523,21 @@ struct Model
     return p[1] + patch_size[1]*p[0];
   }
 
-  /** Get index on the patch of phi from grid index */
-  unsigned GetPhiIndex(unsigned n, unsigned k)
+  /** Get patch index from domain index */
+  unsigned GetPatchIndex(unsigned n, unsigned k) const
   {
-    return GetPhiIndex(n, GetXPosition(k), GetYPosition(k));
+    return GetPatchIndex(n, GetPosition(k));
+  }
+
+  /** Get domain index from patch index */
+  unsigned GetIndexFromPatch(unsigned n, unsigned q) const
+  {
+    // position on the patch
+    const coord qpos = { q/patch_size[1], q%patch_size[1] };
+    // position on the domain
+    const coord dpos = ( (qpos + offset[n])%patch_size + patch_min[n] )%Size;
+    // return domain index
+    return GetIndex(dpos);
   }
 };
 
@@ -538,7 +554,7 @@ void Model::UpdateSubDomain(Ret (Model::*fun)(unsigned, unsigned, Args...),
   // only update on the subregion
   for(unsigned i=m0; i<M0; ++i)
     for(unsigned j=m1; j<M1; ++j)
-      (this->*fun)(n, GetDomainIndex(i, j),
+      (this->*fun)(n, GetIndex({i, j}),
                 std::forward<Args>(args)...);
 }
 
@@ -552,7 +568,7 @@ void Model::UpdateSubDomainP(Ret (Model::*fun)(unsigned, unsigned, Args...),
   // same but with openmp
   PRAGMA_OMP(omp parallel for num_threads(nthreads) if(nthreads))
   for(unsigned k=0; k<(M0-m0)*(M1-m1); ++k)
-      (this->*fun)(n, GetDomainIndex(m0+k%(M0-m0), m1+k/(M0-m0)),
+      (this->*fun)(n, GetIndex({m0+k%(M0-m0), m1+k/(M0-m0)}),
                 std::forward<Args>(args)...);
 }
 

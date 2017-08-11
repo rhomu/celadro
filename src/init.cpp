@@ -128,7 +128,7 @@ void Model::InitializeNeighbors()
     const unsigned y = GetYPosition(k);
     for(int dx=-1; dx<=1; ++dx)
       for(int dy=-1; dy<=1; ++dy)
-        neighbors[k][dx][dy] = GetDomainIndex( (x+Size[0]+dx)%Size[0], (y+Size[1]+dy)%Size[1] );
+        neighbors[k][dx][dy] = GetIndex({(x+Size[0]+dx)%Size[0], (y+Size[1]+dy)%Size[1]});
   }
 
   // define the neighbours, accounting for the boundary layer

@@ -98,15 +98,15 @@ void Model::RuntimeChecks()
   }
 }
 
-void Model::UpdateFieldsAtNode(unsigned n, unsigned k)
+void Model::UpdateFieldsAtNode(unsigned n, unsigned q)
 {
-  const unsigned q = GetPhiIndex(n, k);
-  const auto&    s = neighbors[k];
-  const auto&   sq = neighbors_patch[q];
+  const auto   k = GetIndexFromPatch(n, q);
+  const auto&  s = neighbors[k];
+  const auto& sq = neighbors_patch[q];
 
   // cell properties
   const auto& p  = phi[n][q];
-  const auto  l  = laplacian(phi[n], sq);
+  const auto  ll = laplacian(phi[n], sq);
   const auto  dx = derivX(phi[n], sq);
   const auto  dy = derivY(phi[n], sq);
   // all-cells properties
@@ -131,7 +131,7 @@ void Model::UpdateFieldsAtNode(unsigned n, unsigned k)
         )
       - C3*(
         // adhesion term
-        + omega*(ls-l)
+        + omega*(ls-ll)
         + wall_omega*lw
         )
       );
@@ -173,18 +173,18 @@ void Model::UpdateFieldsAtNode(unsigned n, unsigned k)
   //torque[n] -= J1*zeta*(2*Q00[n]*dx*dy + Q01[n]*(dx*dx-dy*dy));
 }
 
-void Model::UpdateAtNode(unsigned n, unsigned k)
+void Model::UpdateAtNode(unsigned n, unsigned q)
 {
-  const unsigned q = GetPhiIndex(n, k);
-  const auto&   sq = neighbors_patch[q];
+  const auto   k = GetIndexFromPatch(n, q);
+  const auto& sq = neighbors_patch[q];
 
   // compute potential
   {
     const auto  p  = phi[n][q];
     const auto  a  = area[n];
     const auto  dx = derivX(phi[n], sq);
-    const auto  dz = derivY(phi[n], sq);
-    const auto  l  = laplacian(phi[n], sq);
+    const auto  dy = derivY(phi[n], sq);
+    const auto  ll = laplacian(phi[n], sq);
 
     potential[n][q] = (
       // free energy term
@@ -192,11 +192,11 @@ void Model::UpdateAtNode(unsigned n, unsigned k)
       -.5*(
         + C1*gam[n]*p*(1.-p)*(1.-2.*p)
         - 2.*mu[n]*(1.-a/C2)*2.*p
-        - 2.*gam[n]*l
+        - 2.*gam[n]*ll
       )
       // advection term
       - (alpha*pol[n][0]+velp[n][0]+velc[n][0]+velf[n][0])*dx/xi
-      - (alpha*pol[n][1]+velp[n][1]+velc[n][1]+velf[n][1])*dz/xi
+      - (alpha*pol[n][1]+velp[n][1]+velc[n][1]+velf[n][1])*dy/xi
       );
   }
 
@@ -219,12 +219,9 @@ void Model::UpdateAtNode(unsigned n, unsigned k)
     area_cnt[n] += p*p;
   }
 
-  // update structure tensor
-  Model::UpdateStructureTensorAtNode(n, k);
-
   // reinit values: we do reinit values here for the simple reason that it is
-  // faster than having a supplementary loop afterwards. There is a 'race
-  // condition' in principle here but since we are setting evth back to 0 it
+  // faster than having a supplementary loop afterwards. There is a race
+  // condition in principle here but since we are setting evth back to 0 it
   // should be fine
   ReinitSquareAndSumAtNode(k);
 }
@@ -289,9 +286,9 @@ void Model::UpdatePatch(unsigned n)
   patch_max[n] = new_max;
 }
 
-void Model::UpdateStructureTensorAtNode(unsigned n, unsigned k)
+void Model::UpdateStructureTensorAtNode(unsigned n, unsigned q)
 {
-  const unsigned q = GetPhiIndex(n, k);
+  // to be reintroduced correctly
   const auto&   sq = neighbors_patch[q];
 
   const auto  p  = phi[n][q];
@@ -310,9 +307,10 @@ void Model::ComputeShape(unsigned n)
   S_angle[n] = atan2(S01[n], S00[n])/2.;
 }
 
-void Model::SquareAndSumAtNode(unsigned n, unsigned k)
+void Model::SquareAndSumAtNode(unsigned n, unsigned q)
 {
-  const auto p = phi[n][GetPhiIndex(n, k)];
+  const auto k = GetIndexFromPatch(n, q);
+  const auto p = phi[n][GetPatchIndex(n, k)];
 
   // we swap counters and values afterwards
   sum_cnt[k]    += p;
@@ -360,7 +358,8 @@ void Model::Update()
     //torque[n] = 0.;
 
     // update in restricted patch only
-    UpdateDomain(&Model::UpdateFieldsAtNode, n);
+    for(unsigned q=0; q<patch_N; ++q)
+      UpdateFieldsAtNode(n, q);
   }
 
   // 2) Predictor-corrector function for updating the phase fields
@@ -373,7 +372,8 @@ void Model::Update()
   for(unsigned n=0; n<nphases; ++n)
   {
     // only update fields in the restricted patch of field n
-    UpdateDomain(&Model::UpdateAtNode, n);
+    for(unsigned q=0; q<patch_N; ++q)
+      UpdateAtNode(n, q);
     // because the polarisation dynamics is first
     // order (euler-maruyama) we need to update only
     // once per predictor-corrector step
@@ -398,8 +398,12 @@ void Model::Update()
   // previous loop.
 
   for(unsigned n=0; n<nphases; ++n)
+  {
     // update only patch (in parallel, each node to a different core)
-    UpdateDomainP(&Model::SquareAndSumAtNode, n);
+    PRAGMA_OMP(omp parallel for num_threads(nthreads) if(nthreads))
+    for(unsigned q=0; q<patch_N; ++q)
+      SquareAndSumAtNode(n, q);
+  }
 
   // 4) Reinit counters and swap to get correct values
   //

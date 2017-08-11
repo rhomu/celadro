@@ -34,10 +34,10 @@ A complete list of available options can be obtained by typing `./celadro -h`.
 By default the program writes output files in the current directory. This can be
 changed using `--output=dir/` or `-o dir/`, where `dir/` is the target
 directory. The program also supports compressed (using zip) output with the option
-flag `--compression` or `-c`. When compression is on, the output name does not
-denote the target directory but rather the file name of the compressed archive.
-Note that with the current implementation, compression is not recommended for
-long runs as the time to add a file to the archive grows with the size of the
-archive.
+flag `--compression` or `-c`.
 
 Type `./celadro -h` for a list of available options.
+
+## Multi-threading and CUDA
+
+The code supports both multi-threading and CUDA.
