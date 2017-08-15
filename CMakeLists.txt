@@ -54,8 +54,6 @@ add_executable(celadro ${sources})
 # check for boost libraries
 find_package(Boost 1.36.0 COMPONENTS program_options REQUIRED)
 
-target_link_libraries(celadro PUBLIC ${Boost_LIBRARIES})
-
 # cuda
 find_package(CUDA)
 if(CUDA_FOUND)
@@ -69,7 +67,9 @@ endif()
 find_package(OpenMP)
 if(OPENMP_FOUND)
   set_target_properties(celadro PROPERTIES COMPILE_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
-  set_target_properties(celadro PROPERTIES LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
+  target_link_libraries(celadro ${Boost_LIBRARIES} ${OpenMP_CXX_FLAGS})
+else()
+  target_link_libraries(celadro PUBLIC ${Boost_LIBRARIES})
 endif()
 
 ################################################################################
