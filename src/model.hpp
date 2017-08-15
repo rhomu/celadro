@@ -80,8 +80,6 @@ struct Model
   std::vector<vec<double, 2>> velc;
   /** Friction velocities */
   std::vector<vec<double, 2>> velf;
-  /** Total com velocity */
-  std::vector<vec<double, 2>> vel;
   /** Overall polarization of the tissue */
   std::vector<double> Px, Py, Px_cnt, Py_cnt;
   /** Contractility */
@@ -316,7 +314,6 @@ struct Model
          & auto_name(velp)
          & auto_name(velf)
          & auto_name(velc)
-         & auto_name(vel)
          & auto_name(patch_min)
          & auto_name(patch_max);
   }
@@ -356,6 +353,46 @@ struct Model
 
   /** Initialize neighbors list (stencils) */
   void InitializeNeighbors();
+
+  // ==========================================================================
+  // Support for cuda. Implemented in cuda.cpp
+
+  #ifdef _CUDA
+
+  /** Pointer to device global memory
+   *
+   * These pointers reflects the program data strcuture and represents the cor-
+   * responding data on the device global memory. All names should be identical
+   * to their host counterparts apart from the d_ prefix.
+   *
+   * @{ */
+
+  double *d_phi, *d_phi_old, *d_V, *d_potential, *d_potential_old;
+  vec<double, 2> *d_pol, *d_velp, *d_velc, *d_velf;
+  double *d_sum, *d_square, *d_Q00, *d_Q01, *d_P, *d_Px, *d_Py, *d_walls,
+         *d_walls_laplce, *d_walls_dx, *d_walls_dy;
+  stencil *d_neighbours, *d_neighbours_patch;
+
+  /** Copy data to the device global memory
+   *
+   * This function is called at the begining of the program just before the main
+   * loop but after the system has been initialized.
+   * */
+  void CopyToDevice();
+
+  /** Copy data from the device global memory
+   *
+   * This function is called every time the results need to be dumped on the disk.
+   * */
+  void GetFromDevice();
+
+  /** Allocate memory for all device arrays */
+  void AllocDeviceMemory();
+
+  /** Allocate memory for all device arrays */
+  void FreeDeviceMemory();
+
+  #endif
 
   // ===========================================================================
   // Configuration. Implemented in configure.cpp

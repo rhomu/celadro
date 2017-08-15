@@ -22,7 +22,7 @@
 #include "tools.hpp"
 
 using namespace std;
-#include "run.cu"
+
 /** Needa store? (yes this is against my will) */
 bool store;
 
@@ -431,17 +431,4 @@ void Model::Step()
   // subsequent sweeps produce corrected values
   for(unsigned i=0; i<npc; ++i)
     Update();
-
-  // division (TBI)
-  //const auto m = nphases; // this is needed because we might increment nphases
-  //for(unsigned n=0; n<m; ++n) Divide(n);
-
-  // compute center-of-mass velocity
-  PRAGMA_OMP(omp parallel for num_threads(nthreads) if(nthreads))
-  for(unsigned n=0; n<nphases; ++n)
-  {
-    vel[n]      = { (com[n][0]-com_prev[n][0])/time_step,
-                    (com[n][1]-com_prev[n][1])/time_step };
-    com_prev[n] = com[n];
-  }
 }
