@@ -141,10 +141,10 @@ struct vec
 
   // for serialization
   using value_type = T;
-  auto begin() { return data.begin(); }
-  auto end()   { return data.end(); }
-  auto begin() const { return data.begin(); }
-  auto end()   const { return data.end(); }
+  typename std::array<T, D>::iterator begin() { return data.begin(); }
+  typename std::array<T, D>::iterator end()   { return data.end(); }
+  typename std::array<T, D>::const_iterator begin() const { return data.begin(); }
+  typename std::array<T, D>::const_iterator end()   const { return data.end(); }
 };
 
 // =============================================================================
