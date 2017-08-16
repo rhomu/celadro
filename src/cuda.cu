@@ -19,6 +19,8 @@
 #include "cuda.h"
 #include "model.hpp"
 
+using namespace std;
+
 /** Typed malloc/free on device memory
   *
   * We implement malloc and free in the same function to avoid copy-pasting
@@ -120,7 +122,7 @@ void Model::_copy_device_memory(Model::CopyMemory dir)
   bidirectional_memcpy(d_P, &P[0], N, dir);
   bidirectional_memcpy(d_P_cnt, &P_cnt[0], N, dir);
 
-  for(int i=0; i<patch_N; ++i)
+  for(unsigned i=0; i<patch_N; ++i)
   {
     bidirectional_memcpy(d_phi+i*patch_N, &phi[i][0], patch_N, dir);
     bidirectional_memcpy(d_phi_old+i*patch_N, &phi_old[i][0], patch_N, dir);
@@ -168,4 +170,38 @@ void Model::PutToDevice()
 void Model::GetFromDevice()
 {
   _copy_device_memory(CopyMemory::DeviceToHost);
+}
+
+void Model::QueryDeviceProperties()
+{
+  cudaGetDeviceCount(&devCount);
+
+  for(int i=0; i<devCount; ++i)
+  {
+    cudaDeviceProp props;
+    cudaGetDeviceProperties(&props, i);
+    if(verbose)
+    {
+      const int kb = 1024;
+      const int mb = kb * kb;
+
+      cout << "  device " << i << ": " << props.name 
+           << " (" << props.major << "." << props.minor << ")" << endl;
+      cout << "    ... global memory:        " << props.totalGlobalMem / mb 
+           << "mb" << endl;
+      cout << "    ... shared memory:        " << props.sharedMemPerBlock / kb
+           << "kb" << endl;
+      cout << "    ... constant memory:      " << props.totalConstMem / kb
+           << "kb" << endl;
+      cout << "    ... block registers:      " << props.regsPerBlock << endl;
+      cout << "    ... warp size:            " << props.warpSize << endl;
+      cout << "    ... threads per block:    " << props.maxThreadsPerBlock << endl;
+      cout << "    ... max block dimensions: [ " << props.maxThreadsDim[0]
+           << ", " << props.maxThreadsDim[1]  << ", " 
+           << props.maxThreadsDim[2] << " ]" << endl;
+      cout << "    ... max grid dimensions:  [ " << props.maxGridSize[0]
+           << ", " << props.maxGridSize[1]  << ", " << props.maxGridSize[2] 
+           << " ]" << endl;
+    }
+  }
 }

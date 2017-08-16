@@ -41,6 +41,7 @@ string title = R"(
 
 void Model::Algorithm()
 {
+exit(0);
   // number of steps between two writes
   const unsigned streak_length = nsubsteps*ninfo;
 
@@ -74,6 +75,11 @@ void Model::Algorithm()
 
     // do the computation
     for(unsigned s=0; s<streak_length; ++s) Step();
+
+#ifdef _CUDA
+    // get data from device to host memory
+    GetFromDevice();
+#endif
 
     // runtime stats and checks
     try
@@ -182,6 +188,15 @@ void Model::Setup(int argc, char **argv)
     SetThreads();
     if(verbose) cout << nthreads << " active threads" << endl;
   }
+#endif
+
+  // cuda
+#ifdef _CUDA
+  if(verbose) cout << "setting up CUDA devices ..." << endl;
+  QueryDeviceProperties();
+  if(verbose) cout << "copy data to device ...";
+  PutToDevice();
+  if(verbose) cout << " done" << endl;
 #endif
 }
 
