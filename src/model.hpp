@@ -355,7 +355,7 @@ struct Model
   void InitializeNeighbors();
 
   // ==========================================================================
-  // Support for cuda. Implemented in cuda.cpp
+  // Support for cuda. Implemented in cuda.cu
 
   #ifdef _CUDA
 
@@ -367,18 +367,45 @@ struct Model
    *
    * @{ */
 
-  double *d_phi, *d_phi_old, *d_V, *d_potential, *d_potential_old;
-  vec<double, 2> *d_pol, *d_velp, *d_velc, *d_velf;
-  double *d_sum, *d_square, *d_Q00, *d_Q01, *d_P, *d_Px, *d_Py, *d_walls,
-         *d_walls_laplce, *d_walls_dx, *d_walls_dy;
-  stencil *d_neighbours, *d_neighbours_patch;
+  double *d_phi, *d_phi_old, *d_V, *d_potential, *d_potential_old, *d_sum,
+         *d_square, *d_Q00, *d_Q01, *d_P, *d_Px, *d_Py, *d_walls,
+         *d_walls_laplace, *d_walls_dx, *d_walls_dy, *d_sum_cnt, *d_square_cnt,
+         *d_Theta, *d_Px_cnt, *d_Py_cnt, *d_Theta_cnt, *d_Q00_cnt, *d_Q01_cnt,
+         *d_P_cnt, *d_area, *d_area_cnt, *d_c, *d_S00, *d_S01, *d_S_order,
+         *d_S_angle, *d_theta;
+  vec<double, 2>       *d_pol, *d_velp, *d_velc, *d_velf, *d_com, *d_com_prev;
+  stencil              *d_neighbours, *d_neighbours_patch;
+  coord                *d_patch_min, *d_patch_max, *d_offset;
+  std::complex<double> *d_com_x, *d_com_y;
+
+  /** @} */
+  
+  /** CUDA device memory managment
+    * @{ */
+
+  /** In which direction do we copy data? */  
+  enum class CopyMemory {
+    HostToDevice,
+    DeviceToHost
+  };
+
+  /** Allocate or free memory? */
+  enum class ManageMemory {
+    Allocate,
+    Free
+  };
+
+  /** Implementation for AllocDeviceMemory() and FreeDeviceMemory() */
+  void _manage_device_memory(ManageMemory);
+  /** Implementation for PutToDevice() and GetFromDevice() */
+  void _copy_device_memory(CopyMemory);
 
   /** Copy data to the device global memory
    *
    * This function is called at the begining of the program just before the main
    * loop but after the system has been initialized.
    * */
-  void CopyToDevice();
+  void PutToDevice();
 
   /** Copy data from the device global memory
    *
@@ -391,6 +418,8 @@ struct Model
 
   /** Allocate memory for all device arrays */
   void FreeDeviceMemory();
+
+  /** @} */
 
   #endif
 
@@ -581,6 +610,8 @@ struct Model
 // =============================================================================
 // Implementation
 
+#if 0
+
 template<typename Ret, typename ...Args>
 void Model::UpdateSubDomain(Ret (Model::*fun)(unsigned, unsigned, Args...),
                                 unsigned n,
@@ -686,5 +717,7 @@ void Model::UpdateDomain(Ret (Model::*fun)(unsigned, unsigned, Args...),
     UpdateSubDomain(fun, n, patch_min[n][0], patch_min[n][1], patch_max[n][0], patch_max[n][1],
                     std::forward<Args>(args)...);
 }
+
+#endif
 
 #endif//MODEL_HPP_
