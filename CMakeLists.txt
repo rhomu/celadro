@@ -62,7 +62,7 @@ if(CUDA_FOUND)
   cuda_compile(cuda_objects ${cuda_sources})
   add_executable(celadro-cuda ${sources} ${cuda_objects})
   target_link_libraries(celadro-cuda PUBLIC ${Boost_LIBRARIES} ${CUDA_LIBRARIES})
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_CUDA")
+  set_target_properties(celadro-cuda PROPERTIES COMPILE_FLAGS "-D_CUDA")
 endif()
 
 # openmp
