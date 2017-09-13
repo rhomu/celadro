@@ -41,7 +41,10 @@ inline void malloc_or_free(T* ptr, size_t length, Model::ManageMemory which)
   * mistakes.
   */
 template<class T>
-inline void bidirectional_memcpy(T* host, T* device, size_t len, Model::CopyMemory dir)
+inline void bidirectional_memcpy(T* host,
+                                 T* device,
+                                 size_t len,
+                                 Model::CopyMemory dir)
 {
   if(dir==Model::CopyMemory::HostToDevice)
     cudaMemcpy(device, host, len*sizeof(T), cudaMemcpyHostToDevice);
@@ -174,34 +177,53 @@ void Model::GetFromDevice()
 
 void Model::QueryDeviceProperties()
 {
+  int devCount;
   cudaGetDeviceCount(&devCount);
 
-  for(int i=0; i<devCount; ++i)
-  {
-    cudaDeviceProp props;
-    cudaGetDeviceProperties(&props, i);
-    if(verbose)
-    {
-      const int kb = 1024;
-      const int mb = kb * kb;
+  if(devCount>1) throw error_msg("multiple Cuda devices not supported.");
+  if(devCount==0) throw error_msg("no cuda device found.");
 
-      cout << "  device " << i << ": " << props.name 
-           << " (" << props.major << "." << props.minor << ")" << endl;
-      cout << "    ... global memory:        " << props.totalGlobalMem / mb 
-           << "mb" << endl;
-      cout << "    ... shared memory:        " << props.sharedMemPerBlock / kb
-           << "kb" << endl;
-      cout << "    ... constant memory:      " << props.totalConstMem / kb
-           << "kb" << endl;
-      cout << "    ... block registers:      " << props.regsPerBlock << endl;
-      cout << "    ... warp size:            " << props.warpSize << endl;
-      cout << "    ... threads per block:    " << props.maxThreadsPerBlock << endl;
-      cout << "    ... max block dimensions: [ " << props.maxThreadsDim[0]
-           << ", " << props.maxThreadsDim[1]  << ", " 
-           << props.maxThreadsDim[2] << " ]" << endl;
-      cout << "    ... max grid dimensions:  [ " << props.maxGridSize[0]
-           << ", " << props.maxGridSize[1]  << ", " << props.maxGridSize[2] 
-           << " ]" << endl;
-    }
+  cudaDeviceProp DeviceProperties;
+  cudaGetDeviceProperties(&DeviceProperties, 0);
+
+  if(verbose)
+  {
+    const int kb = 1024;
+    const int mb = kb * kb;
+
+    cout << "  device " << DeviceProperties.name 
+         << " (" << DeviceProperties.major << "." << DeviceProperties.minor << ")" << endl;
+    cout << "    ... global memory:        " << DeviceProperties.totalGlobalMem / mb 
+         << "mb" << endl;
+    cout << "    ... shared memory:        " << DeviceProperties.sharedMemPerBlock / kb
+         << "kb" << endl;
+    cout << "    ... constant memory:      " << DeviceProperties.totalConstMem / kb
+         << "kb" << endl;
+    cout << "    ... block registers:      " << DeviceProperties.regsPerBlock << endl;
+    cout << "    ... warp size:            " << DeviceProperties.warpSize << endl;
+    cout << "    ... threads per block:    " << DeviceProperties.maxThreadsPerBlock << endl;
+    cout << "    ... max block dimensions: [ " << DeviceProperties.maxThreadsDim[0]
+         << ", " << DeviceProperties.maxThreadsDim[1]  << ", " 
+         << DeviceProperties.maxThreadsDim[2] << " ]" << endl;
+    cout << "    ... max grid dimensions:  [ " << DeviceProperties.maxGridSize[0]
+         << ", " << DeviceProperties.maxGridSize[1]  << ", " << DeviceProperties.maxGridSize[2] 
+         << " ]" << endl;
   }
+
+  // spme checks
+  if(DeviceProperties.warpSize>WarpSize)
+    throw error_msg("warp size is incompatble with device value. "
+                    "See src/cuda.h.");
+
+  if(DeviceProperties.warpSize<WarpSize)
+    throw warning_msg("warp size does not match with device value. "
+                      "See src/cuda.h.");
+
+  if(DeviceProperties.maxThreadsPerBlock>ThreadsPerBlock)
+    throw error_msg("number of threads per block is incompatible with device value. "
+                    "See src/cuda.h.");
+
+  if(DeviceProperties.maxThreadsPerBlock<ThreadsPerBlock)
+    throw error_msg("number of threads per block does not match with device value. "
+                    "See src/cuda.h.");
 }

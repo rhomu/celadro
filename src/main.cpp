@@ -41,7 +41,6 @@ string title = R"(
 
 void Model::Algorithm()
 {
-exit(0);
   // number of steps between two writes
   const unsigned streak_length = nsubsteps*ninfo;
 
@@ -74,7 +73,13 @@ exit(0);
     if(verbose>1) cout << string(width, '-') << endl;
 
     // do the computation
-    for(unsigned s=0; s<streak_length; ++s) Step();
+    for(unsigned s=0; s<streak_length; ++s)
+    {
+      // first sweeps produces estimate of values
+      // subsequent sweeps produce corrected values
+      for(unsigned i=0; i<=npc; ++i)
+        Update(i==0);
+    }
 
 #ifdef _CUDA
     // get data from device to host memory

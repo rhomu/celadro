@@ -362,10 +362,11 @@ struct Model
   /** Device(s) propeties
    * @{ */
 
-  /** Number of CUDA devices (only 1 supported at the moment) */
-  int devCount;
-
-  /** Obtain (and print) device(s) properties */
+  /** Obtain (and print) device(s) properties
+   *
+   * Also checks that the device properties are compatible with the values given
+   * in src/cuda.h.
+   * */
   void QueryDeviceProperties();
 
   /** @} */
@@ -474,7 +475,7 @@ struct Model
   void Post();
 
   /** Subfunction for update */
-  void UpdateAtNode(unsigned, unsigned);
+  void UpdateAtNode(unsigned, unsigned, bool);
 
   /** Subfunction for update */
   void UpdateFieldsAtNode(unsigned, unsigned);
@@ -523,11 +524,15 @@ struct Model
    * */
   void ComputeShape(unsigned);
 
-  /** Update fields */
-  void Update();
-
   /** Update the moving patch following each cell */
   void UpdatePatch(unsigned);
+
+  /** Update fields
+   * 
+   * The boolean argument is used to differentiate between the predictor step
+   * (true) and subsequent corrector steps.
+   * */
+  void Update(bool);
 
   /** Helper function
    *

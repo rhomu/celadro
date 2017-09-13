@@ -23,9 +23,6 @@
 
 using namespace std;
 
-/** Needa store? (yes this is against my will) */
-bool store;
-
 void Model::Pre()
 {
   // we make the system relax (without activity)
@@ -39,7 +36,8 @@ void Model::Pre()
 
     if(relax_nsubsteps) swap(nsubsteps, relax_nsubsteps);
 
-    for(unsigned i=0; i<relax_time*nsubsteps; ++i) Step();
+    for(unsigned i=0; i<relax_time*nsubsteps; ++i)
+      for(unsigned i=0; i<=npc; ++i) Update(i==0);
 
     if(relax_nsubsteps) swap(nsubsteps, relax_nsubsteps);
 
@@ -173,7 +171,7 @@ void Model::UpdateFieldsAtNode(unsigned n, unsigned q)
   //torque[n] -= J1*zeta*(2*Q00[n]*dx*dy + Q01[n]*(dx*dx-dy*dy));
 }
 
-void Model::UpdateAtNode(unsigned n, unsigned q)
+void Model::UpdateAtNode(unsigned n, unsigned q, bool store)
 {
   const auto   k = GetIndexFromPatch(n, q);
   const auto& sq = neighbors_patch[q];
@@ -340,7 +338,10 @@ inline void Model::ReinitSquareAndSumAtNode(unsigned k)
   Py[k]     = 0;
 }
 
-void Model::Update()
+// for cuda see src/run.cu
+#ifndef _CUDA
+
+void Model::Update(bool store)
 {
   // 1) Compute induced force and passive velocity
   //
@@ -373,7 +374,7 @@ void Model::Update()
   {
     // only update fields in the restricted patch of field n
     for(unsigned q=0; q<patch_N; ++q)
-      UpdateAtNode(n, q);
+      UpdateAtNode(n, q, store);
     // because the polarisation dynamics is first
     // order (euler-maruyama) we need to update only
     // once per predictor-corrector step
@@ -421,14 +422,4 @@ void Model::Update()
   swap(area, area_cnt);
 }
 
-void Model::Step()
-{
-  // first sweeps produces estimate of values
-  store = true; // ok this is really bad :-(
-  Update();
-  store = false;
-
-  // subsequent sweeps produce corrected values
-  for(unsigned i=0; i<npc; ++i)
-    Update();
-}
+#endif
