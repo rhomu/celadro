@@ -63,6 +63,7 @@ if(CUDA_FOUND)
   add_executable(celadro-cuda ${sources} ${cuda_objects})
   target_link_libraries(celadro-cuda PUBLIC ${Boost_LIBRARIES} ${CUDA_LIBRARIES})
   set_target_properties(celadro-cuda PROPERTIES COMPILE_FLAGS "-D_CUDA")
+  set_target_properties(celadro-cuda PROPERTIES COMPILE_FLAGS "-L ${CUDA_INCLUDE_DIRS}")
 endif()
 
 # openmp
