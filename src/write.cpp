@@ -17,7 +17,6 @@
 
 #include "header.hpp"
 #include "model.hpp"
-#include "random.hpp"
 
 using namespace std;
 
@@ -173,7 +172,7 @@ void Model::CreateOutputDir()
   {
     // use hash of runname string plus salt
     hash<string> hash_fn;
-    unsigned dir_name = hash_fn(inline_str(runname, randu()));
+    unsigned dir_name = hash_fn(inline_str(runname, random_unsigned()));
     output_dir = inline_str("/tmp/", dir_name, "/");
   }
   // if full compression is off: just dump files where they belong

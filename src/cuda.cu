@@ -34,10 +34,10 @@ static void seed_rand(curandState *state, unsigned long seed)
   * mistakes.
   */
 template<class T>
-inline void malloc_or_free(T* ptr, size_t len, Model::ManageMemory which)
+void malloc_or_free(T*& ptr, size_t len, Model::ManageMemory which)
 {
   if(which==Model::ManageMemory::Allocate)
-    cudaMalloc(&ptr, len*sizeof(T));
+    cudaMalloc((void**)&ptr, len*sizeof(T));
   else
     cudaFree(ptr);
 }
@@ -48,18 +48,18 @@ inline void malloc_or_free(T* ptr, size_t len, Model::ManageMemory which)
   * mistakes.
   */
 template<class T, class U>
-inline void bidirectional_memcpy(T* device,
-                                 U* host,
-                                 size_t len,
-                                 Model::CopyMemory dir)
+void bidirectional_memcpy(T* device,
+                          U* host,
+                          size_t len,
+                          Model::CopyMemory dir)
 {
   if(dir==Model::CopyMemory::HostToDevice)
     cudaMemcpy(device, (U*)host, len*sizeof(T), cudaMemcpyHostToDevice);
   else
-    cudaMemcpy(host, (T*)device, len*sizeof(T), cudaMemcpyDeviceToHost);
+    cudaMemcpy((U*)host, device, len*sizeof(T), cudaMemcpyDeviceToHost);
 }
 
-void Model::_manage_device_memory(Model::ManageMemory which)
+void Model::_manage_device_memory(ManageMemory which)
 {
   malloc_or_free(d_walls, N, which);
   malloc_or_free(d_walls_dx, N, which);
@@ -81,7 +81,6 @@ void Model::_manage_device_memory(Model::ManageMemory which)
   malloc_or_free(d_Q01_cnt, N, which);
   malloc_or_free(d_P, N, which);
   malloc_or_free(d_P_cnt, N, which);
-
   malloc_or_free(d_phi, nphases*patch_N, which);
   malloc_or_free(d_phi_old, nphases*patch_N, which);
   malloc_or_free(d_V, nphases*patch_N, which);
@@ -114,10 +113,10 @@ void Model::_manage_device_memory(Model::ManageMemory which)
   malloc_or_free(d_com_y_table, Size[0], which);
 
   // random number generation
-  malloc_or_free(d_rand_states, N, which); 
+  malloc_or_free(d_rand_states, N, which);
 }
 
-void Model::_copy_device_memory(Model::CopyMemory dir)
+void Model::_copy_device_memory(CopyMemory dir)
 {
   bidirectional_memcpy(d_walls, &walls[0], N, dir);
   bidirectional_memcpy(d_walls_dx, &walls_dx[0], N, dir);
@@ -140,7 +139,7 @@ void Model::_copy_device_memory(Model::CopyMemory dir)
   bidirectional_memcpy(d_P, &P[0], N, dir);
   bidirectional_memcpy(d_P_cnt, &P_cnt[0], N, dir);
 
-  for(unsigned i=0; i<patch_N; ++i)
+  for(unsigned i=0; i<nphases; ++i)
   {
     bidirectional_memcpy(d_phi+i*patch_N, &phi[i][0], patch_N, dir);
     bidirectional_memcpy(d_phi_old+i*patch_N, &phi_old[i][0], patch_N, dir);
@@ -230,7 +229,7 @@ void Model::QueryDeviceProperties()
          << " ]" << endl;
   }
 
-  // spme checks
+  // some checks
   if(DeviceProperties.warpSize>WarpSize)
     throw error_msg("warp size is incompatble with device value. "
                     "See src/cuda.h.");
@@ -250,5 +249,12 @@ void Model::QueryDeviceProperties()
 
 void Model::InitializeCUDARandomNumbers()
 {
-  seed_rand<<<1, N>>>(d_rand_states, seed);
+  seed_rand<<<1, n_total>>>(d_rand_states, seed);
+}
+
+void Model::InitializeCuda()
+{
+  n_total   = static_cast<int>(nphases*patch_N);
+  n_blocks  = 1 + (n_total-1)/ThreadsPerBlock;
+  n_threads = ThreadsPerBlock;
 }

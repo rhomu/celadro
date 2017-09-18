@@ -336,6 +336,9 @@ struct Model
   /** Do the computation */
   void Run();
 
+  /** Clean after you */
+  void Cleanup();
+
   // ==========================================================================
   // Writing to file. Implemented in write.cpp
 
@@ -416,9 +419,9 @@ struct Model
          *d_Theta, *d_Px_cnt, *d_Py_cnt, *d_Theta_cnt, *d_Q00_cnt, *d_Q01_cnt,
          *d_P_cnt, *d_area, *d_area_cnt, *d_c, *d_S00, *d_S01, *d_S_order,
          *d_S_angle, *d_theta, *d_gam, *d_mu;
-  vec<double, 2>       *d_pol, *d_velp, *d_velc, *d_velf, *d_com, *d_com_prev;
-  stencil              *d_neighbors, *d_neighbors_patch;
-  coord                *d_patch_min, *d_patch_max, *d_offset;
+  vec<double, 2>  *d_pol, *d_velp, *d_velc, *d_velf, *d_com, *d_com_prev;
+  stencil         *d_neighbors, *d_neighbors_patch;
+  coord           *d_patch_min, *d_patch_max, *d_offset;
   cuDoubleComplex *d_com_x, *d_com_y, *d_com_x_table, *d_com_y_table;
 
   /** @} */
@@ -430,6 +433,9 @@ struct Model
   curandState *d_rand_states;
   
   /** Initialization function */
+  void InitializeCuda();
+
+  /** Initialization function for random numbers */
   void InitializeCUDARandomNumbers();
 
   /** @} */
@@ -474,6 +480,13 @@ struct Model
 
   /** @} */
 
+  /** Runtime properties
+   * @{ */
+
+  int n_total, n_blocks, n_threads;
+
+  /** @} */
+  
   #endif
 
   // ===========================================================================

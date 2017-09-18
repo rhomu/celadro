@@ -81,7 +81,7 @@ void Model::Algorithm()
         Update(i==0);
     }
 
-#ifdef _CUDA
+#ifdef _CUDA_ENABLED
     // get data from device to host memory
     GetFromDevice();
 #endif
@@ -89,8 +89,8 @@ void Model::Algorithm()
     // runtime stats and checks
     try
     {
-      if(verbose>1) RuntimeStats();
-      RuntimeChecks();
+      if(runtime_stats and verbose>1) RuntimeStats();
+      if(runtime_check) RuntimeChecks();
     }
     catch(error_msg e)
     {
@@ -135,6 +135,7 @@ void Model::Setup(int argc, char **argv)
   // no output
   if(no_write and verbose) cout << "warning: output is not enabled." << endl;
 
+  // ----------------------------------------
   // model init
   if(verbose) cout << "model initialization ..." << flush;
   try {
@@ -146,6 +147,50 @@ void Model::Setup(int argc, char **argv)
   }
   if(verbose) cout << " done" << endl;
 
+  // ----------------------------------------
+  // multi-threading
+  #ifdef _OPENMP
+    if(nthreads)
+    {
+      if(verbose) cout << "multi-threading ... " << flush;
+      SetThreads();
+      if(verbose) cout << nthreads << " active threads" << endl;
+    }
+  #endif
+
+  // ----------------------------------------
+  // cuda, see random numbers section as well
+  #ifdef _CUDA_ENABLED
+
+    if(verbose) cout << "setting up CUDA devices ..." << endl;
+    QueryDeviceProperties();
+    InitializeCuda();
+    if(verbose) cout << " done" << endl;
+
+    if(verbose) cout << "allocate device memory ...";
+    AllocDeviceMemory();
+    if(verbose) cout << " done" << endl;
+
+    if(verbose) cout << "copy data to device ...";
+    PutToDevice();
+    if(verbose) cout << " done" << endl;
+  #endif
+
+  // ----------------------------------------
+  // random numbers
+  if(verbose) cout << "random numbers initialization ..." << flush;
+  try {
+    InitializeRandomNumbers();
+    #ifdef _CUDA_ENABLED
+      InitializeCUDARandomNumbers();
+    #endif
+  } catch(...) {
+    if(verbose) cout << " error" << endl;
+    throw;
+  }
+  if(verbose) cout << " done" << endl;
+
+  // ----------------------------------------
   // parameters init
   if(verbose) cout << "system initialisation ..." << flush;
   try {
@@ -157,6 +202,7 @@ void Model::Setup(int argc, char **argv)
   }
   if(verbose) cout << " done" << endl;
 
+  // ----------------------------------------
   // write params to file
   if(!no_write)
   {
@@ -184,25 +230,6 @@ void Model::Setup(int argc, char **argv)
     }
     if(verbose) cout << " done" << endl;
   }
-
-  // multi-threading
-#ifdef _OPENMP
-  if(nthreads)
-  {
-    if(verbose) cout << "multi-threading ... " << flush;
-    SetThreads();
-    if(verbose) cout << nthreads << " active threads" << endl;
-  }
-#endif
-
-  // cuda
-#ifdef _CUDA
-  if(verbose) cout << "setting up CUDA devices ..." << endl;
-  QueryDeviceProperties();
-  if(verbose) cout << "copy data to device ...";
-  PutToDevice();
-  if(verbose) cout << " done" << endl;
-#endif
 }
 
 void Model::Run()
@@ -212,7 +239,6 @@ void Model::Run()
   Pre();
   if(verbose) cout << " done" << endl;
 
-  // Run banner
   if(verbose) cout << endl << "Run" << endl << string(width, '=') << "\n\n";
 
   // print some stats
@@ -241,13 +267,20 @@ void Model::Run()
   }
 }
 
+void Model::Cleanup()
+{
+  #ifdef _CUDA_ENABLED
+    FreeDeviceMemory();
+  #endif
+}
+
 /** Program entry */
 int main(int argc, char **argv)
 {
   // if in debug mode, catch all arithmetic exceptions
-#ifdef DEBUG
-  feenableexcept(FE_INVALID | FE_OVERFLOW);
-#endif
+  #ifdef DEBUG
+    feenableexcept(FE_INVALID | FE_OVERFLOW);
+  #endif
 
   // print that beautiful title
   cout << title << endl;
@@ -258,6 +291,7 @@ int main(int argc, char **argv)
     Model model;
     model.Setup(argc, argv);
     model.Run();
+    model.Cleanup();
 
   }
   // custom small messages

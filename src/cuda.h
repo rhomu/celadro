@@ -15,18 +15,33 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+/** There are two different compiler flags associated with CUDA:
+ *
+ * _CUDA is defined when compiling device source code (using NVCC)
+ * _CUDA_ENABLED is defined project-wise when cuda is enabled, i.e. also for
+ *               host source code.
+ **/
+
 #ifndef CUDA_HPP_
 #define CUDA_HPP_
 
 #ifdef _CUDA
 
+#define _CUDA_ENABLED
+
 #ifdef _OPENMP
 #error "Cuda can not be used along with OpenMP"
 #endif
 
-#define WarpSize 30
+#define WarpSize 32
 
 #define ThreadsPerBlock 1024
+
+#define CUDA_host_device __host__ __device__
+
+#else
+
+#define CUDA_host_device 
 
 #endif
 #endif//CUDA_HPP_

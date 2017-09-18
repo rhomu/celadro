@@ -33,16 +33,14 @@
 #include "derivatives.hpp"
 #include "cuda.h"
 #include "reduce.h"
-#include "random.hpp"
 
 using namespace std;
 
 // =============================================================================
 // kernels
 
-#if 0
 __global__
-void UpdateFieldsAtNode(
+void UpdateFieldsCuda(
     double *phi,
     double *V,
     vec<double, 2> *pol,
@@ -83,7 +81,7 @@ void UpdateFieldsAtNode(
     int nphases
     )
 {
-  const int ntot   = blockIdx.x*blockDim.x + threadIdx.x;
+  const int ntot = blockIdx.x*blockDim.x + threadIdx.x;
   if(ntot>nphases*patch_N) return;
 
   const unsigned n = static_cast<unsigned>(ntot)/patch_N;
@@ -133,7 +131,7 @@ void UpdateFieldsAtNode(
   // potential
   V[ntot]     = force;
 
-  vec<double, 6> sums = {
+  double sums[6] = {
     dx*force,
     dy*force,
     (P[k]+zeta*Q00[k])*dx + zeta*Q01[k]*dy,
@@ -146,8 +144,8 @@ void UpdateFieldsAtNode(
       + dxw*f_walls/xi*(pol[n][1]*dxw-pol[n][0]*dyw)*(dx*dxw+dy*dyw)
   };
 
-  for(auto& s : sums)
-    s = blockReduceSum(s);
+  for(int i=0; i<6; ++i)
+    sums[i] = blockReduceSum(sums[i]);
 
   if(q==0)
   {
@@ -158,7 +156,7 @@ void UpdateFieldsAtNode(
 }
 
 __global__
-void UpdateAtNode(
+void UpdateCuda(
     double *phi,
     double *phi_old,
     double *V,
@@ -180,8 +178,8 @@ void UpdateAtNode(
     coord patch_size,
     coord patch_margin,
     vec<double, 2> *com,
-    complex<double> *com_x,
-    complex<double> *com_y,
+    cuDoubleComplex *com_x,
+    cuDoubleComplex *com_y,
     double *sum,
     double *square,
     double *P,
@@ -190,8 +188,8 @@ void UpdateAtNode(
     double *Q01,
     double *Px,
     double *Py,
-    complex<double> *com_x_table,
-    complex<double> *com_y_table,
+    cuDoubleComplex *com_x_table,
+    cuDoubleComplex *com_y_table,
     stencil *neighbors,
     stencil *neighbors_patch,
     double alpha,
@@ -203,7 +201,8 @@ void UpdateAtNode(
     double D,
     unsigned nphases,
     unsigned patch_N,
-    bool store
+    bool store,
+    curandState *rand_states
     )
 {
   const int ntot   = blockIdx.x*blockDim.x + threadIdx.x;
@@ -259,8 +258,9 @@ void UpdateAtNode(
     // update for next call
     phi[ntot]    = p;
     area_cnt[n] += p*p;
-    com_x[n]    += com_x_table[dpos[0]]*p;
-    com_y[n]    += com_y_table[dpos[1]]*p;
+    const cuDoubleComplex cp = make_cuDoubleComplex(p, 0.);
+    com_x[n] = cuCadd(com_x[n], cuCmul(com_x_table[dpos[0]], cp));
+    com_y[n] = cuCadd(com_y[n], cuCmul(com_y_table[dpos[1]], cp));
   }
 
   // -------------------------------------------------------------------------
@@ -284,7 +284,7 @@ void UpdateAtNode(
     if(store)
     {
       // Polarization...
-      array<double, 2> v = {
+      double v[2] = {
         velp[n][0] + velf[n][0] + velc[n][0],
         velp[n][1] + velf[n][1] + velc[n][1]
       };
@@ -297,7 +297,8 @@ void UpdateAtNode(
           v[0]*pol[n][0]+v[1]*pol[n][1]);
 
       // ...euler-marijuana update
-      theta[n] += time_step*J*torque + sqrt(time_step)*D*random_normal();
+      theta[n] += time_step*J*torque + sqrt(time_step)*D
+                    *curand_log_normal_double(&rand_states[n], 0., 1.);
 
       // update polarisation and contractility
       pol[n] = { cos(theta[n]), sin(theta[n]) };
@@ -306,9 +307,14 @@ void UpdateAtNode(
     // -------------------------------------------------------------------------
     // ComputeCoM
 
-    const auto mx = arg(com_x[n]/static_cast<double>(Size[0]*Size[1])) + Pi;
-    const auto my = arg(com_y[n]/static_cast<double>(Size[0]*Size[1])) + Pi;
-    com[n] = { mx/2./Pi*Size[0], my/2./Pi*Size[1] };
+    {
+      const auto s = make_cuDoubleComplex(double(Size[0]*Size[1]), 0.);
+      const auto tx = cuCdiv(com_x[n], s);
+      const auto mx = atan2(tx.x, tx.y) + Pi;
+      const auto ty = cuCdiv(com_x[n], s);
+      const auto my = atan2(ty.x, ty.y) + Pi;
+      com[n] = { mx/2./Pi*Size[0], my/2./Pi*Size[1] };
+    }
 
     // -------------------------------------------------------------------------
     // ComputeShape
@@ -336,31 +342,121 @@ void UpdateAtNode(
     patch_max[n] = new_max;
 
     // reset values
-    com_x[n] = com_y[n] = area[n] = 0.;
+    com_x[n] = com_y[n] = make_cuDoubleComplex(0., 0.);
+    area[n] = 0.;
   }
 }
 
-#endif
+__global__
+void Test(double *phi, int n_total)
+{
+  const int n = blockIdx.x*blockDim.x + threadIdx.x;
+  if(n<n_total) phi[n] = 4.;
+}
 
 // =============================================================================
 // Update function
 
 void Model::Update(bool store)
 {
-  int ntot = static_cast<int>(nphases*patch_N);
-  int nblocks = 1 + (ntot-1)/ThreadsPerBlock;
-  int nthreads = ThreadsPerBlock;
+//  Test<<<n_blocks, n_threads>>>(d_phi, n_total);
+//
+// return;
 
-  //UpdateCUDA<<<nblocks, nthreads>>>(A, B, C);
-  //UpdateCUDA<<<nblocks, nthreads>>>(A, B, C);
+  UpdateCuda<<<n_blocks, n_threads>>>(d_phi,
+    d_phi_old,
+    d_V,
+    d_potential,
+    d_potential_old,
+    d_gam,
+    d_mu,
+    d_area,
+    d_area_cnt,
+    d_theta,
+    d_pol,
+    d_velp,
+    d_velc,
+    d_velf,
+    d_patch_min,
+    d_patch_max,
+    d_offset,
+    Size,
+    patch_size,
+    patch_margin,
+    d_com,
+    d_com_x,
+    d_com_y,
+    d_sum,
+    d_square,
+    d_P,
+    d_Theta,
+    d_Q00,
+    d_Q01,
+    d_Px,
+    d_Py,
+    d_com_x_table,
+    d_com_y_table,
+    d_neighbors,
+    d_neighbors_patch,
+    alpha,
+    time_step,
+    xi,
+    C1,
+    C2,
+    J,
+    D,
+    nphases,
+    patch_N,
+    store,
+    d_rand_states
+    );
 
-  swap(sum, sum_cnt);
-  swap(square, square_cnt);
-  swap(P, P_cnt);
-  swap(Theta, Theta_cnt);
-  swap(Q00, Q00_cnt);
-  swap(Q01, Q01_cnt);
-  swap(Px, Px_cnt);
-  swap(Py, Py_cnt);
-  swap(area, area_cnt);
+  UpdateFieldsCuda<<<n_blocks, n_threads>>>(d_phi,
+    d_V,
+    d_pol,
+    d_velp,
+    d_velc,
+    d_velf,
+    Size,
+    patch_size,
+    patch_margin,
+    patch_N,
+    d_patch_min,
+    d_patch_max,
+    d_offset,
+    d_sum,
+    d_square,
+    d_Q00,
+    d_Q01,
+    d_P,
+    d_Px,
+    d_Py,
+    d_neighbors,
+    d_neighbors_patch,
+    d_walls,
+    d_walls_laplace,
+    d_walls_dx,
+    d_walls_dy,
+    alpha,
+    xi,
+    C1,
+    C3,
+    f,
+    f_walls,
+    zeta,
+    kappa,
+    omega,
+    wall_kappa,
+    wall_omega,
+    nphases);
+
+  swap(d_sum, d_sum_cnt);
+  swap(d_square, d_square_cnt);
+  swap(d_P, d_P_cnt);
+  swap(d_Theta, d_Theta_cnt);
+  swap(d_Q00, d_Q00_cnt);
+  swap(d_Q01, d_Q01_cnt);
+  swap(d_Px, d_Px_cnt);
+  swap(d_Py, d_Py_cnt);
+  swap(d_area, d_area_cnt);
 }
