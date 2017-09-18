@@ -17,7 +17,6 @@
 
 #include "header.hpp"
 #include "model.hpp"
-#include "random.hpp"
 #include "derivatives.hpp"
 #include "tools.hpp"
 
@@ -338,8 +337,7 @@ inline void Model::ReinitSquareAndSumAtNode(unsigned k)
   Py[k]     = 0;
 }
 
-// for cuda see src/run.cu
-#ifndef _CUDA
+#ifndef _CUDA_ENABLED
 
 void Model::Update(bool store)
 {
