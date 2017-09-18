@@ -21,16 +21,23 @@
 
 using namespace std;
 
+__global__
+static void seed_rand(curandState *state, unsigned long seed)
+{
+  int id = threadIdx.x;
+  curand_init(seed, id, 0, &state[id]);
+}
+ 
 /** Typed malloc/free on device memory
   *
   * We implement malloc and free in the same function to avoid copy-pasting
   * mistakes.
   */
 template<class T>
-inline void malloc_or_free(T* ptr, size_t length, Model::ManageMemory which)
+inline void malloc_or_free(T* ptr, size_t len, Model::ManageMemory which)
 {
   if(which==Model::ManageMemory::Allocate)
-    cudaMalloc(&ptr, length*sizeof(T));
+    cudaMalloc(&ptr, len*sizeof(T));
   else
     cudaFree(ptr);
 }
@@ -40,16 +47,16 @@ inline void malloc_or_free(T* ptr, size_t length, Model::ManageMemory which)
   * We implement both directions in the same function to avoid copy-pasting
   * mistakes.
   */
-template<class T>
-inline void bidirectional_memcpy(T* host,
-                                 T* device,
+template<class T, class U>
+inline void bidirectional_memcpy(T* device,
+                                 U* host,
                                  size_t len,
                                  Model::CopyMemory dir)
 {
   if(dir==Model::CopyMemory::HostToDevice)
-    cudaMemcpy(device, host, len*sizeof(T), cudaMemcpyHostToDevice);
+    cudaMemcpy(device, (U*)host, len*sizeof(T), cudaMemcpyHostToDevice);
   else
-    cudaMemcpy(host, device, len*sizeof(T), cudaMemcpyDeviceToHost);
+    cudaMemcpy(host, (T*)device, len*sizeof(T), cudaMemcpyDeviceToHost);
 }
 
 void Model::_manage_device_memory(Model::ManageMemory which)
@@ -100,6 +107,14 @@ void Model::_manage_device_memory(Model::ManageMemory which)
   malloc_or_free(d_S_angle, nphases, which);
   malloc_or_free(d_theta, nphases, which);
   malloc_or_free(d_offset, nphases, which);
+  malloc_or_free(d_gam, nphases, which);
+  malloc_or_free(d_mu, nphases, which);
+
+  malloc_or_free(d_com_x_table, Size[0], which);
+  malloc_or_free(d_com_y_table, Size[0], which);
+
+  // random number generation
+  malloc_or_free(d_rand_states, N, which); 
 }
 
 void Model::_copy_device_memory(Model::CopyMemory dir)
@@ -134,25 +149,30 @@ void Model::_copy_device_memory(Model::CopyMemory dir)
     bidirectional_memcpy(d_potential_old+i*patch_N, &potential_old[i][0], patch_N, dir);
   }
 
-  bidirectional_memcpy(d_area, &area[0], N, dir);
-  bidirectional_memcpy(d_area_cnt, &area_cnt[0], N, dir);
-  bidirectional_memcpy(d_patch_min, &patch_min[0], N, dir);
-  bidirectional_memcpy(d_patch_max, &patch_max[0], N, dir);
-  bidirectional_memcpy(d_com, &com[0], N, dir);
-  bidirectional_memcpy(d_com_prev, &com_prev[0], N, dir);
-  bidirectional_memcpy(d_pol, &pol[0], N, dir);
-  bidirectional_memcpy(d_velp, &velp[0], N, dir);
-  bidirectional_memcpy(d_velf, &velf[0], N, dir);
-  bidirectional_memcpy(d_velc, &velc[0], N, dir);
-  bidirectional_memcpy(d_com_x, &com_x[0], N, dir);
-  bidirectional_memcpy(d_com_y, &com_y[0], N, dir);
-  bidirectional_memcpy(d_c, &c[0], N, dir);
-  bidirectional_memcpy(d_S00, &S00[0], N, dir);
-  bidirectional_memcpy(d_S01, &S01[0], N, dir);
-  bidirectional_memcpy(d_S_order, &S_order[0], N, dir);
-  bidirectional_memcpy(d_S_angle, &S_angle[0], N, dir);
-  bidirectional_memcpy(d_theta, &theta[0], N, dir);
-  bidirectional_memcpy(d_offset, &offset[0], N, dir);
+  bidirectional_memcpy(d_area, &area[0], nphases, dir);
+  bidirectional_memcpy(d_area_cnt, &area_cnt[0], nphases, dir);
+  bidirectional_memcpy(d_patch_min, &patch_min[0], nphases, dir);
+  bidirectional_memcpy(d_patch_max, &patch_max[0], nphases, dir);
+  bidirectional_memcpy(d_com, &com[0], nphases, dir);
+  bidirectional_memcpy(d_com_prev, &com_prev[0], nphases, dir);
+  bidirectional_memcpy(d_pol, &pol[0], nphases, dir);
+  bidirectional_memcpy(d_velp, &velp[0], nphases, dir);
+  bidirectional_memcpy(d_velf, &velf[0], nphases, dir);
+  bidirectional_memcpy(d_velc, &velc[0], nphases, dir);
+  bidirectional_memcpy(d_com_x, &com_x[0], nphases, dir);
+  bidirectional_memcpy(d_com_y, &com_y[0], nphases, dir);
+  bidirectional_memcpy(d_c, &c[0], nphases, dir);
+  bidirectional_memcpy(d_S00, &S00[0], nphases, dir);
+  bidirectional_memcpy(d_S01, &S01[0], nphases, dir);
+  bidirectional_memcpy(d_S_order, &S_order[0], nphases, dir);
+  bidirectional_memcpy(d_S_angle, &S_angle[0], nphases, dir);
+  bidirectional_memcpy(d_theta, &theta[0], nphases, dir);
+  bidirectional_memcpy(d_offset, &offset[0], nphases, dir);
+  bidirectional_memcpy(d_gam, &gam[0], nphases, dir);
+  bidirectional_memcpy(d_mu, &mu[0], nphases, dir);
+
+  bidirectional_memcpy(d_com_x_table, &com_x_table[0], Size[0], dir);
+  bidirectional_memcpy(d_com_y_table, &com_y_table[0], Size[1], dir);
 }
 
 void Model::AllocDeviceMemory()
@@ -191,7 +211,7 @@ void Model::QueryDeviceProperties()
     const int kb = 1024;
     const int mb = kb * kb;
 
-    cout << "  device " << DeviceProperties.name 
+    cout << "... device " << DeviceProperties.name 
          << " (" << DeviceProperties.major << "." << DeviceProperties.minor << ")" << endl;
     cout << "    ... global memory:        " << DeviceProperties.totalGlobalMem / mb 
          << "mb" << endl;
@@ -226,4 +246,9 @@ void Model::QueryDeviceProperties()
   if(DeviceProperties.maxThreadsPerBlock<ThreadsPerBlock)
     throw error_msg("number of threads per block does not match with device value. "
                     "See src/cuda.h.");
+}
+
+void Model::InitializeCUDARandomNumbers()
+{
+  seed_rand<<<1, N>>>(d_rand_states, seed);
 }
