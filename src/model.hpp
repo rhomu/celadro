@@ -150,6 +150,10 @@ struct Model
   bool no_warning = false;
   /** are the runtime warnings fatal? (i.e. they do stop the simulation) */
   bool stop_at_warning = false;
+  /** shall we perform runtime checks ? */
+  bool runtime_check = false;
+  /** shall we print some runtime stats ? */
+  bool runtime_stats = false;
   /** padding for onscreen output */
   unsigned pad;
   /** name of the inpute file */
@@ -157,7 +161,9 @@ struct Model
   /** Switches */
   bool force_delete;
   /** The random number seed */
-  unsigned seed;
+  unsigned long seed; // picked using a fair die
+  /** Flag if seed was set in the arguments, see options.hpp */
+  bool set_seed;
   /** Number of predictor-corrector steps */
   unsigned npc = 1;
   /** Relaxation time at initialization */
@@ -354,10 +360,35 @@ struct Model
   /** Initialize neighbors list (stencils) */
   void InitializeNeighbors();
 
+  // ===========================================================================
+  // Random numbers generation. Implemented in random.cpp
+
+  /** Pseudo random generator */
+  std::mt19937 gen;
+  //ranlux24 gen;
+
+  /** Return random real, uniform distribution */
+  double random_real(double min=0., double max=1.);
+
+  /** Return random real, gaussian distributed */
+  double random_normal(double sigma=1.);
+
+  /** Return geometric dist numbers, prob is p */
+  unsigned random_geometric(double p);
+
+  /** Return random unsigned uniformly distributed */
+  unsigned random_unsigned();
+
+  /** Initialize random numbers
+   * 
+   * If CUDA is enabled, alos intialize CUDA random numbers
+   * */
+  void InitializeRandomNumbers();
+
   // ==========================================================================
   // Support for cuda. Implemented in cuda.cu
 
-  #ifdef _CUDA
+  #ifdef _CUDA_ENABLED
 
   /** Device(s) propeties
    * @{ */
@@ -384,14 +415,24 @@ struct Model
          *d_walls_laplace, *d_walls_dx, *d_walls_dy, *d_sum_cnt, *d_square_cnt,
          *d_Theta, *d_Px_cnt, *d_Py_cnt, *d_Theta_cnt, *d_Q00_cnt, *d_Q01_cnt,
          *d_P_cnt, *d_area, *d_area_cnt, *d_c, *d_S00, *d_S01, *d_S_order,
-         *d_S_angle, *d_theta;
+         *d_S_angle, *d_theta, *d_gam, *d_mu;
   vec<double, 2>       *d_pol, *d_velp, *d_velc, *d_velf, *d_com, *d_com_prev;
-  stencil              *d_neighbours, *d_neighbours_patch;
+  stencil              *d_neighbors, *d_neighbors_patch;
   coord                *d_patch_min, *d_patch_max, *d_offset;
-  std::complex<double> *d_com_x, *d_com_y;
+  cuDoubleComplex *d_com_x, *d_com_y, *d_com_x_table, *d_com_y_table;
 
   /** @} */
   
+  /** Random number generation
+   * @{ */
+  
+  /** Random states on the device */
+  curandState *d_rand_states;
+  
+  /** Initialization function */
+  void InitializeCUDARandomNumbers();
+
+  /** @} */
   /** CUDA device memory managment
     * @{ */
 
