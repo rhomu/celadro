@@ -25,32 +25,64 @@
 // https://devblogs.nvidia.com/parallelforall/faster-parallel-reductions-kepler/
 
 __inline__ __device__
-double warpReduceSum(double val)
+void warpReduceSum(double& val)
 {
   for (int offset = WarpSize/2; offset > 0; offset /= 2)
     val += __shfl_down(val, offset);
-  return val;
 }
 
 __inline__ __device__
-double blockReduceSum(double val)
+void blockReduceSum(double& val)
 {
   static __shared__ double shared[WarpSize];
   int lane = threadIdx.x % WarpSize;
   int wid  = threadIdx.x / WarpSize;
 
-  val = warpReduceSum(val);     // Each warp performs partial reduction
+  warpReduceSum(val);     // Each warp performs partial reduction
 
   if (lane==0) shared[wid]=val; // Write reduced value to shared memory
 
   __syncthreads();              // Wait for all partial reductions
 
-  //read from shared memory only if that warp existed
+  // read from shared memory only if that warp existed
   val = (threadIdx.x < blockDim.x / warpSize) ? shared[lane] : 0;
 
-  if (wid==0) val = warpReduceSum(val); //Final reduce within first warp
+  if (wid==0) warpReduceSum(val); // Final reduce within first warp
+}
 
-  return val;
+// -----------------------------------------------------------------------------
+// mutidimensional version
+
+template<class T, size_t D>
+__inline__ __device__
+void warpReduceSum(vec<T, D> &val)
+{
+  for (int offset = WarpSize/2; offset > 0; offset /= 2)
+    for(int i=0; i<D; ++i)
+      val[i] += __shfl_down(val[i], offset);
+}
+
+template<class T, size_t D>
+__inline__ __device__
+void blockReduceSum(vec<T, D> &val)
+{
+  static __shared__ vec<T, D> shared[WarpSize];
+  int lane = threadIdx.x % WarpSize;
+  int wid  = threadIdx.x / WarpSize;
+
+  warpReduceSum(val);            // Each warp performs partial reduction
+
+  if (lane==0) shared[wid]=val;   // Write reduced value to shared memory
+
+  __syncthreads();                // Wait for all partial reductions
+
+  // read from shared memory only if that warp existed
+  if(threadIdx.x < blockDim.x / warpSize)
+    val = shared[lane];
+  else 
+    val = 0;
+
+  if (wid==0) warpReduceSum(val); // Final reduce within first warp
 }
 
 #endif//REDUCE_H_
