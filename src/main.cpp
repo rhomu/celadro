@@ -141,6 +141,19 @@ void Model::Setup(int argc, char **argv)
   try {
     Initialize();
     InitializeNeighbors();
+    InitializeRandomNumbers();
+  } catch(...) {
+    if(verbose) cout << " error" << endl;
+    throw;
+  }
+  if(verbose) cout << " done" << endl;
+
+  // ----------------------------------------
+  // parameters init
+  if(verbose) cout << "system initialisation ..." << flush;
+  try {
+    Configure();
+    ConfigureWalls();
   } catch(...) {
     if(verbose) cout << " error" << endl;
     throw;
@@ -165,42 +178,19 @@ void Model::Setup(int argc, char **argv)
     if(verbose) cout << "setting up CUDA devices ..." << endl;
     QueryDeviceProperties();
     InitializeCuda();
-    if(verbose) cout << " done" << endl;
 
-    if(verbose) cout << "allocate device memory ...";
+    if(verbose) cout << "... allocate device memory ...";
     AllocDeviceMemory();
     if(verbose) cout << " done" << endl;
 
-    if(verbose) cout << "copy data to device ...";
+    if(verbose) cout << "... random numbers initialization ..." << flush;
+    InitializeCUDARandomNumbers();
+    if(verbose) cout << " done" << endl;
+
+    if(verbose) cout << "... copy data to device ...";
     PutToDevice();
     if(verbose) cout << " done" << endl;
   #endif
-
-  // ----------------------------------------
-  // random numbers
-  if(verbose) cout << "random numbers initialization ..." << flush;
-  try {
-    InitializeRandomNumbers();
-    #ifdef _CUDA_ENABLED
-      InitializeCUDARandomNumbers();
-    #endif
-  } catch(...) {
-    if(verbose) cout << " error" << endl;
-    throw;
-  }
-  if(verbose) cout << " done" << endl;
-
-  // ----------------------------------------
-  // parameters init
-  if(verbose) cout << "system initialisation ..." << flush;
-  try {
-    Configure();
-    ConfigureWalls();
-  } catch(...) {
-    if(verbose) cout << " error" << endl;
-    throw;
-  }
-  if(verbose) cout << " done" << endl;
 
   // ----------------------------------------
   // write params to file

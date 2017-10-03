@@ -45,8 +45,9 @@ struct Model
    *
    * The list of neighbours is used for computing the derivatives and is pre-
    * computed during initialization. The neighbours_patch variable has the same
-   * role but for a region of the size of the cell patches (they all have the
-   * same size).
+   * role but for a region of the size of the cell patches (all patches have the
+   * same size). These variables are computed in Initialize() and do not change
+   * at runtime.
    * */
   std::vector<stencil> neighbors, neighbors_patch;
 
@@ -419,7 +420,7 @@ struct Model
          *d_Theta, *d_Px_cnt, *d_Py_cnt, *d_Theta_cnt, *d_Q00_cnt, *d_Q01_cnt,
          *d_P_cnt, *d_area, *d_area_cnt, *d_c, *d_S00, *d_S01, *d_S_order,
          *d_S_angle, *d_theta, *d_gam, *d_mu;
-  vec<double, 2>  *d_pol, *d_velp, *d_velc, *d_velf, *d_com, *d_com_prev;
+  vec<double, 2>  *d_pol, *d_vel, *d_velp, *d_velc, *d_velf, *d_com, *d_com_prev;
   stencil         *d_neighbors, *d_neighbors_patch;
   coord           *d_patch_min, *d_patch_max, *d_offset;
   cuDoubleComplex *d_com_x, *d_com_y, *d_com_x_table, *d_com_y_table;

@@ -40,6 +40,14 @@ struct vec
   vec& operator=(const vec& v) = default;
 
   __host__ __device__
+  vec& operator=(const T& t)
+  {
+    for(size_t i = 0; i<D; ++i)
+      data[i] = t;
+    return *this;
+  }
+
+  __host__ __device__
   vec& operator+=(const vec& v)
   {
     for(size_t i = 0; i<D; ++i)

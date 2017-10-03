@@ -409,6 +409,7 @@ void Model::Update(bool store)
   // We use this construction because it is much faster with OpenMP: the single
   // threaded portion of the code consists only of these swaps!
 
+  swap(area, area_cnt);
   swap(sum, sum_cnt);
   swap(square, square_cnt);
   swap(P, P_cnt);
@@ -417,7 +418,6 @@ void Model::Update(bool store)
   swap(Q01, Q01_cnt);
   swap(Px, Px_cnt);
   swap(Py, Py_cnt);
-  swap(area, area_cnt);
 }
 
 #endif

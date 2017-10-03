@@ -24,34 +24,13 @@
 // Warp reduce, from:
 // https://devblogs.nvidia.com/parallelforall/faster-parallel-reductions-kepler/
 
+template<class T>
 __inline__ __device__
-void warpReduceSum(double& val)
+void warpReduceSum(T& val)
 {
   for (int offset = WarpSize/2; offset > 0; offset /= 2)
     val += __shfl_down(val, offset);
 }
-
-__inline__ __device__
-void blockReduceSum(double& val)
-{
-  static __shared__ double shared[WarpSize];
-  int lane = threadIdx.x % WarpSize;
-  int wid  = threadIdx.x / WarpSize;
-
-  warpReduceSum(val);     // Each warp performs partial reduction
-
-  if (lane==0) shared[wid]=val; // Write reduced value to shared memory
-
-  __syncthreads();              // Wait for all partial reductions
-
-  // read from shared memory only if that warp existed
-  val = (threadIdx.x < blockDim.x / warpSize) ? shared[lane] : 0;
-
-  if (wid==0) warpReduceSum(val); // Final reduce within first warp
-}
-
-// -----------------------------------------------------------------------------
-// mutidimensional version
 
 template<class T, size_t D>
 __inline__ __device__
@@ -62,19 +41,19 @@ void warpReduceSum(vec<T, D> &val)
       val[i] += __shfl_down(val[i], offset);
 }
 
-template<class T, size_t D>
+template<class T>
 __inline__ __device__
-void blockReduceSum(vec<T, D> &val)
+void blockReduceSum(T& val)
 {
-  static __shared__ vec<T, D> shared[WarpSize];
+  static __shared__ T shared[WarpSize];
   int lane = threadIdx.x % WarpSize;
   int wid  = threadIdx.x / WarpSize;
 
-  warpReduceSum(val);            // Each warp performs partial reduction
+  warpReduceSum(val);     // Each warp performs partial reduction
 
-  if (lane==0) shared[wid]=val;   // Write reduced value to shared memory
+  if (lane==0) shared[wid]=val; // Write reduced value to shared memory
 
-  __syncthreads();                // Wait for all partial reductions
+  __syncthreads();              // Wait for all partial reductions
 
   // read from shared memory only if that warp existed
   if(threadIdx.x < blockDim.x / warpSize)

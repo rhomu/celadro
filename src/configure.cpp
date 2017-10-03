@@ -64,6 +64,7 @@ void Model::AddCell(unsigned n, const coord& center)
 
   c[n]     = c0;
   theta[n] = 2.*Pi*random_real();
+  pol[n]   = { cos(theta[n]), sin(theta[n]) };
   com[n]   = vec<double, 2>(center);
 }
 

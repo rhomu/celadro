@@ -81,6 +81,7 @@ void Model::_manage_device_memory(ManageMemory which)
   malloc_or_free(d_Q01_cnt, N, which);
   malloc_or_free(d_P, N, which);
   malloc_or_free(d_P_cnt, N, which);
+
   malloc_or_free(d_phi, nphases*patch_N, which);
   malloc_or_free(d_phi_old, nphases*patch_N, which);
   malloc_or_free(d_V, nphases*patch_N, which);
@@ -94,6 +95,7 @@ void Model::_manage_device_memory(ManageMemory which)
   malloc_or_free(d_com, nphases, which);
   malloc_or_free(d_com_prev, nphases, which);
   malloc_or_free(d_pol, nphases, which);
+  malloc_or_free(d_vel, nphases, which);
   malloc_or_free(d_velp, nphases, which);
   malloc_or_free(d_velf, nphases, which);
   malloc_or_free(d_velc, nphases, which);
@@ -114,6 +116,10 @@ void Model::_manage_device_memory(ManageMemory which)
 
   // random number generation
   malloc_or_free(d_rand_states, N, which);
+
+  // neighbours
+  malloc_or_free(d_neighbors, N, which);
+  malloc_or_free(d_neighbors_patch, patch_N, which);
 }
 
 void Model::_copy_device_memory(CopyMemory dir)
@@ -172,6 +178,9 @@ void Model::_copy_device_memory(CopyMemory dir)
 
   bidirectional_memcpy(d_com_x_table, &com_x_table[0], Size[0], dir);
   bidirectional_memcpy(d_com_y_table, &com_y_table[0], Size[1], dir);
+
+  bidirectional_memcpy(d_neighbors, &neighbors[0], N, dir);
+  bidirectional_memcpy(d_neighbors_patch, &neighbors_patch[0], patch_N, dir);
 }
 
 void Model::AllocDeviceMemory()
@@ -208,12 +217,12 @@ void Model::QueryDeviceProperties()
   if(verbose)
   {
     const int kb = 1024;
-    const int mb = kb * kb;
+    const int gb = kb * kb * kb;
 
     cout << "... device " << DeviceProperties.name 
          << " (" << DeviceProperties.major << "." << DeviceProperties.minor << ")" << endl;
-    cout << "    ... global memory:        " << DeviceProperties.totalGlobalMem / mb 
-         << "mb" << endl;
+    cout << "    ... global memory:        " << DeviceProperties.totalGlobalMem / gb 
+         << "gb" << endl;
     cout << "    ... shared memory:        " << DeviceProperties.sharedMemPerBlock / kb
          << "kb" << endl;
     cout << "    ... constant memory:      " << DeviceProperties.totalConstMem / kb
