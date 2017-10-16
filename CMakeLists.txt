@@ -62,7 +62,7 @@ if(CUDA_FOUND)
   cuda_compile(cuda_objects ${cuda_sources})
   add_executable(celadro-cuda ${sources} ${cuda_objects})
   target_link_libraries(celadro-cuda PUBLIC ${Boost_LIBRARIES} ${CUDA_LIBRARIES})
-  set_target_properties(celadro-cuda PROPERTIES COMPILE_FLAGS "-D_CUDA_ENABLED")
+  set_target_properties(celadro-cuda PROPERTIES APPEND COMPILE_FLAGS "-D_CUDA_ENABLED")
   target_include_directories(celadro-cuda PUBLIC "${CUDA_INCLUDE_DIRS}")
 endif()
 
@@ -73,6 +73,12 @@ if(OPENMP_FOUND)
   target_link_libraries(celadro ${Boost_LIBRARIES} ${OpenMP_CXX_FLAGS})
 else()
   target_link_libraries(celadro PUBLIC ${Boost_LIBRARIES})
+endif()
+
+# add hydra support (boost is fucked up there)
+option(HYDRA "Make linking work on hydra work (as of 2017)" OFF)
+if(HYDRA)
+  set_target_properties(celadro PROPERTIES LINK_FLAGS "${CMAKE_LINK_FLAGS} -L/usr/local/shared/boost/1.64.0-gcc5.4.0/lib")
 endif()
 
 ################################################################################
