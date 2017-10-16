@@ -198,6 +198,7 @@ void Model::Setup(int argc, char **argv)
   {
     if(verbose) cout << "create output directory " << " ...";
     try {
+      ClearOutput();
       CreateOutputDir();
     } catch(...) {
       if(verbose) cout << " error" << endl;
@@ -205,7 +206,6 @@ void Model::Setup(int argc, char **argv)
     }
     if(verbose) cout << " done" << endl;
 
-    ClearOutput();
 
     if(verbose and compress_full)
       cout << "create output file " << runname << ".zip ...";
