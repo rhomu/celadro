@@ -246,7 +246,7 @@ struct Model
   /** Coupling between area and contractility */
   double beta;
   /** Parameters for the polarisation dynamics */
-  double D=1., J=1.;
+  double D=1., J=1., S=1.;
   /** Contractility parameters */
   double c0, tauc;
   /** Division flag */
@@ -384,7 +384,7 @@ struct Model
   unsigned random_unsigned();
 
   /** Initialize random numbers
-   * 
+   *
    * If CUDA is enabled, alos intialize CUDA random numbers
    * */
   void InitializeRandomNumbers();
@@ -405,7 +405,7 @@ struct Model
   void QueryDeviceProperties();
 
   /** @} */
-  
+
   /** Pointer to device global memory
    *
    * These pointers reflects the program data strcuture and represents the cor-
@@ -426,13 +426,13 @@ struct Model
   cuDoubleComplex *d_com_x, *d_com_y, *d_com_x_table, *d_com_y_table;
 
   /** @} */
-  
+
   /** Random number generation
    * @{ */
-  
+
   /** Random states on the device */
   curandState *d_rand_states;
-  
+
   /** Initialization function */
   void InitializeCuda();
 
@@ -443,7 +443,7 @@ struct Model
   /** CUDA device memory managment
     * @{ */
 
-  /** In which direction do we copy data? */  
+  /** In which direction do we copy data? */
   enum class CopyMemory {
     HostToDevice,
     DeviceToHost
@@ -487,7 +487,7 @@ struct Model
   int n_total, n_blocks, n_threads;
 
   /** @} */
-  
+
   #endif
 
   // ===========================================================================
@@ -583,7 +583,7 @@ struct Model
   void UpdatePatch(unsigned);
 
   /** Update fields
-   * 
+   *
    * The boolean argument is used to differentiate between the predictor step
    * (true) and subsequent corrector steps.
    * */

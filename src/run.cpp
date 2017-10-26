@@ -231,18 +231,12 @@ void Model::UpdatePolarization(unsigned n)
     velp[n][1] + velf[n][1] + velc[n][1]
   };
 
-  // ...the norm of the passive velocity
-  const double ni = sqrt(abs(v[0]*v[0]+v[1]*v[1]));
-
-  // alignement torque
-  double torque = -ni*atan2(v[0]*pol[n][1]-v[1]*pol[n][0],
-                            v[0]*pol[n][0]+v[1]*pol[n][1]);
-
   // ...euler-marijuana update
-  theta[n] += time_step*J*torque + sqrt(time_step)*D*random_normal();
-
-  // update polarisation and contractility
-  pol[n] = { cos(theta[n]), sin(theta[n]) };
+  const double p2 = pol[n][0]*pol[n][0] + pol[n][1]*pol[n][1];
+  pol[n][0] += time_step*(S*2.*(1. - p2)*pol[n][0] + J*v[0])
+               + sqrt(time_step)*D*random_normal();
+  pol[n][1] += time_step*(S*2.*(1. - p2)*pol[n][1] + J*v[1])
+               + sqrt(time_step)*D*random_normal();
 
   // dynamics of the contractility: needs some cleaning up once settled
   //

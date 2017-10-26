@@ -145,6 +145,7 @@ struct vec
   typename std::array<T, D>::iterator end()   { return data.end(); }
   typename std::array<T, D>::const_iterator begin() const { return data.begin(); }
   typename std::array<T, D>::const_iterator end()   const { return data.end(); }
+  size_t size() const { return D; }
 };
 
 // =============================================================================

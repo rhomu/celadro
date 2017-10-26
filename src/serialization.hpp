@@ -128,6 +128,14 @@ using is_iterable = decltype(detail::is_iterable_impl<T>(0));
 template <typename T>
 using is_serializable = decltype(detail::is_serializable_impl<T>(0));
 
+/** is_true_iterable<T>: iterable and NOT string */
+template<typename T>
+struct is_true_iterable
+{
+  const static bool value = is_iterable<T>::value &&
+                            !std::is_same<T, std::string>::value;
+};
+
 // =============================================================================
 // Traits for fundamental types
 
@@ -146,8 +154,7 @@ template<class T, bool IsIterable> struct type_name_impl
   * */
 template<class T>
 struct type_name
-  : type_name_impl<T, is_iterable<T>::value && !
-                      std::is_same<T, std::string>::value>
+  : type_name_impl<T, is_true_iterable<T>::value>
 {};
 
 /** Iterable types are all called 'array(...)'
@@ -195,12 +202,47 @@ REGISTER_TYPE_NAME_OTHER(const char16_t*, "string")
 REGISTER_TYPE_NAME_OTHER(const char32_t*, "string")
 
 // =============================================================================
+// Traits to obtain shape of iterables
+
+/** Type traits to differentiate iterable types */
+template<class T, bool IsIterable> struct get_shape_impl
+{};
+
+template<class T>
+std::vector<size_t> get_shape(const T& iterable)
+{
+  auto ret = get_shape_impl<T, is_true_iterable<T>::value>::shape(iterable);
+  std::reverse(ret.begin(), ret.end());
+  return ret;
+}
+
+template<class T>
+struct get_shape_impl<T, false>
+{
+  static std::vector<size_t> shape(const T& iterable)
+  {
+    return {};
+  }
+};
+
+template<class T>
+struct get_shape_impl<T, true>
+{
+  static std::vector<size_t> shape(const T& iterable)
+  {
+    using U = typename std::decay<decltype(*std::begin(iterable))>::type;
+    auto ret = get_shape_impl<
+                 U, is_true_iterable<U>::value
+                 >::shape(*std::begin(iterable));
+    ret.push_back(iterable.size());
+    return ret;
+  }
+};
+
+// =============================================================================
 // The archive types
 
-/** Output archive
-  *
-  * More ...
-  * */
+/** Output json archive */
 class oarchive : public std::ostream
 {
   /** The output stream */
@@ -237,7 +279,10 @@ class oarchive : public std::ostream
   /** Bad value flag (nans) */
   bool f_bad_value = false;
 public:
-  /** Contruct from stream, id, and version */
+  /** Contructor
+   *
+   * Arguments are the output stream, the id, and version number.
+   * */
   oarchive(std::ostream&, std::string, unsigned=0);
   /** Write final characters to stream and destruct */
   ~oarchive();
@@ -354,7 +399,7 @@ void oarchive::serialize(const T& t)
   detail::wrapper
     < oarchive, T,
       is_serializable<T>::value,
-      is_iterable<T>::value && !std::is_same<T, std::string>::value
+      is_true_iterable<T>::value
     > (*this, t);
 }
 
@@ -367,6 +412,12 @@ oarchive& oarchive::operator&(const std::pair<T&, std::string>& t)
   // write the type
   add_key("type");
   add_element(type_name<T>::name());
+  // in the case it is iterable, print shape
+  if(is_true_iterable<T>::value)
+  {
+    add_key("shape");
+    serialize(get_shape(t.first));
+  }
   // write value
   add_key("value");
   // serialize the object

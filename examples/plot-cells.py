@@ -44,6 +44,7 @@ if len(sys.argv)==3:
 def myplot(frame, engine):
     plot.phasefields(frame, engine)
     plot.com(frame, engine)
+    plot.patch(frame, 0, engine)
     engine.axes.set_aspect('equal', adjustable='box')
     engine.set_xlim([0, frame.parameters['Size'][0]-1])
     engine.set_ylim([0, frame.parameters['Size'][1]-1])

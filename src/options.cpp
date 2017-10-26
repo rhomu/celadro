@@ -115,6 +115,8 @@ void Model::ParseProgramOptions(int ac, char **av)
      "Friction parameter")
     ("omega", opt::value<double>(&omega),
       "Adhesion parameter")
+    ("S", opt::value<double>(&S),
+      "Strength of polarisation potential")
     ("J", opt::value<double>(&J),
       "Strength of alignment torque")
     ("D", opt::value<double>(&D),

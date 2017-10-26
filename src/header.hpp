@@ -34,6 +34,7 @@
 #include <vector>
 #include <complex>
 #include <array>
+#include <stack>
 #include <functional>
 #include <memory>
 #include <type_traits>
