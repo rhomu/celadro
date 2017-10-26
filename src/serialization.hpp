@@ -413,11 +413,11 @@ oarchive& oarchive::operator&(const std::pair<T&, std::string>& t)
   add_key("type");
   add_element(type_name<T>::name());
   // in the case it is iterable, print shape
-  if(is_true_iterable<T>::value)
+  /*if(is_true_iterable<T>::value)
   {
     add_key("shape");
     serialize(get_shape(t.first));
-  }
+  }*/
   // write value
   add_key("value");
   // serialize the object
