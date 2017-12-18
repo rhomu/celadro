@@ -2,7 +2,11 @@ TODO:
 ====
 * Rm and filesystem from C++17
 * zip from cmake?
+* cleanup the runtime stats, checks, and verbosity levels
 * implement nice git flow (master, hotfix, etc)
+* switch to int for indices?
+* switch to array of structures for more cache locality
+* use new mem layout for AddCell in configure and get rid of the UpdateDomain...
 
 DONE:
 ====

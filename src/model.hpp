@@ -45,8 +45,9 @@ struct Model
    *
    * The list of neighbours is used for computing the derivatives and is pre-
    * computed during initialization. The neighbours_patch variable has the same
-   * role but for a region of the size of the cell patches (they all have the
-   * same size).
+   * role but for a region of the size of the cell patches (all patches have the
+   * same size). These variables are computed in Initialize() and do not change
+   * at runtime.
    * */
   std::vector<stencil> neighbors, neighbors_patch;
 
@@ -80,8 +81,6 @@ struct Model
   std::vector<vec<double, 2>> velc;
   /** Friction velocities */
   std::vector<vec<double, 2>> velf;
-  /** Total com velocity */
-  std::vector<vec<double, 2>> vel;
   /** Overall polarization of the tissue */
   std::vector<double> Px, Py, Px_cnt, Py_cnt;
   /** Contractility */
@@ -152,6 +151,10 @@ struct Model
   bool no_warning = false;
   /** are the runtime warnings fatal? (i.e. they do stop the simulation) */
   bool stop_at_warning = false;
+  /** shall we perform runtime checks ? */
+  bool runtime_check = false;
+  /** shall we print some runtime stats ? */
+  bool runtime_stats = false;
   /** padding for onscreen output */
   unsigned pad;
   /** name of the inpute file */
@@ -159,7 +162,9 @@ struct Model
   /** Switches */
   bool force_delete;
   /** The random number seed */
-  unsigned seed;
+  unsigned long seed; // picked using a fair die
+  /** Flag if seed was set in the arguments, see options.hpp */
+  bool set_seed;
   /** Number of predictor-corrector steps */
   unsigned npc = 1;
   /** Relaxation time at initialization */
@@ -241,7 +246,7 @@ struct Model
   /** Coupling between area and contractility */
   double beta;
   /** Parameters for the polarisation dynamics */
-  double D=1., J=1.;
+  double D=1., J=1., S=1.;
   /** Contractility parameters */
   double c0, tauc;
   /** Division flag */
@@ -316,7 +321,6 @@ struct Model
          & auto_name(velp)
          & auto_name(velf)
          & auto_name(velc)
-         & auto_name(vel)
          & auto_name(patch_min)
          & auto_name(patch_max);
   }
@@ -332,6 +336,9 @@ struct Model
 
   /** Do the computation */
   void Run();
+
+  /** Clean after you */
+  void Cleanup();
 
   // ==========================================================================
   // Writing to file. Implemented in write.cpp
@@ -356,6 +363,132 @@ struct Model
 
   /** Initialize neighbors list (stencils) */
   void InitializeNeighbors();
+
+  // ===========================================================================
+  // Random numbers generation. Implemented in random.cpp
+
+  /** Pseudo random generator */
+  std::mt19937 gen;
+  //ranlux24 gen;
+
+  /** Return random real, uniform distribution */
+  double random_real(double min=0., double max=1.);
+
+  /** Return random real, gaussian distributed */
+  double random_normal(double sigma=1.);
+
+  /** Return geometric dist numbers, prob is p */
+  unsigned random_geometric(double p);
+
+  /** Return random unsigned uniformly distributed */
+  unsigned random_unsigned();
+
+  /** Initialize random numbers
+   *
+   * If CUDA is enabled, alos intialize CUDA random numbers
+   * */
+  void InitializeRandomNumbers();
+
+  // ==========================================================================
+  // Support for cuda. Implemented in cuda.cu
+
+  #ifdef _CUDA_ENABLED
+
+  /** Device(s) propeties
+   * @{ */
+
+  /** Obtain (and print) device(s) properties
+   *
+   * Also checks that the device properties are compatible with the values given
+   * in src/cuda.h.
+   * */
+  void QueryDeviceProperties();
+
+  /** @} */
+
+  /** Pointer to device global memory
+   *
+   * These pointers reflects the program data strcuture and represents the cor-
+   * responding data on the device global memory. All names should be identical
+   * to their host counterparts apart from the d_ prefix.
+   *
+   * @{ */
+
+  double *d_phi, *d_phi_old, *d_V, *d_potential, *d_potential_old, *d_sum,
+         *d_square, *d_Q00, *d_Q01, *d_P, *d_Px, *d_Py, *d_walls,
+         *d_walls_laplace, *d_walls_dx, *d_walls_dy, *d_sum_cnt, *d_square_cnt,
+         *d_Theta, *d_Px_cnt, *d_Py_cnt, *d_Theta_cnt, *d_Q00_cnt, *d_Q01_cnt,
+         *d_P_cnt, *d_area, *d_area_cnt, *d_c, *d_S00, *d_S01, *d_S_order,
+         *d_S_angle, *d_theta, *d_gam, *d_mu;
+  vec<double, 2>  *d_pol, *d_vel, *d_velp, *d_velc, *d_velf, *d_com, *d_com_prev;
+  stencil         *d_neighbors, *d_neighbors_patch;
+  coord           *d_patch_min, *d_patch_max, *d_offset;
+  cuDoubleComplex *d_com_x, *d_com_y, *d_com_x_table, *d_com_y_table;
+
+  /** @} */
+
+  /** Random number generation
+   * @{ */
+
+  /** Random states on the device */
+  curandState *d_rand_states;
+
+  /** Initialization function */
+  void InitializeCuda();
+
+  /** Initialization function for random numbers */
+  void InitializeCUDARandomNumbers();
+
+  /** @} */
+  /** CUDA device memory managment
+    * @{ */
+
+  /** In which direction do we copy data? */
+  enum class CopyMemory {
+    HostToDevice,
+    DeviceToHost
+  };
+
+  /** Allocate or free memory? */
+  enum class ManageMemory {
+    Allocate,
+    Free
+  };
+
+  /** Implementation for AllocDeviceMemory() and FreeDeviceMemory() */
+  void _manage_device_memory(ManageMemory);
+  /** Implementation for PutToDevice() and GetFromDevice() */
+  void _copy_device_memory(CopyMemory);
+
+  /** Copy data to the device global memory
+   *
+   * This function is called at the begining of the program just before the main
+   * loop but after the system has been initialized.
+   * */
+  void PutToDevice();
+
+  /** Copy data from the device global memory
+   *
+   * This function is called every time the results need to be dumped on the disk.
+   * */
+  void GetFromDevice();
+
+  /** Allocate memory for all device arrays */
+  void AllocDeviceMemory();
+
+  /** Allocate memory for all device arrays */
+  void FreeDeviceMemory();
+
+  /** @} */
+
+  /** Runtime properties
+   * @{ */
+
+  int n_total, n_blocks, n_threads;
+
+  /** @} */
+
+  #endif
 
   // ===========================================================================
   // Configuration. Implemented in configure.cpp
@@ -397,7 +530,7 @@ struct Model
   void Post();
 
   /** Subfunction for update */
-  void UpdateAtNode(unsigned, unsigned);
+  void UpdateAtNode(unsigned, unsigned, bool);
 
   /** Subfunction for update */
   void UpdateFieldsAtNode(unsigned, unsigned);
@@ -446,11 +579,15 @@ struct Model
    * */
   void ComputeShape(unsigned);
 
-  /** Update fields */
-  void Update();
-
   /** Update the moving patch following each cell */
   void UpdatePatch(unsigned);
+
+  /** Update fields
+   *
+   * The boolean argument is used to differentiate between the predictor step
+   * (true) and subsequent corrector steps.
+   * */
+  void Update(bool);
 
   /** Helper function
    *
@@ -540,114 +677,5 @@ struct Model
     return GetIndex(dpos);
   }
 };
-
-// =============================================================================
-// Implementation
-
-template<typename Ret, typename ...Args>
-void Model::UpdateSubDomain(Ret (Model::*fun)(unsigned, unsigned, Args...),
-                                unsigned n,
-                                unsigned m0, unsigned m1,
-                                unsigned M0, unsigned M1,
-                                Args&&... args)
-{
-  // only update on the subregion
-  for(unsigned i=m0; i<M0; ++i)
-    for(unsigned j=m1; j<M1; ++j)
-      (this->*fun)(n, GetIndex({i, j}),
-                std::forward<Args>(args)...);
-}
-
-template<typename Ret, typename ...Args>
-void Model::UpdateSubDomainP(Ret (Model::*fun)(unsigned, unsigned, Args...),
-                                 unsigned n,
-                                 unsigned m0, unsigned m1,
-                                 unsigned M0, unsigned M1,
-                                 Args&&... args)
-{
-  // same but with openmp
-  PRAGMA_OMP(omp parallel for num_threads(nthreads) if(nthreads))
-  for(unsigned k=0; k<(M0-m0)*(M1-m1); ++k)
-      (this->*fun)(n, GetIndex({m0+k%(M0-m0), m1+k/(M0-m0)}),
-                std::forward<Args>(args)...);
-}
-
-template<typename Ret, typename ...Args>
-void Model::UpdateDomainP(Ret (Model::*fun)(unsigned, unsigned, Args...),
-                              unsigned n, Args&&... args)
-{
-  if(patch_min[n][0]>=patch_max[n][0] and
-     patch_min[n][1]>=patch_max[n][1])
-  {
-    // patch is across the corners
-    UpdateSubDomainP(fun, n, patch_min[n][0], patch_min[n][1], Size[0], Size[1],
-                     std::forward<Args>(args)...);
-    UpdateSubDomainP(fun, n, 0u, 0u, patch_max[n][0], patch_max[n][1],
-                     std::forward<Args>(args)...);
-    UpdateSubDomainP(fun, n, patch_min[n][0], 0u, Size[0], patch_max[n][1],
-                     std::forward<Args>(args)...);
-    UpdateSubDomainP(fun, n, 0u, patch_min[n][1], patch_max[n][0], Size[1],
-                     std::forward<Args>(args)...);
-  }
-  else if(patch_min[n][0]>=patch_max[n][0])
-  {
-    // patch is across the left/right border
-    UpdateSubDomainP(fun, n, patch_min[n][0], patch_min[n][1], Size[0], patch_max[n][1],
-                     std::forward<Args>(args)...);
-    UpdateSubDomainP(fun, n, 0u, patch_min[n][1], patch_max[n][0], patch_max[n][1],
-                     std::forward<Args>(args)...);
-  }
-  else if(patch_min[n][1]>=patch_max[n][1])
-  {
-    // patch is across the up/down border
-    UpdateSubDomainP(fun, n, patch_min[n][0], patch_min[n][1], patch_max[n][0], Size[1],
-                     std::forward<Args>(args)...);
-    UpdateSubDomainP(fun, n, patch_min[n][0], 0u, patch_max[n][0], patch_max[n][1],
-                     std::forward<Args>(args)...);
-  }
-  else
-    // patch is in the middle
-    UpdateSubDomainP(fun, n, patch_min[n][0], patch_min[n][1], patch_max[n][0], patch_max[n][1],
-                     std::forward<Args>(args)...);
-}
-
-template<typename Ret, typename ...Args>
-void Model::UpdateDomain(Ret (Model::*fun)(unsigned, unsigned, Args...),
-                             unsigned n, Args&&... args)
-{
-  if(patch_min[n][0]>=patch_max[n][0] and
-     patch_min[n][1]>=patch_max[n][1])
-  {
-    // patch is across the corners
-    UpdateSubDomain(fun, n, patch_min[n][0], patch_min[n][1], Size[0], Size[1],
-                    std::forward<Args>(args)...);
-    UpdateSubDomain(fun, n, 0u, 0u, patch_max[n][0], patch_max[n][1],
-                    std::forward<Args>(args)...);
-    UpdateSubDomain(fun, n, patch_min[n][0], 0u, Size[0], patch_max[n][1],
-                    std::forward<Args>(args)...);
-    UpdateSubDomain(fun, n, 0u, patch_min[n][1], patch_max[n][0], Size[1],
-                    std::forward<Args>(args)...);
-  }
-  else if(patch_min[n][0]>=patch_max[n][0])
-  {
-    // patch is across the left/right border
-    UpdateSubDomain(fun, n, patch_min[n][0], patch_min[n][1], Size[0], patch_max[n][1],
-                    std::forward<Args>(args)...);
-    UpdateSubDomain(fun, n, 0u, patch_min[n][1], patch_max[n][0], patch_max[n][1],
-                    std::forward<Args>(args)...);
-  }
-  else if(patch_min[n][1]>=patch_max[n][1])
-  {
-    // patch is across the up/down border
-    UpdateSubDomain(fun, n, patch_min[n][0], patch_min[n][1], patch_max[n][0], Size[1],
-                    std::forward<Args>(args)...);
-    UpdateSubDomain(fun, n, patch_min[n][0], 0u, patch_max[n][0], patch_max[n][1],
-                    std::forward<Args>(args)...);
-  }
-  else
-    // patch is in the middle
-    UpdateSubDomain(fun, n, patch_min[n][0], patch_min[n][1], patch_max[n][0], patch_max[n][1],
-                    std::forward<Args>(args)...);
-}
 
 #endif//MODEL_HPP_

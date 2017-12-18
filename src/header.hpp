@@ -34,15 +34,26 @@
 #include <vector>
 #include <complex>
 #include <array>
+#include <stack>
 #include <functional>
 #include <memory>
 #include <type_traits>
 #include <chrono>
 
+#include "cuda.h"
+#ifdef _CUDA_ENABLED
+#include <cuComplex.h>
+#include <curand.h>
+#include <curand_kernel.h>
+#ifdef _CUDA
+#include "vec_cuda.h"
+#else
+#include "vec.hpp"
+#endif
+#endif
 #include "error_msg.hpp"
 #include "threads.hpp"
 #include "tools.hpp"
-#include "vec.hpp"
 
 // boost program_options
 #include <boost/program_options.hpp>

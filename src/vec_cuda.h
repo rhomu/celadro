@@ -30,12 +30,24 @@ template<class T, size_t D>
 struct vec
 {
   /** Individual components */
-  std::array<T, D> data;
+  T data[D];
 
+  __host__ __device__
   vec() = default;
+  __host__ __device__
   vec(const vec& v) = default;
+  __host__ __device__
   vec& operator=(const vec& v) = default;
 
+  __host__ __device__
+  vec& operator=(const T& t)
+  {
+    for(size_t i = 0; i<D; ++i)
+      data[i] = t;
+    return *this;
+  }
+
+  __host__ __device__
   vec& operator+=(const vec& v)
   {
     for(size_t i = 0; i<D; ++i)
@@ -43,6 +55,7 @@ struct vec
     return *this;
   }
 
+  __host__ __device__
   vec& operator-=(const vec& v)
   {
     for(size_t i = 0; i<D; ++i)
@@ -50,6 +63,7 @@ struct vec
     return *this;
   }
 
+  __host__ __device__
   vec& operator*=(const T& t)
   {
     for(auto& e : data)
@@ -57,6 +71,7 @@ struct vec
     return *this;
   }
 
+  __host__ __device__
   vec& operator/=(const T& t)
   {
     for(auto& e : data)
@@ -64,6 +79,7 @@ struct vec
     return *this;
   }
 
+  __host__ __device__
   bool operator!=(const vec& v) const
   {
     for(size_t i = 0; i<D; ++i)
@@ -72,9 +88,11 @@ struct vec
     return false;
   }
 
+  __host__ __device__
   bool operator==(const vec& v) const
   { return not (*this!=v); }
 
+  __host__ __device__
   vec operator+(const vec& v) const
   {
     vec ret;
@@ -83,6 +101,7 @@ struct vec
     return ret;
   }
 
+  __host__ __device__
   vec operator-(const vec& v) const
   {
     vec ret;
@@ -91,6 +110,7 @@ struct vec
     return ret;
   }
 
+  __host__ __device__
   T operator*(const vec& v) const
   {
     T ret {0};
@@ -99,17 +119,21 @@ struct vec
     return ret;
   }
 
+  __host__ __device__
   T& operator[](size_t i)
   { return data[i]; }
 
+  __host__ __device__
   const T& operator[](size_t i) const
   { return data[i]; }
 
   /** Square */
+  __host__ __device__
   T sq() const
   { return (*this)*(*this); }
 
   /** Return unit vector */
+  __host__ __device__
   vec unit_vector() const
   { return *this/sqrt(sq()); }
 
@@ -141,16 +165,13 @@ struct vec
 
   // for serialization
   using value_type = T;
-  typename std::array<T, D>::iterator begin() { return data.begin(); }
-  typename std::array<T, D>::iterator end()   { return data.end(); }
-  typename std::array<T, D>::const_iterator begin() const { return data.begin(); }
-  typename std::array<T, D>::const_iterator end()   const { return data.end(); }
-  size_t size() const { return D; }
+  T* begin() { return data; }
+  T* end()   { return data+D; }
 };
 
 // =============================================================================
 // External functions implementation
-
+ 
 template<class T, size_t D>
 vec<T, D> operator+(const vec<T, D>& v, const T& t)
 {
@@ -237,6 +258,7 @@ std::ostream& operator<<(std::ostream& stream, const vec<T, D>& v)
  * Applies modulo component-wise.
  * */
 template<size_t D>
+__host__ __device__
 vec<unsigned, D> operator%(const vec<unsigned, D>& a, const vec<unsigned, D>& b)
 {
   auto ret = a;

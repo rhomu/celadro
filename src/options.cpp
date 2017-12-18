@@ -17,7 +17,6 @@
 
 #include "header.hpp"
 #include "model.hpp"
-#include "random.hpp"
 
 using namespace std;
 
@@ -55,12 +54,16 @@ void Model::ParseProgramOptions(int ac, char **av)
   config.add_options()
     ("output,o", opt::value<string>(&runname),
      "output name (if compression is on, then .zip is added automatically)")
-    ("seed", opt::value<unsigned>(&seed),
+    ("seed", opt::value<unsigned long>(&seed),
      "set seed for random number generation (random if unset)")
     ("no-warning", opt::bool_switch(&no_warning),
      "disable model specific runtime warnings")
     ("stop-at-warning", opt::bool_switch(&stop_at_warning),
      "runtime warnings interrupt the algorithm")
+    ("check", opt::bool_switch(&runtime_check),
+     "perform runtime checks")
+    ("stat", opt::bool_switch(&runtime_stats),
+     "print runtime stats")
     ("nstart", opt::value<unsigned>(&nstart)->default_value(0u),
      "time at which to start the output")
     ("bc", opt::value<unsigned>(&BC)->default_value(0u),
@@ -112,6 +115,8 @@ void Model::ParseProgramOptions(int ac, char **av)
      "Friction parameter")
     ("omega", opt::value<double>(&omega),
       "Adhesion parameter")
+    ("S", opt::value<double>(&S),
+      "Strength of polarisation potential")
     ("J", opt::value<double>(&J),
       "Strength of alignment torque")
     ("D", opt::value<double>(&D),
@@ -201,8 +206,8 @@ void Model::ParseProgramOptions(int ac, char **av)
     else runname = "./";
   }
 
-  // init random numbers
-  if(vm.count("seed")) set_seed(seed);
+  // init random numbers?
+  set_seed = vm.count("seed");
 
   // compute the correct padding
   pad = inline_str(nsteps).length();

@@ -15,15 +15,12 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#ifdef _OPENMP
+
 #include "threads.hpp"
 
-/** Multi-threading parameters
- * @{ */
-#ifdef _OPENMP
 /** number of threads */
 unsigned nthreads;
-#endif
-/** @} */
 
 /** Init multi-threading
   *
@@ -46,3 +43,5 @@ void SetThreads()
     nthreads = count;
   }
 }
+
+#endif

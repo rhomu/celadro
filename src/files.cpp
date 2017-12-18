@@ -16,38 +16,24 @@
  */
 
 #include "header.hpp"
-#include "model.hpp"
-
+#include "files.hpp"
 using namespace std;
 
-double Model::random_real(double min, double max)
+void create_directory(const string& dir)
 {
-  return uniform_real_distribution<>(min, max)(gen);
+  const int ret = system(inline_str("mkdir -p ", dir).c_str());
+  if(ret) throw error_msg("can not create output directory, mkdir returned ", ret, ".");
 }
 
-double Model::random_normal(double sigma)
+void remove_file(const string& fname)
 {
-  return normal_distribution<>(0., sigma)(gen);
+  const int ret = system(inline_str("rm -rf ", fname).c_str());
+  if(ret) throw error_msg("rm returned non-zero value ", ret, ".");
 }
 
-unsigned Model::random_geometric(double p)
+void compress_file(const string& iname, const string& oname)
 {
-  return geometric_distribution<>(p)(gen);
-}
-
-unsigned Model::random_unsigned()
-{
-  return gen();
-}
-
-void Model::InitializeRandomNumbers()
-{
-  if(not set_seed)
-  {
-    // 'Truly random' device to generate seed
-    std::random_device rd;
-    seed = rd();
-  }
-
-  gen.seed(seed);
+  const int ret = system(inline_str("zip -jm ", oname, ".zip ", iname,
+                                    " > /dev/null 2>&1").c_str());
+  if(ret!=0) throw error_msg("zip non-zero return value ", ret, ".");
 }
