@@ -17,7 +17,7 @@
 
 #include "header.hpp"
 #include "model.hpp"
-#include "random.hpp"
+#include "files.hpp"
 
 using namespace std;
 
@@ -42,18 +42,8 @@ void Model::WriteFrame(unsigned t)
   }
 
   // compress
-  if(compress)
-  {
-    const int ret = system(inline_str("zip -jm ", oname, ".zip ", oname,
-                                      " > /dev/null 2>&1").c_str());
-    if(ret!=0) throw error_msg("zip non-zero return value ", ret, ".");
-  }
-  if(compress_full)
-  {
-    const int ret = system(inline_str("zip -jm ", runname, ".zip ", oname,
-                                      " > /dev/null 2>&1").c_str());
-    if(ret!=0) throw error_msg("zip non-zero return value ", ret, ".");
-  }
+  if(compress) compress_file(oname, oname);
+  if(compress_full) compress_file(oname, runname);
 }
 
 void Model::WriteParams()
@@ -85,18 +75,8 @@ void Model::WriteParams()
   }
 
   // compress
-  if(compress)
-  {
-    const int ret = system(inline_str("zip -jm ", oname, ".zip ", oname,
-                                      " > /dev/null 2>&1").c_str());
-    if(ret!=0) throw error_msg("zip non-zero return value ", ret, ".");
-  }
-  if(compress_full)
-  {
-    const int ret = system(inline_str("zip -jm ", runname, ".zip ", oname,
-                                      " > /dev/null 2>&1").c_str());
-    if(ret!=0) throw error_msg("zip non-zero return value ", ret, ".");
-  }
+  if(compress) compress_file(oname, oname);
+  if(compress_full) compress_file(oname, runname);
 }
 
 void Model::ClearOutput()
@@ -126,8 +106,7 @@ void Model::ClearOutput()
     }
 
     // delete
-    const int ret = system(inline_str("rm -f ", fname).c_str());
-    if(ret) throw error_msg("rm returned non-zero value ", ret, ".");
+    remove_file(fname);
   }
   else
   {
@@ -154,15 +133,7 @@ void Model::ClearOutput()
     }
 
     // delete all output files
-    int ret;
-    ret = system(inline_str("rm -f ", output_dir, "/parameters.json").c_str());
-    if(ret) throw error_msg("rm returned non-zero value ", ret, ".");
-    ret = system(inline_str("rm -f ", output_dir, "/parameters.json.zip").c_str());
-    if(ret) throw error_msg("rm returned non-zero value ", ret, ".");
-    ret = system(inline_str("rm -f ", output_dir, "/frame*.json").c_str());
-    if(ret) throw error_msg("rm returned non-zero value ", ret, ".");
-    ret = system(inline_str("rm -f ", output_dir, "/frame*.json.zip").c_str());
-    if(ret) throw error_msg("rm returned non-zero value ", ret, ".");
+    remove_file(output_dir+"/");
   }
 }
 
@@ -173,7 +144,7 @@ void Model::CreateOutputDir()
   {
     // use hash of runname string plus salt
     hash<string> hash_fn;
-    unsigned dir_name = hash_fn(inline_str(runname, randu()));
+    unsigned dir_name = hash_fn(inline_str(runname, random_unsigned()));
     output_dir = inline_str("/tmp/", dir_name, "/");
   }
   // if full compression is off: just dump files where they belong
@@ -181,9 +152,6 @@ void Model::CreateOutputDir()
     // note that runname can not be empty from options.cpp
     output_dir = runname + ( runname.back()=='/' ? "" : "/" );
 
-
   // create output dir if needed
-  const int ret = system(inline_str("mkdir -p ", output_dir).c_str());
-  if(ret)
-    throw error_msg("can not create output directory, mkdir returned ", ret, ".");
+  create_directory(output_dir);
 }

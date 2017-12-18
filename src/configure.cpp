@@ -17,7 +17,6 @@
 
 #include "header.hpp"
 #include "model.hpp"
-#include "random.hpp"
 #include "derivatives.hpp"
 
 using namespace std;
@@ -65,6 +64,7 @@ void Model::AddCell(unsigned n, const coord& center)
 
   c[n]     = c0;
   theta[n] = 2.*Pi*random_real();
+  pol[n]   = { cos(theta[n]), sin(theta[n]) };
   com[n]   = vec<double, 2>(center);
 }
 
@@ -276,3 +276,112 @@ void Model::ConfigureWalls()
   }
 }
 
+
+// =============================================================================
+// Implementation
+
+template<typename Ret, typename ...Args>
+void Model::UpdateSubDomain(Ret (Model::*fun)(unsigned, unsigned, Args...),
+                                unsigned n,
+                                unsigned m0, unsigned m1,
+                                unsigned M0, unsigned M1,
+                                Args&&... args)
+{
+  // only update on the subregion
+  for(unsigned i=m0; i<M0; ++i)
+    for(unsigned j=m1; j<M1; ++j)
+      (this->*fun)(n, GetIndex({i, j}),
+                std::forward<Args>(args)...);
+}
+
+template<typename Ret, typename ...Args>
+void Model::UpdateSubDomainP(Ret (Model::*fun)(unsigned, unsigned, Args...),
+                                 unsigned n,
+                                 unsigned m0, unsigned m1,
+                                 unsigned M0, unsigned M1,
+                                 Args&&... args)
+{
+  // same but with openmp
+  PRAGMA_OMP(omp parallel for num_threads(nthreads) if(nthreads))
+  for(unsigned k=0; k<(M0-m0)*(M1-m1); ++k)
+      (this->*fun)(n, GetIndex({m0+k%(M0-m0), m1+k/(M0-m0)}),
+                std::forward<Args>(args)...);
+}
+
+template<typename Ret, typename ...Args>
+void Model::UpdateDomainP(Ret (Model::*fun)(unsigned, unsigned, Args...),
+                              unsigned n, Args&&... args)
+{
+  if(patch_min[n][0]>=patch_max[n][0] and
+     patch_min[n][1]>=patch_max[n][1])
+  {
+    // patch is across the corners
+    UpdateSubDomainP(fun, n, patch_min[n][0], patch_min[n][1], Size[0], Size[1],
+                     std::forward<Args>(args)...);
+    UpdateSubDomainP(fun, n, 0u, 0u, patch_max[n][0], patch_max[n][1],
+                     std::forward<Args>(args)...);
+    UpdateSubDomainP(fun, n, patch_min[n][0], 0u, Size[0], patch_max[n][1],
+                     std::forward<Args>(args)...);
+    UpdateSubDomainP(fun, n, 0u, patch_min[n][1], patch_max[n][0], Size[1],
+                     std::forward<Args>(args)...);
+  }
+  else if(patch_min[n][0]>=patch_max[n][0])
+  {
+    // patch is across the left/right border
+    UpdateSubDomainP(fun, n, patch_min[n][0], patch_min[n][1], Size[0], patch_max[n][1],
+                     std::forward<Args>(args)...);
+    UpdateSubDomainP(fun, n, 0u, patch_min[n][1], patch_max[n][0], patch_max[n][1],
+                     std::forward<Args>(args)...);
+  }
+  else if(patch_min[n][1]>=patch_max[n][1])
+  {
+    // patch is across the up/down border
+    UpdateSubDomainP(fun, n, patch_min[n][0], patch_min[n][1], patch_max[n][0], Size[1],
+                     std::forward<Args>(args)...);
+    UpdateSubDomainP(fun, n, patch_min[n][0], 0u, patch_max[n][0], patch_max[n][1],
+                     std::forward<Args>(args)...);
+  }
+  else
+    // patch is in the middle
+    UpdateSubDomainP(fun, n, patch_min[n][0], patch_min[n][1], patch_max[n][0], patch_max[n][1],
+                     std::forward<Args>(args)...);
+}
+
+template<typename Ret, typename ...Args>
+void Model::UpdateDomain(Ret (Model::*fun)(unsigned, unsigned, Args...),
+                             unsigned n, Args&&... args)
+{
+  if(patch_min[n][0]>=patch_max[n][0] and
+     patch_min[n][1]>=patch_max[n][1])
+  {
+    // patch is across the corners
+    UpdateSubDomain(fun, n, patch_min[n][0], patch_min[n][1], Size[0], Size[1],
+                    std::forward<Args>(args)...);
+    UpdateSubDomain(fun, n, 0u, 0u, patch_max[n][0], patch_max[n][1],
+                    std::forward<Args>(args)...);
+    UpdateSubDomain(fun, n, patch_min[n][0], 0u, Size[0], patch_max[n][1],
+                    std::forward<Args>(args)...);
+    UpdateSubDomain(fun, n, 0u, patch_min[n][1], patch_max[n][0], Size[1],
+                    std::forward<Args>(args)...);
+  }
+  else if(patch_min[n][0]>=patch_max[n][0])
+  {
+    // patch is across the left/right border
+    UpdateSubDomain(fun, n, patch_min[n][0], patch_min[n][1], Size[0], patch_max[n][1],
+                    std::forward<Args>(args)...);
+    UpdateSubDomain(fun, n, 0u, patch_min[n][1], patch_max[n][0], patch_max[n][1],
+                    std::forward<Args>(args)...);
+  }
+  else if(patch_min[n][1]>=patch_max[n][1])
+  {
+    // patch is across the up/down border
+    UpdateSubDomain(fun, n, patch_min[n][0], patch_min[n][1], patch_max[n][0], Size[1],
+                    std::forward<Args>(args)...);
+    UpdateSubDomain(fun, n, patch_min[n][0], 0u, patch_max[n][0], patch_max[n][1],
+                    std::forward<Args>(args)...);
+  }
+  else
+    // patch is in the middle
+    UpdateSubDomain(fun, n, patch_min[n][0], patch_min[n][1], patch_max[n][0], patch_max[n][1],
+                    std::forward<Args>(args)...);
+}

@@ -80,7 +80,6 @@ void Model::Initialize()
   velp.resize(nphases, {0., 0.});
   velc.resize(nphases, {0., 0.});
   velf.resize(nphases, {0., 0.});
-  vel.resize(nphases, {0., 0.});
   com_x.resize(nphases, 0.);
   com_y.resize(nphases, 0.);
   c.resize(nphases, 0);

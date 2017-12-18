@@ -13,6 +13,7 @@ We use cmake. Typically you would type:
 mkdir build
 cd build
 cmake ..
+make
 ```
 
 We rely on the `boost::program_options` which must be installed prior to
@@ -41,3 +42,11 @@ Type `./celadro -h` for a list of available options.
 ## Multi-threading and CUDA
 
 The code supports both multi-threading and CUDA.
+
+THe CUDA-enabled version of the code can be built using
+```
+mkdir build-cuda
+cd build-cuda
+cmake ..
+make celadro-cuda 
+```

@@ -17,14 +17,10 @@
 
 #include "header.hpp"
 #include "model.hpp"
-#include "random.hpp"
 #include "derivatives.hpp"
 #include "tools.hpp"
 
 using namespace std;
-
-/** Needa store? (yes this is against my will) */
-bool store;
 
 void Model::Pre()
 {
@@ -39,7 +35,8 @@ void Model::Pre()
 
     if(relax_nsubsteps) swap(nsubsteps, relax_nsubsteps);
 
-    for(unsigned i=0; i<relax_time*nsubsteps; ++i) Step();
+    for(unsigned i=0; i<relax_time*nsubsteps; ++i)
+      for(unsigned i=0; i<=npc; ++i) Update(i==0);
 
     if(relax_nsubsteps) swap(nsubsteps, relax_nsubsteps);
 
@@ -173,7 +170,7 @@ void Model::UpdateFieldsAtNode(unsigned n, unsigned q)
   //torque[n] -= J1*zeta*(2*Q00[n]*dx*dy + Q01[n]*(dx*dx-dy*dy));
 }
 
-void Model::UpdateAtNode(unsigned n, unsigned q)
+void Model::UpdateAtNode(unsigned n, unsigned q, bool store)
 {
   const auto   k = GetIndexFromPatch(n, q);
   const auto& sq = neighbors_patch[q];
@@ -234,18 +231,12 @@ void Model::UpdatePolarization(unsigned n)
     velp[n][1] + velf[n][1] + velc[n][1]
   };
 
-  // ...the norm of the passive velocity
-  const double ni = sqrt(abs(v[0]*v[0]+v[1]*v[1]));
-
-  // alignement torque
-  double torque = -ni*atan2(v[0]*pol[n][1]-v[1]*pol[n][0],
-                            v[0]*pol[n][0]+v[1]*pol[n][1]);
-
   // ...euler-marijuana update
-  theta[n] += time_step*J*torque + sqrt(time_step)*D*random_normal();
-
-  // update polarisation and contractility
-  pol[n] = { cos(theta[n]), sin(theta[n]) };
+  const double p2 = pol[n][0]*pol[n][0] + pol[n][1]*pol[n][1];
+  pol[n][0] += time_step*(S*2.*(1. - p2)*pol[n][0] + J*v[0])
+               + sqrt(time_step)*D*random_normal();
+  pol[n][1] += time_step*(S*2.*(1. - p2)*pol[n][1] + J*v[1])
+               + sqrt(time_step)*D*random_normal();
 
   // dynamics of the contractility: needs some cleaning up once settled
   //
@@ -340,7 +331,9 @@ inline void Model::ReinitSquareAndSumAtNode(unsigned k)
   Py[k]     = 0;
 }
 
-void Model::Update()
+#ifndef _CUDA_ENABLED
+
+void Model::Update(bool store)
 {
   // 1) Compute induced force and passive velocity
   //
@@ -373,7 +366,7 @@ void Model::Update()
   {
     // only update fields in the restricted patch of field n
     for(unsigned q=0; q<patch_N; ++q)
-      UpdateAtNode(n, q);
+      UpdateAtNode(n, q, store);
     // because the polarisation dynamics is first
     // order (euler-maruyama) we need to update only
     // once per predictor-corrector step
@@ -381,7 +374,7 @@ void Model::Update()
     // update center of mass
     ComputeCoM(n);
     // get shape
-    ComputeShape(n);
+    //ComputeShape(n);
     // update patch boundaries
     UpdatePatch(n);
 
@@ -410,6 +403,7 @@ void Model::Update()
   // We use this construction because it is much faster with OpenMP: the single
   // threaded portion of the code consists only of these swaps!
 
+  swap(area, area_cnt);
   swap(sum, sum_cnt);
   swap(square, square_cnt);
   swap(P, P_cnt);
@@ -418,30 +412,6 @@ void Model::Update()
   swap(Q01, Q01_cnt);
   swap(Px, Px_cnt);
   swap(Py, Py_cnt);
-  swap(area, area_cnt);
 }
 
-void Model::Step()
-{
-  // first sweeps produces estimate of values
-  store = true; // ok this is really bad :-(
-  Update();
-  store = false;
-
-  // subsequent sweeps produce corrected values
-  for(unsigned i=0; i<npc; ++i)
-    Update();
-
-  // division (TBI)
-  //const auto m = nphases; // this is needed because we might increment nphases
-  //for(unsigned n=0; n<m; ++n) Divide(n);
-
-  // compute center-of-mass velocity
-  PRAGMA_OMP(omp parallel for num_threads(nthreads) if(nthreads))
-  for(unsigned n=0; n<nphases; ++n)
-  {
-    vel[n]      = { (com[n][0]-com_prev[n][0])/time_step,
-                    (com[n][1]-com_prev[n][1])/time_step };
-    com_prev[n] = com[n];
-  }
-}
+#endif

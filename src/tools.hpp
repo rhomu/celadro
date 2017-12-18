@@ -23,7 +23,6 @@
 #include <iostream>
 #include <limits>
 #include <vector>
-#include "vec.hpp"
 
 /** Modulo function that works correctly with negative values */
 template<class T>

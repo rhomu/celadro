@@ -18,6 +18,8 @@
 #ifndef STENCIL_HPP_
 #define STENCIL_HPP_
 
+#include <array>
+
 /** Indices of a given point and its direct neighbourhood
  *
  * A stencil is a list of 9 (in two dimensions) grid indices of a point and its
@@ -29,24 +31,20 @@ struct stencil
 {
   struct shifted_array
   {
-    unsigned data[3];
+    std::array<unsigned, 3> data;
 
-    CUDA_host_device
     unsigned& operator[](int i)
     { return data[i+1]; }
 
-    CUDA_host_device
     const unsigned& operator[](int i) const
     { return data[i+1]; }
   };
 
-  shifted_array data[3];
+  std::array<shifted_array, 3> data;
 
-  CUDA_host_device
   shifted_array& operator[](int i)
   { return data[i+1]; }
 
-  CUDA_host_device
   const shifted_array& operator[](int i) const
   { return data[i+1]; }
 };
