@@ -77,8 +77,8 @@ def ellipses(frame, engine=plt):
         radius = np.sqrt(frame.area[n]/np.pi/(1-frame.Q_order[n]**2))
         print frame.Q_order[n], radius
         omega  = frame.Q_angle[n]
-        p = frame.phi[n].reshape((frame.parameters['LX'], frame.parameters['LY']))
-        c = get_com(p)
+        p = frame.phi[n].reshape(frame.parameters['Size'])
+        c = frame.com[i]
         an = np.linspace(-omega, 2*np.pi-omega, 100)
         engine.plot(c[0] + radius*(1+10*frame.Q_order[n])*np.cos(an),
                     c[1] + radius*(1-10*frame.Q_order[n])*np.sin(an))
@@ -86,8 +86,8 @@ def ellipses(frame, engine=plt):
 def velc(frame, engine=plt):
     """Print contractile part of the velocity"""
     for i in range(frame.parameters['nphases']):
-        p = frame.phi[i].reshape((frame.parameters['LX'], frame.parameters['LY']))
-        c = get_com(p)
+        p = frame.phi[i].reshape(frame.parameters['Size'])
+        c = frame.com[i]
         v = frame.velc[i]
         # correction factor
         a = frame.parameters['ninfo']*frame.parameters['nsubsteps']
@@ -97,8 +97,8 @@ def velc(frame, engine=plt):
 def velp(frame, engine=plt):
     """Print inactive part of the velocity"""
     for i in range(frame.parameters['nphases']):
-        p = frame.phi[i].reshape((frame.parameters['LX'], frame.parameters['LY']))
-        c = get_com(p)
+        p = frame.phi[i].reshape(frame.parameters['Size'])
+        c = frame.com[i]
         v = frame.velp[i]
         # correction factor
         a = frame.parameters['ninfo']*frame.parameters['nsubsteps']
@@ -107,8 +107,8 @@ def velp(frame, engine=plt):
 def pol(frame, engine=plt):
     """Print polarisation of each cell"""
     for i in range(frame.parameters['nphases']):
-        p = frame.phi[i].reshape((frame.parameters['LX'], frame.parameters['LY']))
-        c = get_com(p)
+        p = frame.phi[i].reshape(frame.parameters['Size'])
+        c = frame.com[i]
         v = frame.pol[i]
         a = 4#frame.parameters['ninfo']*frame.parameters['nsubsteps']
         engine.arrow(c[0], c[1],  a*v[0],  a*v[1], color='k')
@@ -117,8 +117,8 @@ def pol(frame, engine=plt):
 def velf(frame, engine=plt):
     """Print active part of the velocity"""
     for i in range(frame.parameters['nphases']):
-        p = frame.phi[i].reshape((frame.parameters['LX'], frame.parameters['LY']))
-        c = get_com(p)
+        p = frame.phi[i].reshape(frame.parameters['Size'])
+        c = frame.com[i]
         v = frame.velf[i]
         # correction factor
         a = frame.parameters['ninfo']*frame.parameters['nsubsteps']
@@ -127,8 +127,8 @@ def velf(frame, engine=plt):
 def vela(frame, engine=plt):
     """Print active part of the velocity"""
     for i in range(frame.parameters['nphases']):
-        p = frame.phi[i].reshape((frame.parameters['LX'], frame.parameters['LY']))
-        c = get_com(p)
+        p = frame.phi[i].reshape(frame.parameters['Size'])
+        c = frame.com[i]
         v = frame.pol[i]
         a = frame.parameters['alpha']/frame.parameters['xi']*frame.parameters['ninfo']*frame.parameters['nsubsteps']
         engine.arrow(c[0], c[1], a*v[0], a*v[1], color='r')
@@ -136,8 +136,8 @@ def vela(frame, engine=plt):
 def vel(frame, engine=plt):
     """Print active part of the velocity"""
     for i in range(frame.parameters['nphases']):
-        p = frame.phi[i].reshape((frame.parameters['LX'], frame.parameters['LY']))
-        c = get_com(p)
+        p = frame.phi[i].reshape(frame.parameters['Size'])
+        c = frame.com[i]
         v = frame.vela[i] + frame.veli[i] + frame.velf[i] + frame.velc[i]
         a = frame.parameters['ninfo']*frame.parameters['nsubsteps']
         engine.arrow(c[0], c[1], a*v[0], a*v[1], color='k', head_width=1, zorder=10)
@@ -208,10 +208,10 @@ def masks(frame, engine=plt):
 
     engine.contour(np.arange(0, frame.parameters['LX']),
                    np.arange(0, frame.parameters['LY']),
-                   m1.reshape((frame.parameters['LX'], frame.parameters['LY'])).T,
+                   m1.reshape(frame.parameters['Size']).T,
                    levels = [.5], colors = ['b'])
 
     engine.contour(np.arange(0, frame.parameters['LX']),
                    np.arange(0, frame.parameters['LY']),
-                   m2.reshape((frame.parameters['LX'], frame.parameters['LY'])).T,
+                   m2.reshape(frame.parameters['Size']).T,
                    levels = [.5], colors = [ 'r' ])
