@@ -119,6 +119,9 @@ void Model::UpdateFieldsAtNode(unsigned n, unsigned q)
   const auto dxw = walls_dx[k];
   const auto dyw = walls_dy[k];
 
+  // distance from the center of mass
+  const auto dc = vec<double, 2>(GetPosition(k)) - com[n];
+
   // delta F / delta phi
   const double force = (
       + C1*(
@@ -131,6 +134,8 @@ void Model::UpdateFieldsAtNode(unsigned n, unsigned q)
         + omega*(ls-ll)
         + wall_omega*lw
         )
+      // elongation potential
+      + 2./C2*delta[n]*p*(dc - pol[n]*(pol[n]*dc)/pol[n].sq()).sq()
       );
 
   // potential

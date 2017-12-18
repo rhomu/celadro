@@ -101,6 +101,8 @@ struct Model
   std::vector<double> gam;
   /** Energy penalty for area */
   std::vector<double> mu;
+  /** Elongation parameter */
+  std::vector<double> delta;
 
   /** @} */
 

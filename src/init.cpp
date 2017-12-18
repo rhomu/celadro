@@ -98,6 +98,7 @@ void Model::Initialize()
   // extend the parameters with the last given value
   gam.resize(nphases, gam.back());
   mu.resize(nphases, mu.back());
+  delta.resize(nphases, delta.back());
 
   // compute tables
   for(unsigned i=0; i<Size[0]; ++i)

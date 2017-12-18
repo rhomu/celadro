@@ -89,6 +89,8 @@ void Model::ParseProgramOptions(int ac, char **av)
       "Elastic constant of each phase (array)")
     ("mu", opt::value<vector<double>>(&mu),
       "Energy penalty for area of each phase (array)")
+    ("delta", opt::value<vector<double>>(&delta),
+      "Elongation parameter (stength of potential)")
     ("lambda", opt::value<double>(&lambda),
       "Interface thickness parameter")
     ("kappa", opt::value<double>(&kappa),
