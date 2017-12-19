@@ -24,6 +24,7 @@ void Model::Initialize()
 {
   N = Size[0]*Size[1];
 
+  // ---------------------------------------------------------------------------
   // initialize memory for global fields
   walls.resize(N, 0.);
   walls_dx.resize(N, 0.);
@@ -46,11 +47,12 @@ void Model::Initialize()
   P.resize(N, 0.);
   P_cnt.resize(N, 0.);
 
-  // check parameters
-  if(margin<R)
-    throw error_msg("Margin is too small, make it bigger than R.");
-  if(alpha/nsubsteps>=.5)
-    throw error_msg("Cell speed is too high with respect to the step size.");
+  // extend the parameters with the last given value
+  gam.resize(nphases, gam.back());
+  gam.resize(nphases, gam.back());
+  mu.resize(nphases, mu.back());
+  delta.resize(nphases, delta.back());
+  R.resize(nphases, R.back());
 
   // rectifies margin in case it is bigger than domain
   // and compensate for the boundary layer
@@ -68,6 +70,7 @@ void Model::Initialize()
   V.resize(nphases, vector<double>(patch_N, 0.));
   potential.resize(nphases, vector<double>(patch_N, 0.));
   potential_old.resize(nphases, vector<double>(patch_N, 0.));
+  division_counter.resize(nphases, 0.);
 
   // allocate memory for cell properties
   area.resize(nphases, 0.);
@@ -90,15 +93,10 @@ void Model::Initialize()
   theta.resize(nphases, 0.);
   offset.resize(nphases, {0u, 0u});
 
+  // ---------------------------------------------------------------------------
   // pre-compute coefficients
   C1 = 60./lambda/lambda;
-  C2 = Pi*R*R;
   C3 = C1/lambda/lambda;
-
-  // extend the parameters with the last given value
-  gam.resize(nphases, gam.back());
-  mu.resize(nphases, mu.back());
-  delta.resize(nphases, delta.back());
 
   // compute tables
   for(unsigned i=0; i<Size[0]; ++i)
@@ -106,14 +104,29 @@ void Model::Initialize()
   for(unsigned i=0; i<Size[1]; ++i)
     com_y_table.push_back({ cos(-Pi+2.*Pi*i/Size[1]), sin(-Pi+2.*Pi*i/Size[1]) });
 
+  // ---------------------------------------------------------------------------
+  // check parameters
+  for(unsigned n=0; n<nphases; ++n)
+    if(margin<R[n]) throw error_msg("Margin is too small, make it bigger than R.");
+
+  if(alpha/nsubsteps>=.5)
+    throw error_msg("Cell speed is too high with respect to the step size.");
+
   // check birth boundaries
   if(birth_bdries.size()==0)
     birth_bdries = {0, Size[0], 0, Size[1]};
   else if(birth_bdries.size()!=4)
     throw error_msg("Birth boundaries have wrong format, see help.");
 
-  // set flags
+  // ---------------------------------------------------------------------------
+  // setup division
   division = (division_rate!=0.);
+
+  if(division_time==0)
+    throw error_msg("Division time can not be zero.");
+
+  for(unsigned n=0; n<nphases; ++n)
+    ResetDivisionCounter(n);
 }
 
 void Model::InitializeNeighbors()

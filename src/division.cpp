@@ -18,14 +18,34 @@
 #include "header.hpp"
 #include "model.hpp"
 
-/*
-void Divide(unsigned n)
-{
-  // work in progress
+using namespace std;
 
+void Model::Divide(unsigned n)
+{
+  // decrease counter
+  division_counter[n] -= 1;
+
+  if(division_counter[n]==nsubsteps*(npc+1)*division_time)
+  {
+    cout << "DIVIDE\n";
+    R[n] *= division_growth;
+  }
+  else if(division_counter[n]==0)
+  {
+    //
+    // do division
+    //
+
+    cout << "STOP\n";
+
+    R[n] /= division_growth;
+
+    ResetDivisionCounter(n);
+  }
+
+  /*
   const double r = random_real();
 
-  if(r<nsubsteps*division_rate)
   //if(not pine--)
   {
     cout << "DIVIDE" << endl;
@@ -57,6 +77,11 @@ void Divide(unsigned n)
       phi[m][k] = .5*(1.-tanh(-d/l))*p;
     }
   }
-}*/
+  */
+}
 
-
+void Model::ResetDivisionCounter(unsigned n)
+{
+  division_counter[n] =
+    nsubsteps*(npc+1)*(division_time + 1 + random_exponential(division_rate));
+}

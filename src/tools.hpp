@@ -71,7 +71,7 @@ inline bool check_equal(double a, double b, double error_factor=1.)
 template<class T, class U>
 inline T wrap(const T& x, const U& L)
 {
-  return std::min(x%L, L-x%L);
+  return std::min(modu(x, L), L-modu(x, L));
 }
 
 /** Specialization for double */

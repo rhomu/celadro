@@ -212,10 +212,6 @@ struct Model
   double wall_kappa;
   /** Adhesion on the wall */
   double wall_omega;
-  /** Division rate */
-  double division_rate = 0.;
-  /** Relaxation time for division */
-  unsigned division_relax_time = 100;
   /** Boudaries for cell generation
    *
    * These are the boundaries (min and max x and y components) of the domain in
@@ -241,8 +237,8 @@ struct Model
   double xi;
   /** Adhesion parameter */
   double omega;
-  /** Prefered radius (area = pi*R*R) */
-  double R;
+  /** Prefered radii (area = pi*R*R) */
+  std::vector<double> R;
   /** Migration speed */
   double alpha;
   /** Coupling between area and contractility */
@@ -251,10 +247,8 @@ struct Model
   double D=1., J=1., S=1.;
   /** Contractility parameters */
   double c0, tauc;
-  /** Division flag */
-  bool division = false;
   /** Pre-computed coefficients */
-  double C1, C2, C3;
+  double C1, C3;
 
   /** @} */
   /** Multi-threading parameters
@@ -381,6 +375,12 @@ struct Model
 
   /** Return geometric dist numbers, prob is p */
   unsigned random_geometric(double p);
+
+  /** Return poisson distributed unsigned integers */
+  unsigned random_poisson(double lambda);
+
+  /** Return exp distributed unsigned integers */
+  unsigned random_exponential(double lambda);
 
   /** Return random unsigned uniformly distributed */
   unsigned random_unsigned();
@@ -623,12 +623,25 @@ struct Model
   // ===========================================================================
   // Division. Implemented in division.cpp
 
+  /** Division flag */
+  bool division = false;
+  /** Time scale of the division */
+  double division_time = 100;
+  /** Division rate */
+  double division_rate = 0.;
+  /** Growth facto before division */
+  double division_growth = 1.5;
+  /** Relaxation time for division */
+  unsigned division_relax_time = 100;
+  /** Count the number of time steps before the next division */
+  std::vector<unsigned> division_counter;
+
+  /** Reset division counter for single cell */
+  void ResetDivisionCounter(unsigned);
+
   /** Make a cell divide
    *
-   * The strategy for implementing division is to chose a division axis randomly
-   * then divide the given cell in two while fixing all the other cells. We then
-   * let the two new cells relax while fixing the other cells such that they are
-   * able to create a common interface.
+   * TBD
    * */
   void Divide(unsigned i);
 

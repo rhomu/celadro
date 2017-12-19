@@ -29,7 +29,7 @@ void Model::AddCellAtNode(unsigned n, unsigned k, const coord& center)
 
   // we create smaller cells that will then relax
   // this improves greatly the stability at the first steps
-  const auto radius = max(R/2., 4.);
+  const auto radius = max(R[n]/2., 4.);
 
   // round shape (do not wrap if no PBC)
   if(
@@ -137,10 +137,10 @@ void Model::Configure()
         // detect walls
         // ... box only
         if(BC==1)
-          if(center[0]<0.9*R or Size[0]-center[0]<0.9*R) continue;
+          if(center[0]<0.9*R[n] or Size[0]-center[0]<0.9*R[n]) continue;
         // ... box and channel
         if(BC==1 or BC==2)
-          if(center[1]<0.9*R or Size[1]-center[1]<0.9*R) continue;
+          if(center[1]<0.9*R[n] or Size[1]-center[1]<0.9*R[n]) continue;
         // ... ellipse
         if(BC==3)
         {
@@ -153,7 +153,7 @@ void Model::Configure()
           const auto d = rad(Size[0]/2.*cos(theta), Size[1]/2.*sin(theta))
                         -rad(Size[0]/2.-center[0], Size[1]/2.-center[1]);
 
-          if(d<0.9*R) continue;
+          if(d<0.9*R[n]) continue;
         }
 
         // overlapp between cells
@@ -184,11 +184,13 @@ void Model::Configure()
   else if(init_config=="cluster")
   {
     const double theta  = 2*Pi/nphases;
-    const double radius = R + nphases - 2;
 
     for(unsigned n=0; n<nphases; ++n)
+    {
+      const double radius = R[n] + nphases - 2;
       AddCell(n, {unsigned(Size[0]/2+radius*(cos(n*theta)+noise*random_real())),
                   unsigned(Size[1]/2+radius*(sin(n*theta)+noise*random_real())) });
+    }
   }
   // ===========================================================================
   // single cell in the middle

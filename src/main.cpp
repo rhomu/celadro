@@ -139,9 +139,9 @@ void Model::Setup(int argc, char **argv)
   // model init
   if(verbose) cout << "model initialization ..." << flush;
   try {
+    InitializeRandomNumbers();
     Initialize();
     InitializeNeighbors();
-    InitializeRandomNumbers();
   } catch(...) {
     if(verbose) cout << " error" << endl;
     throw;

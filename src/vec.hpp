@@ -105,6 +105,42 @@ struct vec
   const T& operator[](size_t i) const
   { return data[i]; }
 
+  /** Component-wise comparison operator */
+  bool operator>(const vec& v) const
+  {
+    for(size_t i=0; i<D; ++i)
+      if(data[i]<=v.data[i])
+        return false;
+    return true;
+  }
+
+  /** Component-wise comparison operator */
+  bool operator<(const vec& v) const
+  {
+    for(size_t i=0; i<D; ++i)
+      if(data[i]>=v.data[i])
+        return false;
+    return true;
+  }
+
+  /** Component-wise comparison operator */
+  bool operator>=(const vec& v) const
+  {
+    for(size_t i=0; i<D; ++i)
+      if(data[i]<v.data[i])
+        return false;
+    return true;
+  }
+
+  /** Component-wise comparison operator */
+  bool operator<=(const vec& v) const
+  {
+    for(size_t i=0; i<D; ++i)
+      if(data[i]>v.data[i])
+        return false;
+    return true;
+  }
+
   /** Square */
   T sq() const
   { return (*this)*(*this); }
@@ -243,6 +279,15 @@ vec<unsigned, D> operator%(const vec<unsigned, D>& a, const vec<unsigned, D>& b)
   for(size_t i = 0; i<D; ++i)
     ret.data[i] %= b.data[i];
   return ret;
+}
+
+/** Wrap vector around periodic boundaries */
+template<class T, size_t D>
+inline vec<T, D> wrap(vec<T, D> v, const vec<T, D>& L)
+{
+  for(size_t i=0; i<D; ++i)
+    v[i] = wrap(v[i], L[i]);
+  return v;
 }
 
 #endif//VEC_HPP_

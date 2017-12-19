@@ -31,7 +31,7 @@ void Model::Pre()
     double save_zeta = 0.; swap(zeta, save_zeta);
     double save_beta = 0.; swap(beta, save_beta);
     double save_alpha = 0.; swap(alpha, save_alpha);
-    double save_division_rate = 0.; swap(save_division_rate, division_rate);
+    division = false;
 
     if(relax_nsubsteps) swap(nsubsteps, relax_nsubsteps);
 
@@ -44,7 +44,7 @@ void Model::Pre()
     swap(zeta, save_zeta);
     swap(beta, save_beta);
     swap(alpha, save_alpha);
-    swap(save_division_rate, division_rate);
+    division = (division_rate!=0.);
   }
 }
 
@@ -55,7 +55,11 @@ void Model::PreRunStats()
 {
   // packing fraction
   {
-    double packing = nphases*Pi*R*R;
+    double packing = 0.;
+    for(unsigned n=0; n<nphases; ++n)
+      packing += R[n]*R[n];
+    packing *= Pi;
+
     if(BC<=2)
       packing/= (birth_bdries[1]-birth_bdries[0])
                *(birth_bdries[3]-birth_bdries[2]);
@@ -73,8 +77,8 @@ void Model::RuntimeStats()
 void Model::RuntimeChecks()
 {
   // check that the area is more or less conserved (20%)
-  for(const auto a : area)
-    if(abs(1.-a/C2)>.2)
+  for(unsigned n=0; n<nphases; ++n)
+    if(abs(1.-area[n]/(Pi*R[n]*R[n]))>.2)
       throw warning_msg("area is not conserved.");
 
   for(unsigned n=0; n<nphases; ++n)
@@ -119,9 +123,6 @@ void Model::UpdateFieldsAtNode(unsigned n, unsigned q)
   const auto dxw = walls_dx[k];
   const auto dyw = walls_dy[k];
 
-  // distance from the center of mass
-  const auto dc = vec<double, 2>(GetPosition(k)) - com[n];
-
   // delta F / delta phi
   const double force = (
       + C1*(
@@ -134,8 +135,6 @@ void Model::UpdateFieldsAtNode(unsigned n, unsigned q)
         + omega*(ls-ll)
         + wall_omega*lw
         )
-      // elongation potential
-      + 2./C2*delta[n]*p*(dc - pol[n]*(pol[n]*dc)/pol[n].sq()).sq()
       );
 
   // potential
@@ -184,18 +183,24 @@ void Model::UpdateAtNode(unsigned n, unsigned q, bool store)
   {
     const auto  p  = phi[n][q];
     const auto  a  = area[n];
+    const auto  r  = R[n];
     const auto  dx = derivX(phi[n], sq);
     const auto  dy = derivY(phi[n], sq);
     const auto  ll = laplacian(phi[n], sq);
+
+    // distance from the center of mass
+    const auto dc = diff(vec<double, 2>(GetPosition(k)), com[n]);
 
     potential[n][q] = (
       // free energy term
       -.5*V[n][q]
       -.5*(
         + C1*gam[n]*p*(1.-p)*(1.-2.*p)
-        - 2.*mu[n]*(1.-a/C2)*2.*p
+        - 2.*mu[n]*(1.-a/(Pi*r*r))*2.*p
         - 2.*gam[n]*ll
       )
+      // elongation potential
+      - 2./(Pi*r*r)*delta[n]*p*(dc - pol[n]*(pol[n]*dc)/pol[n].sq()).sq()
       // advection term
       - (alpha*pol[n][0]+velp[n][0]+velc[n][0]+velf[n][0])*dx/xi
       - (alpha*pol[n][1]+velp[n][1]+velc[n][1]+velf[n][1])*dy/xi
@@ -403,7 +408,14 @@ void Model::Update(bool store)
       SquareAndSumAtNode(n, q);
   }
 
-  // 4) Reinit counters and swap to get correct values
+  // 4) Perform division
+  //
+  // TBD
+  //
+  if(division) for(unsigned n=0; n<nphases; ++n)
+    Divide(n);
+
+  // 5) Reinit counters and swap to get correct values
   //
   // We use this construction because it is much faster with OpenMP: the single
   // threaded portion of the code consists only of these swaps!

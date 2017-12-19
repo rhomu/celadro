@@ -131,7 +131,11 @@ void Model::ParseProgramOptions(int ac, char **av)
       "Wall adhesion")
     ("division-rate",  opt::value<double>(&division_rate),
       "Rate of division")
-    ("R", opt::value<double>(&R),
+    ("division-time",  opt::value<double>(&division_time),
+      "Time scale of division")
+    ("division-growth",  opt::value<double>(&division_growth),
+      "Growth factor before division")
+    ("R", opt::value<std::vector<double>>(&R),
       "Preferred radius (defines area Pi*R*R)");
 
   // init config options
