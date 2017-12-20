@@ -79,6 +79,10 @@ void Model::Algorithm()
       // subsequent sweeps produce corrected values
       for(unsigned i=0; i<=npc; ++i)
         Update(i==0);
+
+      // division
+      if(division) for(unsigned n=0; n<nphases; ++n)
+        Divide(n);
     }
 
 #ifdef _CUDA_ENABLED

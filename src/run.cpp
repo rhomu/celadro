@@ -31,7 +31,6 @@ void Model::Pre()
     double save_zeta = 0.; swap(zeta, save_zeta);
     double save_beta = 0.; swap(beta, save_beta);
     double save_alpha = 0.; swap(alpha, save_alpha);
-    division = false;
 
     if(relax_nsubsteps) swap(nsubsteps, relax_nsubsteps);
 
@@ -44,7 +43,6 @@ void Model::Pre()
     swap(zeta, save_zeta);
     swap(beta, save_beta);
     swap(alpha, save_alpha);
-    division = (division_rate!=0.);
   }
 }
 
@@ -343,7 +341,7 @@ inline void Model::ReinitSquareAndSumAtNode(unsigned k)
 
 #ifndef _CUDA_ENABLED
 
-void Model::Update(bool store)
+void Model::Update(bool store, unsigned nstart)
 {
   // 1) Compute induced force and passive velocity
   //
@@ -353,7 +351,7 @@ void Model::Update(bool store)
   // updated first.
 
   PRAGMA_OMP(omp parallel for num_threads(nthreads) if(nthreads))
-  for(unsigned n=0; n<nphases; ++n)
+  for(unsigned n=nstart; n<nphases; ++n)
   {
     velp[n] = {0., 0.};
     velc[n] = {0., 0.};
@@ -372,7 +370,7 @@ void Model::Update(bool store)
   // approximations.
 
   PRAGMA_OMP(omp parallel for num_threads(nthreads) if(nthreads))
-  for(unsigned n=0; n<nphases; ++n)
+  for(unsigned n=nstart; n<nphases; ++n)
   {
     // only update fields in the restricted patch of field n
     for(unsigned q=0; q<patch_N; ++q)
@@ -400,20 +398,13 @@ void Model::Update(bool store)
   // phase fields. This is much faster than using an atomic portion in the
   // previous loop.
 
-  for(unsigned n=0; n<nphases; ++n)
+  for(unsigned n=nstart; n<nphases; ++n)
   {
     // update only patch (in parallel, each node to a different core)
     PRAGMA_OMP(omp parallel for num_threads(nthreads) if(nthreads))
     for(unsigned q=0; q<patch_N; ++q)
       SquareAndSumAtNode(n, q);
   }
-
-  // 4) Perform division
-  //
-  // TBD
-  //
-  if(division) for(unsigned n=0; n<nphases; ++n)
-    Divide(n);
 
   // 5) Reinit counters and swap to get correct values
   //

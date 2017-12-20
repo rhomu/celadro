@@ -135,6 +135,10 @@ void Model::ParseProgramOptions(int ac, char **av)
       "Time scale of division")
     ("division-growth",  opt::value<double>(&division_growth),
       "Growth factor before division")
+    ("division-relax-time",  opt::value<unsigned>(&division_relax_time),
+      "Time spent relaxing the cells after division")
+    ("division-refract-time",  opt::value<unsigned>(&division_refract_time),
+      "Refractory time before next division")
     ("R", opt::value<std::vector<double>>(&R),
       "Preferred radius (defines area Pi*R*R)");
 

@@ -73,7 +73,7 @@ def com(frame, engine=plt):
 
 def ellipses(frame, engine=plt):
     """Plot the shape-ellipses of each cell"""
-    for n in range(frame.parameters['nphases']):
+    for n in range(frame.nphases):
         radius = np.sqrt(frame.area[n]/np.pi/(1-frame.Q_order[n]**2))
         print frame.Q_order[n], radius
         omega  = frame.Q_angle[n]
@@ -85,7 +85,7 @@ def ellipses(frame, engine=plt):
 
 def velc(frame, engine=plt):
     """Print contractile part of the velocity"""
-    for i in range(frame.parameters['nphases']):
+    for i in range(frame.nphases):
         p = frame.phi[i].reshape(frame.parameters['Size'])
         c = frame.com[i]
         v = frame.velc[i]
@@ -96,7 +96,7 @@ def velc(frame, engine=plt):
 
 def velp(frame, engine=plt):
     """Print inactive part of the velocity"""
-    for i in range(frame.parameters['nphases']):
+    for i in range(frame.nphases):
         p = frame.phi[i].reshape(frame.parameters['Size'])
         c = frame.com[i]
         v = frame.velp[i]
@@ -106,7 +106,7 @@ def velp(frame, engine=plt):
 
 def pol(frame, engine=plt):
     """Print polarisation of each cell"""
-    for i in range(frame.parameters['nphases']):
+    for i in range(frame.nphases):
         p = frame.phi[i].reshape(frame.parameters['Size'])
         c = frame.com[i]
         v = frame.pol[i]
@@ -116,7 +116,7 @@ def pol(frame, engine=plt):
 
 def velf(frame, engine=plt):
     """Print active part of the velocity"""
-    for i in range(frame.parameters['nphases']):
+    for i in range(frame.nphases):
         p = frame.phi[i].reshape(frame.parameters['Size'])
         c = frame.com[i]
         v = frame.velf[i]
@@ -126,7 +126,7 @@ def velf(frame, engine=plt):
 
 def vela(frame, engine=plt):
     """Print active part of the velocity"""
-    for i in range(frame.parameters['nphases']):
+    for i in range(frame.nphases):
         p = frame.phi[i].reshape(frame.parameters['Size'])
         c = frame.com[i]
         v = frame.pol[i]
@@ -135,7 +135,7 @@ def vela(frame, engine=plt):
 
 def vel(frame, engine=plt):
     """Print active part of the velocity"""
-    for i in range(frame.parameters['nphases']):
+    for i in range(frame.nphases):
         p = frame.phi[i].reshape(frame.parameters['Size'])
         c = frame.com[i]
         v = frame.vela[i] + frame.veli[i] + frame.velf[i] + frame.velc[i]
@@ -198,7 +198,7 @@ def patch(frame, n, engine=plt):
 
 def patches(frame, engine=plt):
     """Plot the restricted patches of each cell"""
-    for n in range(frame.parameters['nphases']):
+    for n in range(frame.nphases):
         patch(frame, n, engine)
 
 def masks(frame, engine=plt):

@@ -25,6 +25,7 @@ void Model::Initialize()
   N = Size[0]*Size[1];
 
   // ---------------------------------------------------------------------------
+
   // initialize memory for global fields
   walls.resize(N, 0.);
   walls_dx.resize(N, 0.);
@@ -47,13 +48,6 @@ void Model::Initialize()
   P.resize(N, 0.);
   P_cnt.resize(N, 0.);
 
-  // extend the parameters with the last given value
-  gam.resize(nphases, gam.back());
-  gam.resize(nphases, gam.back());
-  mu.resize(nphases, mu.back());
-  delta.resize(nphases, delta.back());
-  R.resize(nphases, R.back());
-
   // rectifies margin in case it is bigger than domain
   // and compensate for the boundary layer
   patch_margin = {
@@ -63,6 +57,12 @@ void Model::Initialize()
   // total size including bdry layer
   patch_size = 2u*patch_margin + 1u;
   patch_N = patch_size[0]*patch_size[1];
+
+  // extend the parameters with the last given value
+  gam.resize(nphases, gam.back());
+  mu.resize(nphases, mu.back());
+  delta.resize(nphases, delta.back());
+  R.resize(nphases, R.back());
 
   // allocate memory for qties defined on the patches
   phi.resize(nphases, vector<double>(patch_N, 0.));
@@ -94,6 +94,7 @@ void Model::Initialize()
   offset.resize(nphases, {0u, 0u});
 
   // ---------------------------------------------------------------------------
+
   // pre-compute coefficients
   C1 = 60./lambda/lambda;
   C3 = C1/lambda/lambda;
@@ -105,6 +106,7 @@ void Model::Initialize()
     com_y_table.push_back({ cos(-Pi+2.*Pi*i/Size[1]), sin(-Pi+2.*Pi*i/Size[1]) });
 
   // ---------------------------------------------------------------------------
+
   // check parameters
   for(unsigned n=0; n<nphases; ++n)
     if(margin<R[n]) throw error_msg("Margin is too small, make it bigger than R.");
@@ -119,6 +121,7 @@ void Model::Initialize()
     throw error_msg("Birth boundaries have wrong format, see help.");
 
   // ---------------------------------------------------------------------------
+
   // setup division
   division = (division_rate!=0.);
 
@@ -161,4 +164,37 @@ void Model::InitializeNeighbors()
       }
     }
   }
+}
+
+void Model::SwapCells(unsigned n, unsigned m)
+{
+  swap(gam[n], gam[m]);
+  swap(mu[n], mu[m]);
+  swap(delta[n], delta[m]);
+  swap(R[n], R[m]);
+  swap(phi[n], phi[m]);
+  swap(phi_old[n], phi_old[m]);
+  swap(V[n], V[m]);
+  swap(potential[n], potential[m]);
+  swap(potential_old[n], potential_old[m]);
+  swap(division_counter[n], division_counter[m]);
+  swap(area[n], area[m]);
+  swap(area_cnt[n], area_cnt[m]);
+  swap(patch_min[n], patch_min[m]);
+  swap(patch_max[n], patch_max[m]);
+  swap(com[n], com[m]);
+  swap(com_prev[n], com_prev[m]);
+  swap(pol[n], pol[m]);
+  swap(velp[n], velp[m]);
+  swap(velc[n], velc[m]);
+  swap(velf[n], velf[m]);
+  swap(com_x[n], com_x[m]);
+  swap(com_y[n], com_y[m]);
+  swap(c[n], c[m]);
+  swap(S00[n], S00[m]);
+  swap(S01[n], S01[m]);
+  swap(S_order[n], S_order[m]);
+  swap(S_angle[n], S_angle[m]);
+  swap(theta[n], theta[m]);
+  swap(offset[n], offset[m]);
 }
