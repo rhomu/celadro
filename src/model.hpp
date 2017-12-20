@@ -237,8 +237,8 @@ struct Model
   double xi;
   /** Adhesion parameter */
   double omega;
-  /** Prefered radii (area = pi*R*R) */
-  std::vector<double> R;
+  /** Prefered radii (area = pi*R*R) and radius growth */
+  std::vector<double> R, dR;
   /** Migration speed */
   double alpha;
   /** Coupling between area and contractility */
@@ -282,7 +282,6 @@ struct Model
   {
     ar & auto_name(gam)
        & auto_name(mu)
-       & auto_name(nphases)
        & auto_name(lambda)
        & auto_name(kappa)
        & auto_name(alpha)
@@ -307,7 +306,8 @@ struct Model
   template<class Archive>
   void SerializeFrame(Archive& ar)
   {
-      ar & auto_name(phi)
+      ar & auto_name(nphases)
+         & auto_name(phi)
          & auto_name(offset)
          & auto_name(area)
          & auto_name(com)
@@ -360,6 +360,9 @@ struct Model
   /** Initialize neighbors list (stencils) */
   void InitializeNeighbors();
 
+  /** Swap two cells in the internal arrays */
+  void SwapCells(unsigned n, unsigned m);
+
   // ===========================================================================
   // Random numbers generation. Implemented in random.cpp
 
@@ -380,7 +383,7 @@ struct Model
   unsigned random_poisson(double lambda);
 
   /** Return exp distributed unsigned integers */
-  unsigned random_exponential(double lambda);
+  int random_exponential(double lambda);
 
   /** Return random unsigned uniformly distributed */
   unsigned random_unsigned();
@@ -589,7 +592,7 @@ struct Model
    * The boolean argument is used to differentiate between the predictor step
    * (true) and subsequent corrector steps.
    * */
-  void Update(bool);
+  void Update(bool, unsigned=0);
 
   /** Helper function
    *
@@ -632,9 +635,11 @@ struct Model
   /** Growth facto before division */
   double division_growth = 1.5;
   /** Relaxation time for division */
-  unsigned division_relax_time = 100;
+  int division_relax_time = 100;
+  /** Relaxation time after division */
+  int division_refract_time = 100;
   /** Count the number of time steps before the next division */
-  std::vector<unsigned> division_counter;
+  std::vector<int> division_counter;
 
   /** Reset division counter for single cell */
   void ResetDivisionCounter(unsigned);

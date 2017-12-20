@@ -25,12 +25,13 @@ void Model::Divide(unsigned n)
   // decrease counter
   division_counter[n] -= 1;
 
-  if(division_counter[n]==division_time)
+  if(division_counter[n]==nsubsteps*division_time)
   {
     cout << "START\n";
     R[n] *= division_growth;
   }
-  else if(division_counter[n]==0)
+
+  if(division_counter[n]==0)
   {
     cout << "DIVIDE\n";
 
@@ -43,7 +44,8 @@ void Model::Divide(unsigned n)
     gam.resize(nphases, gam[n]);
     mu.resize(nphases, mu[n]);
     delta.resize(nphases, delta[n]);
-    R.resize(nphases, R[n]/division_growth);
+    R.resize(nphases, R[n]/division_growth/2.);
+    dR.resize(nphases, R[n]/2./nsubsteps/division_refract_time);
     phi.resize(nphases, vector<double>(patch_N, 0.));
     phi_old.resize(nphases, vector<double>(patch_N, 0.));
     V.resize(nphases, vector<double>(patch_N, 0.));
@@ -76,11 +78,6 @@ void Model::Divide(unsigned n)
     const vec<double, 2> d = {cos(theta0), sin(theta0)};
     AddCell(nphases-2, coord(com[n] + length*d));
     AddCell(nphases-1, coord(com[n] - length*d));
-
-    ResetDivisionCounter(nphases-2);
-    ResetDivisionCounter(nphases-1);
-    division_counter[nphases-2] += nsubsteps*division_refract_time;
-    division_counter[nphases-1] += nsubsteps*division_refract_time;
 
     // -------------------------------------------------------------------------
     // Relax daughter cells
@@ -120,7 +117,7 @@ void Model::Divide(unsigned n)
     swap(J, save_J);
     swap(D, save_D);
 
-    cout << "STOP\n";
+    cout << "END\n";
 
     // -------------------------------------------------------------------------
     // destroy the old fat mama
@@ -161,6 +158,15 @@ void Model::Divide(unsigned n)
 
     nphases -= 1;
   }
+
+  if(division_counter[n]<0)
+  {
+    R[n] += dR[n];
+
+    if(unsigned(-division_counter[n]) == nsubsteps*division_refract_time)
+      ResetDivisionCounter(n);
+  }
+  cout << n << ' ' << R[n] << endl;
 }
 
 void Model::ResetDivisionCounter(unsigned n)

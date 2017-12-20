@@ -73,6 +73,7 @@ void Model::Initialize()
   division_counter.resize(nphases, 0.);
 
   // allocate memory for cell properties
+  dR.resize(nphases, 0);
   area.resize(nphases, 0.);
   area_cnt.resize(nphases, 0.);
   patch_min.resize(nphases, {0, 0});
@@ -172,6 +173,7 @@ void Model::SwapCells(unsigned n, unsigned m)
   swap(mu[n], mu[m]);
   swap(delta[n], delta[m]);
   swap(R[n], R[m]);
+  swap(dR[n], dR[m]);
   swap(phi[n], phi[m]);
   swap(phi_old[n], phi_old[m]);
   swap(V[n], V[m]);

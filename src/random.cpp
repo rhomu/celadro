@@ -57,7 +57,7 @@ unsigned Model::random_poisson(double lambda)
   return poisson_distribution<>(lambda)(gen);
 }
 
-unsigned Model::random_exponential(double lambda)
+int Model::random_exponential(double lambda)
 {
   return exponential_distribution<>(lambda)(gen);
 }
