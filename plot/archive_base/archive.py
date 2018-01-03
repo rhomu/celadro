@@ -129,7 +129,7 @@ class archive(object):
 
     def read_frames(self):
         """Generates all frames successively"""
-        for n in range(self._nframes):
+        for n in range(self._nframes+1):
             yield self.read_frame(n)
 
 def loadarchive(path):
