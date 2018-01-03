@@ -59,6 +59,6 @@ def animate(oa, fn, rng=[], inter=200, show=True):
 
     return anim
 
-def save(an, fname, fps, tt='ffmpeg', bitrate=1800):
+def save(an, fname, fps, tt='ffmpeg', bitrate=-1):
     writer = ani.writers[tt](fps=fps, bitrate=bitrate)
     an.save(fname, writer=writer)
