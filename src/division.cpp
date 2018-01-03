@@ -27,13 +27,13 @@ void Model::Divide(unsigned n)
 
   if(division_counter[n]==nsubsteps*division_time)
   {
-    cout << "START\n";
+    cout << "START - phase " << n << "\n";
     R[n] *= division_growth;
   }
 
   if(division_counter[n]==0)
   {
-    cout << "DIVIDE\n";
+    cout << "DIVIDE - phase " << n << "\n";
 
     // -------------------------------------------------------------------------
 
@@ -45,7 +45,7 @@ void Model::Divide(unsigned n)
     mu.resize(nphases, mu[n]);
     delta.resize(nphases, delta[n]);
     R.resize(nphases, R[n]/division_growth/2.);
-    dR.resize(nphases, R[n]/2./nsubsteps/division_refract_time);
+    dR.resize(nphases, R[n]/division_growth/2./nsubsteps/division_refract_time);
     phi.resize(nphases, vector<double>(patch_N, 0.));
     phi_old.resize(nphases, vector<double>(patch_N, 0.));
     V.resize(nphases, vector<double>(patch_N, 0.));
@@ -90,20 +90,22 @@ void Model::Divide(unsigned n)
     double save_J = 0.; swap(J, save_J);
     double save_D = 0.; swap(D, save_D);
 
+    // add inverse potential to sum and square sum of phase fields
+    /*
+    PRAGMA_OMP(omp parallel for num_threads(nthreads) if(nthreads))
+    for(unsigned q=0; q<patch_N; ++q)
+    {
+      const auto k = GetIndexFromPatch(n, q);
+      const auto a = 1-phi[n][q];
+      sum[k]      += a;
+      square[k]   += a*a;
+    }
+    */
+
     for(unsigned i=0; i<division_relax_time*nsubsteps; ++i)
     {
       for(unsigned i=0; i<=npc; ++i)
       {
-        // add inverse potential to sum and square sum of phase fields
-        PRAGMA_OMP(omp parallel for num_threads(nthreads) if(nthreads))
-        for(unsigned q=0; q<patch_N; ++q)
-        {
-          const auto k = GetIndexFromPatch(n, q);
-          const auto a = 1-phi[n][q];
-          sum[k]      += a;
-          square[k]   += a*a;
-        }
-
         // only update last two cells only
         Update(i==0, nphases-2);
       }
@@ -117,7 +119,7 @@ void Model::Divide(unsigned n)
     swap(J, save_J);
     swap(D, save_D);
 
-    cout << "END\n";
+    cout << "END - phase " << n << "\n";
 
     // -------------------------------------------------------------------------
     // destroy the old fat mama
@@ -130,6 +132,7 @@ void Model::Divide(unsigned n)
     mu.pop_back();
     delta.pop_back();
     R.pop_back();
+    dR.pop_back();
     phi.pop_back();
     phi_old.pop_back();
     V.pop_back();
@@ -166,7 +169,6 @@ void Model::Divide(unsigned n)
     if(unsigned(-division_counter[n]) == nsubsteps*division_refract_time)
       ResetDivisionCounter(n);
   }
-  cout << n << ' ' << R[n] << endl;
 }
 
 void Model::ResetDivisionCounter(unsigned n)
