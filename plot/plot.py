@@ -78,7 +78,7 @@ def ellipses(frame, engine=plt):
         print frame.S_order[n], radius
         omega  = frame.S_angle[n]
         p = frame.phi[n].reshape(frame.parameters['Size'])
-        c = frame.com[i]
+        c = frame.com[n]
         an = np.linspace(-omega, 2*np.pi-omega, 100)
         engine.plot(c[0] + radius*(1+10*frame.S_order[n])*np.cos(an),
                     c[1] + radius*(1-10*frame.S_order[n])*np.sin(an))
