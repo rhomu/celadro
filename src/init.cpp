@@ -59,10 +59,13 @@ void Model::Initialize()
   patch_N = patch_size[0]*patch_size[1];
 
   // extend the parameters with the last given value
+  if(gam.empty()) throw error_msg("please specify gamma parameter");
+  if(mu.empty()) throw error_msg("please specify mu parameter");
+  if(R.empty()) throw error_msg("please specify R parameter");
   gam.resize(nphases, gam.back());
   mu.resize(nphases, mu.back());
-  delta.resize(nphases, delta.back());
   R.resize(nphases, R.back());
+  delta.resize(nphases, delta.empty() ? 0. : delta.back());
 
   // allocate memory for qties defined on the patches
   phi.resize(nphases, vector<double>(patch_N, 0.));
