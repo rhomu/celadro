@@ -70,12 +70,16 @@ void Model::AddCell(unsigned n, const coord& center)
 
 void Model::Configure()
 {
+  // number of nodes in the birth area
+  unsigned Nbirth = (birth_bdries[1]-birth_bdries[0])*
+                    (birth_bdries[3]-birth_bdries[2]);
+  // target radius for spacing between cells
+  unsigned radius = sqrt(double(Nbirth/nphases)/Pi);
+
   // ===========================================================================
   // adding cells at random while trying to keep their center non overlapping
   if(init_config=="random" and BC==0)
   {
-    // target radius for spacing between cells
-    unsigned radius = sqrt(double(N/nphases)/Pi);
     // list of all centers
     vector<coord> centers;
 
@@ -117,8 +121,6 @@ void Model::Configure()
   // same but with walls: we need to be careful not to create cells on the wall
   else if(init_config=="random" and BC>=1)
   {
-    // target radius for spacing between cells
-    unsigned radius = sqrt(double(N/nphases)/Pi);
     // list of all centers
     vector<coord> centers;
 
