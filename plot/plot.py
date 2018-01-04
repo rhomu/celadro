@@ -74,14 +74,14 @@ def com(frame, engine=plt):
 def ellipses(frame, engine=plt):
     """Plot the shape-ellipses of each cell"""
     for n in range(frame.nphases):
-        radius = np.sqrt(frame.area[n]/np.pi/(1-frame.Q_order[n]**2))
-        print frame.Q_order[n], radius
-        omega  = frame.Q_angle[n]
+        radius = np.sqrt(frame.area[n]/np.pi/(1-frame.S_order[n]**2))
+        print frame.S_order[n], radius
+        omega  = frame.S_angle[n]
         p = frame.phi[n].reshape(frame.parameters['Size'])
         c = frame.com[i]
         an = np.linspace(-omega, 2*np.pi-omega, 100)
-        engine.plot(c[0] + radius*(1+10*frame.Q_order[n])*np.cos(an),
-                    c[1] + radius*(1-10*frame.Q_order[n])*np.sin(an))
+        engine.plot(c[0] + radius*(1+10*frame.S_order[n])*np.cos(an),
+                    c[1] + radius*(1-10*frame.S_order[n])*np.sin(an))
 
 def velc(frame, engine=plt):
     """Print contractile part of the velocity"""
