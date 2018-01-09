@@ -382,7 +382,7 @@ void Model::Update(bool store, unsigned nstart)
     // update center of mass
     ComputeCoM(n);
     // get shape
-    //ComputeShape(n);
+    ComputeShape(n);
     // update patch boundaries
     UpdatePatch(n);
 

@@ -73,7 +73,7 @@ void Model::Divide(unsigned n)
     offset.resize(nphases, {0u, 0u});
 
     // create the cells
-    const double theta0 = theta[n];
+    const double theta0 = S_angle[n];
     const double length = .5*sqrt(area[n]/Pi);
     const vec<double, 2> d = {cos(theta0), sin(theta0)};
     AddCell(nphases-2, coord(com[n] + length*d));
