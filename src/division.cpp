@@ -64,7 +64,6 @@ void Model::Divide(unsigned n)
     velf.resize(nphases, {0., 0.});
     com_x.resize(nphases, 0.);
     com_y.resize(nphases, 0.);
-    c.resize(nphases, 0);
     S00.resize(nphases, 0.);
     S01.resize(nphases, 0.);
     S_order.resize(nphases, 0.);
@@ -82,7 +81,6 @@ void Model::Divide(unsigned n)
     // -------------------------------------------------------------------------
     // Relax daughter cells
 
-    double save_c0      = 0.; swap(c0, save_c0);
     double save_zeta    = 0.; swap(zeta, save_zeta);
     double save_beta    = 0.; swap(beta, save_beta);
     double save_alpha   = 0.; swap(alpha, save_alpha);
@@ -111,7 +109,6 @@ void Model::Divide(unsigned n)
       }
     }
 
-    swap(c0, save_c0);
     swap(zeta, save_zeta);
     swap(beta, save_beta);
     swap(alpha, save_alpha);
@@ -151,7 +148,6 @@ void Model::Divide(unsigned n)
     velf.pop_back();
     com_x.pop_back();
     com_y.pop_back();
-    c.pop_back();
     S00.pop_back();
     S01.pop_back();
     S_order.pop_back();

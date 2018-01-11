@@ -109,12 +109,14 @@ void Model::ParseProgramOptions(int ac, char **av)
       "Cell-wall friction parameter")
     ("xi", opt::value<double>(&xi),
       "Substrate friction parameter")
-    ("c0", opt::value<double>(&c0),
-     "Base level for cellular contractility")
-    ("tauc", opt::value<double>(&tauc),
-     "Relaxation time for the contractility")
+    ("K", opt::value<double>(&K),
+     "elastic constant")
+    ("C", opt::value<double>(&C),
+     "Strength of LdG potential")
+    ("P", opt::value<double>(&P),
+     "Tissue pressure")
     ("zeta", opt::value<double>(&zeta),
-     "Friction parameter")
+     "Activity")
     ("omega", opt::value<double>(&omega),
       "Adhesion parameter")
     ("S", opt::value<double>(&S),

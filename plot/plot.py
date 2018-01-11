@@ -19,7 +19,7 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
-from math import sqrt, pi
+from math import sqrt, pi, copysign
 from matplotlib.colors import LinearSegmentedColormap
 from scipy import ndimage
 
@@ -104,15 +104,18 @@ def velp(frame, engine=plt):
         a = frame.parameters['ninfo']*frame.parameters['nsubsteps']
         engine.arrow(c[0], c[1], a*v[0], a*v[1], color='b')
 
-def pol(frame, engine=plt):
-    """Print polarisation of each cell"""
+def nematic(frame, engine=plt):
+    """Print director of each cell"""
     for i in range(frame.nphases):
-        p = frame.phi[i].reshape(frame.parameters['Size'])
+        Q00 = frame.Q00[i]
+        Q01 = frame.Q01[i]
+        S = sqrt(Q00**2 + Q01**2)
+        nx = sqrt((1 + Q00/S)/2)
+        ny = copysign(1, Q01)*sqrt((1 - Q00/S)/2)
         c = frame.com[i]
-        v = frame.pol[i]
-        a = 4#frame.parameters['ninfo']*frame.parameters['nsubsteps']
-        engine.arrow(c[0], c[1],  a*v[0],  a*v[1], color='k')
-        #engine.arrow(c[0], c[1], -a*v[0], -a*v[1], color='k')
+        a = frame.parameters['R'][i]/2.5
+        engine.arrow(c[0], c[1],  a*nx,  a*ny, color='k')
+        engine.arrow(c[0], c[1], -a*nx, -a*ny, color='k')
 
 def velf(frame, engine=plt):
     """Print active part of the velocity"""

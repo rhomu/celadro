@@ -27,7 +27,6 @@ void Model::Pre()
   // we make the system relax (without activity)
   if(relax_time>0)
   {
-    double save_c0 = 0.; swap(c0, save_c0);
     double save_zeta = 0.; swap(zeta, save_zeta);
     double save_beta = 0.; swap(beta, save_beta);
     double save_alpha = 0.; swap(alpha, save_alpha);
@@ -39,7 +38,6 @@ void Model::Pre()
 
     if(relax_nsubsteps) swap(nsubsteps, relax_nsubsteps);
 
-    swap(c0, save_c0);
     swap(zeta, save_zeta);
     swap(beta, save_beta);
     swap(alpha, save_alpha);
@@ -110,16 +108,8 @@ void Model::UpdateFieldsAtNode(unsigned n, unsigned q)
   const auto  dy = derivY(phi[n], sq);
   // all-cells properties
   const auto  ls   = laplacian(sum, s);
-  const auto  dxs  = derivX(sum, s);
-  const auto  dys  = derivY(sum, s);
-  const auto  dxp0 = derivX(Px, s);
-  const auto  dyp0 = derivY(Px, s);
-  const auto  dxp1 = derivX(Py, s);
-  const auto  dyp1 = derivY(Py, s);
-
+  // walls properties
   const auto  lw = walls_laplace[k];
-  const auto dxw = walls_dx[k];
-  const auto dyw = walls_dy[k];
 
   // delta F / delta phi
   const double force = (
@@ -141,35 +131,15 @@ void Model::UpdateFieldsAtNode(unsigned n, unsigned q)
   velp[n][0] += dx*force;
   velp[n][1] += dy*force;
   // contractility force
-  velc[n][0] += ( (P[k]+zeta*Q00[k])*dx + zeta*Q01[k]*dy );
-  velc[n][1] += ( zeta*Q01[k]*dx + (P[k]-zeta*Q00[k])*dy );
-  // friction force
-  velf[n][0] += + f*alpha/xi*pol[n][0]*(dx*(dxs-dx)+dy*(dys-dy))
-                - f*alpha/xi*(dx*(dxp0-pol[n][0]*dx)+dy*(dyp0-pol[n][0]*dy))
-                //+ f_walls*alpha/xi*pol[n][0]*(dx*dxw+dy*dyw);
-                - dyw*f_walls/xi*(pol[n][1]*dxw-pol[n][0]*dyw)*(dx*dxw+dy*dyw);
-  velf[n][1] += + f*alpha/xi*pol[n][1]*(dx*(dxs-dx)+dy*(dys-dy))
-                - f*alpha/xi*(dx*(dxp1-pol[n][1]*dx)+dy*(dyp1-pol[n][1]*dy))
-                //+ f_walls*alpha/xi*pol[n][1]*(dx*dxw+dy*dyw);
-                + dxw*f_walls/xi*(pol[n][1]*dxw-pol[n][0]*dyw)*(dx*dxw+dy*dyw);
-
-  // these are different alignment torques and must be cleaned up once we decide
-  // which one is the best
-  //
-  // alignment torque (orientational)
-  //const auto dxQ00 = derivX(Q00, s);
-  //const auto dxQ01 = derivX(Q01, s);
-  //const auto dyQ00 = derivY(Q00, s);
-  //const auto dyQ01 = derivY(Q01, s);
-  //torque[n] += - 4*J1*(Q00[n]*(dx*dxQ01+dy*dyQ01)-Q01[n]*(dx*dxQ00+dy*dyQ00));
-  //
-  // alignment torque (directional)
-  //const auto  dxt  = derivX(Theta, s);
-  //const auto  dyt  = derivY(Theta, s);
-  //torque[n] -= J1*(dx*dxt+dy*dyt - theta[n]*(dx*dxs+dy*dys));
-  //
-  // alignment torque (shear stress)
-  //torque[n] -= J1*zeta*(2*Q00[n]*dx*dy + Q01[n]*(dx*dx-dy*dy));
+  velc[n][0] += ( (P+zeta*sumQ00[k])*dx + zeta*sumQ01[k]*dy );
+  velc[n][1] += ( zeta*sumQ01[k]*dx + (P-zeta*sumQ00[k])*dy );
+  // difference in contractility
+  const double r = dx*dx+dy*dy;
+  if(r>1e-6)
+  {
+    deltaQ00[n] += (sumQ00[k] - 2*phi[n][q]*Q00[n])*phi[n][q]*(Q00[n]*(dx*dx-dy*dy)+2*Q01[n]*dx*dy)/r;
+    deltaQ01[n] += (sumQ01[k] - 2*phi[n][q]*Q01[n])*phi[n][q]*(Q00[n]*(dx*dx-dy*dy)+2*Q01[n]*dx*dy)/r;
+  }
 }
 
 void Model::UpdateAtNode(unsigned n, unsigned q, bool store)
@@ -186,9 +156,6 @@ void Model::UpdateAtNode(unsigned n, unsigned q, bool store)
     const auto  dy = derivY(phi[n], sq);
     const auto  ll = laplacian(phi[n], sq);
 
-    // distance from the center of mass
-    const auto dc = diff(vec<double, 2>(GetPosition(k)), com[n]);
-
     potential[n][q] = (
       // free energy term
       -.5*V[n][q]
@@ -197,8 +164,6 @@ void Model::UpdateAtNode(unsigned n, unsigned q, bool store)
         - 2.*mu[n]*(1.-a/(Pi*r*r))*2.*p
         - 2.*gam[n]*ll
       )
-      // elongation potential
-      - 2./(Pi*r*r)*delta[n]*p*(dc - pol[n]*(pol[n]*dc)/pol[n].sq()).sq()
       // advection term
       - (alpha*pol[n][0]+velp[n][0]+velc[n][0]+velf[n][0])*dx/xi
       - (alpha*pol[n][1]+velp[n][1]+velc[n][1]+velf[n][1])*dy/xi
@@ -231,26 +196,17 @@ void Model::UpdateAtNode(unsigned n, unsigned q, bool store)
   ReinitSquareAndSumAtNode(k);
 }
 
-void Model::UpdatePolarization(unsigned n)
+void Model::UpdatePolarization(unsigned n, bool store)
 {
-  // Polarization...
-  array<double, 2> v = {
-    velp[n][0] + velf[n][0] + velc[n][0],
-    velp[n][1] + velf[n][1] + velc[n][1]
-  };
+  if(store)
+  {
+    Q00_old[n] = Q00[n] + sqrt(time_step)*D*random_normal();
+    Q01_old[n] = Q01[n] + sqrt(time_step)*D*random_normal();
+  }
 
-  // ...euler-marijuana update
-  const double p2 = pol[n][0]*pol[n][0] + pol[n][1]*pol[n][1];
-  pol[n][0] += time_step*(S*2.*(1. - p2)*pol[n][0] + J*v[0])
-               + sqrt(time_step)*D*random_normal();
-  pol[n][1] += time_step*(S*2.*(1. - p2)*pol[n][1] + J*v[1])
-               + sqrt(time_step)*D*random_normal();
-
-  // dynamics of the contractility: needs some cleaning up once settled
-  //
-  //c[n]  += -time_step*(c[n]-c0)/tauc + beta*c0*(area_cnt[n]-area[n]);
-  //c[n]  += time_step*( -(c[n]-c0) - beta*(1.-area_cnt[n]/C2/.88171))/tauc;
-  //c[n]  -= time_step*(c[n]-beta*c0*area_cnt[n]/C2)/tauc;
+  const double tr = 1 - Q00[n]*Q00[n] - Q01[n]*Q01[n];
+  Q00[n] = Q00_old[n] + time_step*.5*(C*tr*Q00[n] + K*deltaQ00[n]);
+  Q01[n] = Q01_old[n] + time_step*.5*(C*tr*Q01[n] + K*deltaQ01[n]);
 }
 
 void Model::ComputeCoM(unsigned n)
@@ -308,35 +264,22 @@ void Model::ComputeShape(unsigned n)
 
 void Model::SquareAndSumAtNode(unsigned n, unsigned q)
 {
+  const auto p = phi[n][q];
   const auto k = GetIndexFromPatch(n, q);
-  const auto p = phi[n][GetPatchIndex(n, k)];
 
   // we swap counters and values afterwards
   sum_cnt[k]    += p;
   square_cnt[k] += p*p;
-  P_cnt[k]      -= p*c[n];
-  Q00_cnt[k]    -= p*.5*(pol[n][0]*pol[n][0]-pol[n][1]*pol[n][1]);
-  Q01_cnt[k]    -= p*pol[n][0]*pol[n][1];
-  Px_cnt[k]     += p*pol[n][0];
-  Py_cnt[k]     += p*pol[n][1];
-  Theta_cnt[k]  += p*theta[n];
-
-  // coupling to shape
-  //Q00_cnt[k] += p*p*(-c[n]+zeta*S_order[n]*cos(2*S_angle[n]));
-  //Q01_cnt[k] += p*p*(     +zeta*S_order[n]*sin(2*S_angle[n]));
-  //Q00_cnt[k] += p*p*(-c[n]-zeta*S_order[n]*cos(2*S_angle[n]));
+  sumQ00_cnt[k] += p*Q00[n];
+  sumQ01_cnt[k] += p*Q01[n];
 }
 
 inline void Model::ReinitSquareAndSumAtNode(unsigned k)
 {
   sum[k]    = 0;
   square[k] = 0;
-  P[k]      = 0;
-  Theta[k]  = 0;
-  Q00[k]    = 0;
-  Q01[k]    = 0;
-  Px[k]     = 0;
-  Py[k]     = 0;
+  sumQ00[k] = 0;
+  sumQ01[k] = 0;
 }
 
 #ifndef _CUDA_ENABLED
@@ -356,7 +299,8 @@ void Model::Update(bool store, unsigned nstart)
     velp[n] = {0., 0.};
     velc[n] = {0., 0.};
     velf[n] = {0., 0.};
-    //torque[n] = 0.;
+    deltaQ00[n] = 0;
+    deltaQ01[n] = 0;
 
     // update in restricted patch only
     for(unsigned q=0; q<patch_N; ++q)
@@ -378,7 +322,7 @@ void Model::Update(bool store, unsigned nstart)
     // because the polarisation dynamics is first
     // order (euler-maruyama) we need to update only
     // once per predictor-corrector step
-    if(store) UpdatePolarization(n);
+    /*if(store)*/ UpdatePolarization(n, store);
     // update center of mass
     ComputeCoM(n);
     // get shape
@@ -414,12 +358,8 @@ void Model::Update(bool store, unsigned nstart)
   swap(area, area_cnt);
   swap(sum, sum_cnt);
   swap(square, square_cnt);
-  swap(P, P_cnt);
-  swap(Theta, Theta_cnt);
-  swap(Q00, Q00_cnt);
-  swap(Q01, Q01_cnt);
-  swap(Px, Px_cnt);
-  swap(Py, Py_cnt);
+  swap(sumQ00, sumQ00_cnt);
+  swap(sumQ01, sumQ01_cnt);
 }
 
 #endif

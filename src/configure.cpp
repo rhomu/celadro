@@ -45,6 +45,8 @@ void Model::AddCellAtNode(unsigned n, unsigned k, const coord& center)
     area[n]      += 1.;
     square[k]    += 1.;
     sum[k]       += 1.;
+    sumQ00[k]    += Q00[n];
+    sumQ01[k]    += Q01[n];
   }
   else
   {
@@ -59,12 +61,14 @@ void Model::AddCell(unsigned n, const coord& center)
   patch_min[n] = (center+Size-patch_margin)%Size;
   patch_max[n] = (center+patch_margin-1u)%Size;
 
+  // init nematic tensor
+  theta[n] = 0.01*(1-2*random_real());//2.*Pi*random_real();
+  Q00[n]   = cos(2*theta[n])/2;
+  Q01[n]   = cos(theta[n])*sin(theta[n]);
+
   // create the cells at the centers we just computed
   UpdateDomain(&Model::AddCellAtNode, n ,center);
 
-  c[n]     = c0;
-  theta[n] = 2.*Pi*random_real();
-  pol[n]   = { cos(theta[n]), sin(theta[n]) };
   com[n]   = vec<double, 2>(center);
 }
 

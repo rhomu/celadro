@@ -81,22 +81,16 @@ struct Model
   std::vector<vec<double, 2>> velc;
   /** Friction velocities */
   std::vector<vec<double, 2>> velf;
-  /** Overall polarization of the tissue */
-  std::vector<double> Px, Py, Px_cnt, Py_cnt;
-  /** Contractility */
-  std::vector<double> c;
   /** Shape parameter: order */
   std::vector<double> S_order;
   /** Shape parameter: angle */
   std::vector<double> S_angle;
   /** Structure tensor */
   std::vector<double> S00, S01;
-  /** Polarity tensor */
-  std::vector<double> Q00, Q01, Theta, Theta_cnt;
-  /** Counters for polarity tensor */
-  std::vector<double> Q00_cnt, Q01_cnt;
-  /** Internal pressure */
-  std::vector<double> P, P_cnt;
+  /** Q-tensor */
+  std::vector<double> Q00, Q01, deltaQ00, deltaQ01, Q00_old, Q01_old;
+  /** Nematic field */
+  std::vector<double> sumQ00, sumQ01, sumQ00_cnt, sumQ01_cnt;
   /** Elasticity */
   std::vector<double> gam;
   /** Energy penalty for area */
@@ -227,8 +221,10 @@ struct Model
   double lambda;
   /**  Interaction stength */
   double kappa;
-  /** Friction parameter */
+  /** Activity */
   double zeta = 0.;
+  /** Internal pressure */
+  double P = 0;
   /** Cell-cell friction parameter */
   double f;
   /** Cell-wall friction parameter */
@@ -245,8 +241,8 @@ struct Model
   double beta;
   /** Parameters for the polarisation dynamics */
   double D=1., J=1., S=1.;
-  /** Contractility parameters */
-  double c0, tauc;
+  /** Nematic parameters */
+  double C, K;
   /** Pre-computed coefficients */
   double C1, C3;
 
@@ -313,7 +309,8 @@ struct Model
          & auto_name(com)
          & auto_name(S_order)
          & auto_name(S_angle)
-         & auto_name(pol)
+         & auto_name(Q00)
+         & auto_name(Q01)
          & auto_name(velp)
          & auto_name(velf)
          & auto_name(velc)
@@ -420,10 +417,9 @@ struct Model
    * @{ */
 
   double *d_phi, *d_phi_old, *d_V, *d_potential, *d_potential_old, *d_sum,
-         *d_square, *d_Q00, *d_Q01, *d_P, *d_Px, *d_Py, *d_walls,
+         *d_square, *d_Q00, *d_Q01, *d_walls,
          *d_walls_laplace, *d_walls_dx, *d_walls_dy, *d_sum_cnt, *d_square_cnt,
-         *d_Theta, *d_Px_cnt, *d_Py_cnt, *d_Theta_cnt, *d_Q00_cnt, *d_Q01_cnt,
-         *d_P_cnt, *d_area, *d_area_cnt, *d_c, *d_S00, *d_S01, *d_S_order,
+         *d_Q00_cnt, *d_Q01_cnt, *d_area, *d_area_cnt, *d_c, *d_S00, *d_S01, *d_S_order,
          *d_S_angle, *d_theta, *d_gam, *d_mu;
   vec<double, 2>  *d_pol, *d_vel, *d_velp, *d_velc, *d_velf, *d_com, *d_com_prev;
   stencil         *d_neighbors, *d_neighbors_patch;
@@ -567,7 +563,7 @@ struct Model
    * paper for more details. Note that we use the euler-maruyama method, instead
    * of a predictor-corrector method.
    * */
-  void UpdatePolarization(unsigned);
+  void UpdatePolarization(unsigned, bool);
 
   /** Update friction force
    *

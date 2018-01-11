@@ -35,18 +35,10 @@ void Model::Initialize()
   sum_cnt.resize(N, 0.);
   square.resize(N, 0.);
   square_cnt.resize(N, 0.);
-  Px.resize(N, 0.);
-  Py.resize(N, 0.);
-  Theta.resize(N, 0.);
-  Q00.resize(N, 0.);
-  Q01.resize(N, 0.);
-  Px_cnt.resize(N, 0.);
-  Py_cnt.resize(N, 0.);
-  Theta_cnt.resize(N, 0.);
-  Q00_cnt.resize(N, 0.);
-  Q01_cnt.resize(N, 0.);
-  P.resize(N, 0.);
-  P_cnt.resize(N, 0.);
+  sumQ00.resize(N, 0.);
+  sumQ01.resize(N, 0.);
+  sumQ00_cnt.resize(N, 0.);
+  sumQ01_cnt.resize(N, 0.);
 
   // rectifies margin in case it is bigger than domain
   // and compensate for the boundary layer
@@ -83,13 +75,18 @@ void Model::Initialize()
   patch_max.resize(nphases, Size);
   com.resize(nphases, {0., 0.});
   com_prev.resize(nphases, {0., 0.});
+  deltaQ00.resize(nphases, 0.);
+  deltaQ01.resize(nphases, 0.);
+  Q00.resize(nphases, 0.);
+  Q01.resize(nphases, 0.);
+  Q00_old.resize(nphases, 0.);
+  Q01_old.resize(nphases, 0.);
   pol.resize(nphases, {0., 0.});
   velp.resize(nphases, {0., 0.});
   velc.resize(nphases, {0., 0.});
   velf.resize(nphases, {0., 0.});
   com_x.resize(nphases, 0.);
   com_y.resize(nphases, 0.);
-  c.resize(nphases, 0);
   S00.resize(nphases, 0.);
   S01.resize(nphases, 0.);
   S_order.resize(nphases, 0.);
@@ -132,8 +129,9 @@ void Model::Initialize()
   if(division_time==0)
     throw error_msg("Division time can not be zero.");
 
-  for(unsigned n=0; n<nphases; ++n)
-    ResetDivisionCounter(n);
+  if(division)
+    for(unsigned n=0; n<nphases; ++n)
+      ResetDivisionCounter(n);
 }
 
 void Model::InitializeNeighbors()
@@ -176,6 +174,8 @@ void Model::SwapCells(unsigned n, unsigned m)
   swap(mu[n], mu[m]);
   swap(delta[n], delta[m]);
   swap(R[n], R[m]);
+  swap(Q00[n], Q00[m]);
+  swap(Q01[n], Q01[m]);
   swap(dR[n], dR[m]);
   swap(phi[n], phi[m]);
   swap(phi_old[n], phi_old[m]);
@@ -195,7 +195,6 @@ void Model::SwapCells(unsigned n, unsigned m)
   swap(velf[n], velf[m]);
   swap(com_x[n], com_x[m]);
   swap(com_y[n], com_y[m]);
-  swap(c[n], c[m]);
   swap(S00[n], S00[m]);
   swap(S01[n], S01[m]);
   swap(S_order[n], S_order[m]);
