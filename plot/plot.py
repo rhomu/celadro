@@ -113,7 +113,7 @@ def nematic(frame, engine=plt):
         nx = sqrt((1 + Q00/S)/2)
         ny = copysign(1, Q01)*sqrt((1 - Q00/S)/2)
         c = frame.com[i]
-        a = frame.parameters['R'][i]/2.5
+        a = frame.parameters['R'][i]/2.5*S
         engine.arrow(c[0], c[1],  a*nx,  a*ny, color='k')
         engine.arrow(c[0], c[1], -a*nx, -a*ny, color='k')
 

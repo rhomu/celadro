@@ -134,12 +134,8 @@ void Model::UpdateFieldsAtNode(unsigned n, unsigned q)
   velc[n][0] += ( (P+zeta*sumQ00[k])*dx + zeta*sumQ01[k]*dy );
   velc[n][1] += ( zeta*sumQ01[k]*dx + (P-zeta*sumQ00[k])*dy );
   // difference in contractility
-  const double r = dx*dx+dy*dy;
-  if(r>1e-6)
-  {
-    deltaQ00[n] += (sumQ00[k] - 2*phi[n][q]*Q00[n])*phi[n][q]*(Q00[n]*(dx*dx-dy*dy)+2*Q01[n]*dx*dy)/r;
-    deltaQ01[n] += (sumQ01[k] - 2*phi[n][q]*Q01[n])*phi[n][q]*(Q00[n]*(dx*dx-dy*dy)+2*Q01[n]*dx*dy)/r;
-  }
+  deltaQ00[n] += (sumQ00[k] - phi[n][q]*Q00[n])*(Q00[n]*(dx*dx-dy*dy)+2*Q01[n]*dx*dy);
+  deltaQ01[n] += (sumQ01[k] - phi[n][q]*Q01[n])*(Q00[n]*(dx*dx-dy*dy)+2*Q01[n]*dx*dy);
 }
 
 void Model::UpdateAtNode(unsigned n, unsigned q, bool store)

@@ -239,10 +239,8 @@ struct Model
   double alpha;
   /** Coupling between area and contractility */
   double beta;
-  /** Parameters for the polarisation dynamics */
-  double D=1., J=1., S=1.;
   /** Nematic parameters */
-  double C, K;
+  double C, K, D;
   /** Pre-computed coefficients */
   double C1, C3;
 
@@ -287,7 +285,8 @@ struct Model
        & auto_name(init_config)
        & auto_name(zeta)
        & auto_name(D)
-       & auto_name(J)
+       & auto_name(C)
+       & auto_name(K)
        & auto_name(f)
        & auto_name(f_walls)
        & auto_name(wall_thickness)

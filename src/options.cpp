@@ -119,12 +119,8 @@ void Model::ParseProgramOptions(int ac, char **av)
      "Activity")
     ("omega", opt::value<double>(&omega),
       "Adhesion parameter")
-    ("S", opt::value<double>(&S),
-      "Strength of polarisation potential")
-    ("J", opt::value<double>(&J),
-      "Strength of alignment torque")
     ("D", opt::value<double>(&D),
-      "Rotational diffusion constant")
+      "Nematic noise strength")
     ("wall-thickness", opt::value<double>(&wall_thickness),
       "Wall thickness (typical decay length)")
     ("wall-kappa", opt::value<double>(&wall_kappa)->default_value(kappa),
