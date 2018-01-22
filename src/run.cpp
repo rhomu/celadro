@@ -134,8 +134,8 @@ void Model::UpdateFieldsAtNode(unsigned n, unsigned q)
   velc[n][0] += ( (P+zeta*sumQ00[k])*dx + zeta*sumQ01[k]*dy );
   velc[n][1] += ( zeta*sumQ01[k]*dx + (P-zeta*sumQ00[k])*dy );
   // difference in contractility
-  deltaQ00[n] += (sumQ00[k] - phi[n][q]*Q00[n])*(Q00[n]*(dx*dx-dy*dy)+2*Q01[n]*dx*dy);
-  deltaQ01[n] += (sumQ01[k] - phi[n][q]*Q01[n])*(Q00[n]*(dx*dx-dy*dy)+2*Q01[n]*dx*dy);
+  deltaQ00[n] += (sumQ00[k] - phi[n][q]*Q00[n])*(L*zeta*(Q00[n]*(dx*dx-dy*dy)+2*Q01[n]*dx*dy) + K*(dx*dx+dy*dy));
+  deltaQ01[n] += (sumQ01[k] - phi[n][q]*Q01[n])*(L*zeta*(Q00[n]*(dx*dx-dy*dy)+2*Q01[n]*dx*dy) + K*(dx*dx+dy*dy));
 }
 
 void Model::UpdateAtNode(unsigned n, unsigned q, bool store)
@@ -201,8 +201,8 @@ void Model::UpdatePolarization(unsigned n, bool store)
   }
 
   const double tr = 1 - Q00[n]*Q00[n] - Q01[n]*Q01[n];
-  Q00[n] = Q00_old[n] + time_step*.5*(C*tr*Q00[n] + K*deltaQ00[n]);
-  Q01[n] = Q01_old[n] + time_step*.5*(C*tr*Q01[n] + K*deltaQ01[n]);
+  Q00[n] = Q00_old[n] + time_step*.5*(C*tr*Q00[n] + deltaQ00[n]);
+  Q01[n] = Q01_old[n] + time_step*.5*(C*tr*Q01[n] + deltaQ01[n]);
 }
 
 void Model::ComputeCoM(unsigned n)

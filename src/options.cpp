@@ -109,6 +109,8 @@ void Model::ParseProgramOptions(int ac, char **av)
       "Cell-wall friction parameter")
     ("xi", opt::value<double>(&xi),
       "Substrate friction parameter")
+    ("L", opt::value<double>(&L),
+     "nematic interaction parameter")
     ("K", opt::value<double>(&K),
      "elastic constant")
     ("C", opt::value<double>(&C),

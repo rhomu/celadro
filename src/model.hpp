@@ -240,7 +240,7 @@ struct Model
   /** Coupling between area and contractility */
   double beta;
   /** Nematic parameters */
-  double C, K, D;
+  double C, K, D, L;
   /** Pre-computed coefficients */
   double C1, C3;
 
@@ -287,6 +287,7 @@ struct Model
        & auto_name(D)
        & auto_name(C)
        & auto_name(K)
+       & auto_name(L)
        & auto_name(f)
        & auto_name(f_walls)
        & auto_name(wall_thickness)

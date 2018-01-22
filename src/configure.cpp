@@ -62,7 +62,7 @@ void Model::AddCell(unsigned n, const coord& center)
   patch_max[n] = (center+patch_margin-1u)%Size;
 
   // init nematic tensor
-  theta[n] = 0.01*(1-2*random_real());//2.*Pi*random_real();
+  theta[n] = noise*Pi*random_real();
   Q00[n]   = cos(2*theta[n])/2;
   Q01[n]   = cos(theta[n])*sin(theta[n]);
 
