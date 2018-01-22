@@ -57,14 +57,13 @@ def interfaces(frame, engine=plt):
 def solidarea(frame, engine=plt):
     """Plot all phase fields with solid colours corresponding to individual areas"""
     for i in range(len(frame.phi)):
-        p = frame.phi[i]
         engine.contourf(np.arange(0, frame.parameters['Size'][0]),
                         np.arange(0, frame.parameters['Size'][1]),
-                        frame.phi[i],
+                        frame.phi[i].T,
                         #levels = [1e-10, 1e-5, .5])
                         levels = [.5, 10.],
-                        #color='mediumblue'
-                        colors=str(frame.area[i]/(np.pi*frame.parameters['R']**2)))
+                        colors='mediumblue')
+                        #colors=str(frame.area[i]/(np.pi*frame.parameters['R']**2)))
 
 def com(frame, engine=plt):
     """Plot the center-of-mass of each cell"""
