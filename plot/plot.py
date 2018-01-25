@@ -22,8 +22,9 @@ import matplotlib.pyplot as plt
 from math import sqrt, pi, copysign
 from matplotlib.colors import LinearSegmentedColormap
 from scipy import ndimage
+from itertools import product
 
-def get_velocity_field(phases, vel):
+def get_velocity_field(phases, Qxx, Qxy):
     """Compute the collective velocity field from a collection of phase-fields
      and their velocities"""
     v = []
@@ -31,6 +32,23 @@ def get_velocity_field(phases, vel):
         v = v + [ [ sum([ vel[n][0]*phases[n][k] for n in range(len(phases)) ]),
                     sum([ vel[n][1]*phases[n][k] for n in range(len(phases)) ]) ] ]
     return np.array(v)
+
+def get_director(phases, Qxx, Qxy, size):
+    """Compute the tissue nematic field from individual cells"""
+
+    QQxx = np.zeros(phases[0].shape)
+    QQxy = np.zeros(phases[0].shape)
+    for n in range(len(phases)):
+        QQxx += Qxx[n]*phases[n]
+        QQxy += Qxy[n]*phases[n]
+
+    QQxx = ndimage.filters.uniform_filter(QQxx, size=size, mode='wrap')
+    QQxy = ndimage.filters.uniform_filter(QQxy, size=size, mode='wrap')
+
+    S = np.vectorize(sqrt)(QQxy**2 + QQxx**2)
+    nx = np.vectorize(sqrt)((1 + QQxx/S)/2)
+    ny = np.sign(QQxy)*np.vectorize(sqrt)((1 - QQxx/S)/2)
+    return S, nx, ny
 
 def phasefields(frame, engine=plt):
     """Plot all phase fields"""
@@ -152,6 +170,23 @@ def phase(frame, n, engine=plt):
                         #, clim=(0., 1.)
                         )
     cbar = plt.colorbar(cax)
+
+def nematicfield(frame, size=15, scale=False, engine=plt):
+    """Plot the director field"""
+    S, nx, ny = get_director(frame.phi, frame.Q00, frame.Q01, size)
+    x = []
+    y = []
+    for i, j in product(np.arange(frame.parameters['Size'][0]),
+                        np.arange(frame.parameters['Size'][1])):
+        f = S[i,j] if scale else 1.
+        x.append(i + .5 - f*nx[i,j]/2.)
+        x.append(i + .5 + f*nx[i,j]/2.)
+        x.append(None)
+        y.append(j + .5 - f*ny[i,j]/2.)
+        y.append(j + .5 + f*ny[i,j]/2.)
+        y.append(None)
+    engine.plot(x, y, color='k', linestyle='-', linewidth=1)
+
 
 def velocityfield(frame, size=15, engine=plt):
     """Plot the total veloctity field assiciated with the cells"""
