@@ -171,14 +171,17 @@ def phase(frame, n, engine=plt):
                         )
     cbar = plt.colorbar(cax)
 
-def nematicfield(frame, size=15, scale=False, engine=plt):
+def nematicfield(frame, size=15, avg=1, scale=False, engine=plt):
     """Plot the director field"""
     S, nx, ny = get_director(frame.phi, frame.Q00, frame.Q01, size)
+    S  = ndimage.generic_filter(S , np.mean, size=avg)
+    nx = ndimage.generic_filter(nx, np.mean, size=avg)
+    ny = ndimage.generic_filter(ny, np.mean, size=avg)
     x = []
     y = []
-    for i, j in product(np.arange(frame.parameters['Size'][0]),
-                        np.arange(frame.parameters['Size'][1])):
-        f = S[i,j] if scale else 1.
+    for i, j in product(np.arange(frame.parameters['Size'][0], step=avg),
+                        np.arange(frame.parameters['Size'][1], step=avg)):
+        f = avg*(S[i,j] if scale else 1.)
         x.append(i + .5 - f*nx[i,j]/2.)
         x.append(i + .5 + f*nx[i,j]/2.)
         x.append(None)
