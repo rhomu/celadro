@@ -89,17 +89,37 @@ def com(frame, engine=plt):
     for c in frame.com:
         engine.plot(c[0], c[1], 'ro')
 
-def ellipses(frame, engine=plt):
-    """Plot the shape-ellipses of each cell"""
-    for n in range(frame.nphases):
-        radius = np.sqrt(frame.area[n]/np.pi/(1-frame.S_order[n]**2))
-        print frame.S_order[n], radius
-        omega  = frame.S_angle[n]
-        p = frame.phi[n].reshape(frame.parameters['Size'])
-        c = frame.com[n]
-        an = np.linspace(-omega, 2*np.pi-omega, 100)
-        engine.plot(c[0] + radius*(1+10*frame.S_order[n])*np.cos(an),
-                    c[1] + radius*(1-10*frame.S_order[n])*np.sin(an))
+def shape(frame, engine=plt):
+    """Print shape tensor of each cell"""
+    for i in range(frame.nphases):
+        Q00 = frame.S00[i]
+        Q01 = frame.S01[i]
+        S = sqrt(Q00**2 + Q01**2)
+        nx = sqrt((1 + Q00/S)/2)
+        ny = copysign(1, Q01)*sqrt((1 - Q00/S)/2)
+        c = frame.com[i]
+        a = S
+        engine.arrow(c[0], c[1],  a*nx,  a*ny, color='k')
+        engine.arrow(c[0], c[1], -a*nx, -a*ny, color='k')
+
+def shapefield(frame, size=15, avg=1, scale=False, engine=plt):
+    """Plot the director field"""
+    S, nx, ny = get_director(frame.phi, frame.S00, frame.S01, size)
+    S  = ndimage.generic_filter(S , np.mean, size=avg)
+    nx = ndimage.generic_filter(nx, np.mean, size=avg)
+    ny = ndimage.generic_filter(ny, np.mean, size=avg)
+    x = []
+    y = []
+    for i, j in product(np.arange(frame.parameters['Size'][0], step=avg),
+                        np.arange(frame.parameters['Size'][1], step=avg)):
+        f = avg*(S[i,j] if scale else 1.)
+        x.append(i + .5 - f*nx[i,j]/2.)
+        x.append(i + .5 + f*nx[i,j]/2.)
+        x.append(None)
+        y.append(j + .5 - f*ny[i,j]/2.)
+        y.append(j + .5 + f*ny[i,j]/2.)
+        y.append(None)
+    engine.plot(x, y, color='k', linestyle='-', linewidth=1)
 
 def velc(frame, engine=plt):
     """Print contractile part of the velocity"""

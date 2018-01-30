@@ -240,22 +240,12 @@ void Model::UpdatePatch(unsigned n)
 void Model::UpdateStructureTensorAtNode(unsigned n, unsigned q)
 {
   // to be reintroduced correctly
-  const auto&   sq = neighbors_patch[q];
+  const auto& sq = neighbors_patch[q];
+  const auto  dx = derivX(phi[n], sq);
+  const auto  dy = derivY(phi[n], sq);
 
-  const auto  p  = phi[n][q];
-  const auto  dx = 2*p*derivX(phi[n], sq);
-  const auto  dy = 2*p*derivY(phi[n], sq);
-
-  S00[n] += 0.5*(dx*dx-dy*dy);
-  S01[n] += dx*dy;
-}
-
-void Model::ComputeShape(unsigned n)
-{
-  // shape: we remap the 2x2 traceless symmetric matrix to polar coord for ease
-  // of manipulation
-  S_order[n] = sqrt(S00[n]*S00[n]+S01[n]*S01[n]);
-  S_angle[n] = atan2(S01[n], S00[n])/2.;
+  S00[n] += -0.5*(dx*dx-dy*dy);
+  S01[n] += -dx*dy;
 }
 
 void Model::SquareAndSumAtNode(unsigned n, unsigned q)
@@ -312,23 +302,22 @@ void Model::Update(bool store, unsigned nstart)
   PRAGMA_OMP(omp parallel for num_threads(nthreads) if(nthreads))
   for(unsigned n=nstart; n<nphases; ++n)
   {
+    S00[n] = S01[n] = 0.;
+
     // only update fields in the restricted patch of field n
     for(unsigned q=0; q<patch_N; ++q)
+    {
       UpdateAtNode(n, q, store);
-    // because the polarisation dynamics is first
-    // order (euler-maruyama) we need to update only
-    // once per predictor-corrector step
-    /*if(store)*/ UpdatePolarization(n, store);
+      UpdateStructureTensorAtNode(n, q);
+    }
+    // Update Q-tensor
+    UpdatePolarization(n, store);
     // update center of mass
     ComputeCoM(n);
-    // get shape
-    ComputeShape(n);
     // update patch boundaries
     UpdatePatch(n);
 
-    // reinit for next round
     com_x[n] = com_y[n] = area[n] = 0.;
-    S00[n] = S01[n] = 0.;
   }
 
   // 3) Compute square and sum
