@@ -19,7 +19,7 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
-from math import sqrt, pi, copysign
+from math import sqrt, pi, copysign, atan2
 from matplotlib.colors import LinearSegmentedColormap
 from scipy import ndimage
 from itertools import product
@@ -33,22 +33,89 @@ def get_velocity_field(phases, Qxx, Qxy):
                     sum([ vel[n][1]*phases[n][k] for n in range(len(phases)) ]) ] ]
     return np.array(v)
 
-def get_director(phases, Qxx, Qxy, size):
-    """Compute the tissue nematic field from individual cells"""
-
+def get_Qtensor(phases, Qxx, Qxy, size):
+    """Compute the coarse grained tissue nematic field from individual cells"""
+    # glue all Q-tensors together
     QQxx = np.zeros(phases[0].shape)
     QQxy = np.zeros(phases[0].shape)
     for n in range(len(phases)):
         QQxx += Qxx[n]*phases[n]
         QQxy += Qxy[n]*phases[n]
 
+    # coarse grain
     QQxx = ndimage.filters.uniform_filter(QQxx, size=size, mode='wrap')
     QQxy = ndimage.filters.uniform_filter(QQxy, size=size, mode='wrap')
 
+    return (QQxx, QQxy)
+
+
+def get_director(phases, Qxx, Qxy, size):
+    # get coarse grained Q-tensor
+    (QQxx, QQxy) = get_Qtensor(phases, Qxx, Qxy, size)
+
+    # obtain S, nx, and ny
     S = np.vectorize(sqrt)(QQxy**2 + QQxx**2)
     nx = np.vectorize(sqrt)((1 + QQxx/S)/2)
     ny = np.sign(QQxy)*np.vectorize(sqrt)((1 - QQxx/S)/2)
+
     return S, nx, ny
+
+def get_defects(Q00, Q01):
+    """Returns list of defects with format [ ((xpos,ypos), charge) ]"""
+
+    #def wang(a, b):
+    #    """Infamous chinese function"""
+    #    ang = atan2(abs(a[0]*b[1]-a[1]*b[0]), a[0]*b[0]+a[1]*b[1])
+    #    if ang>pi/2.:
+    #        b = [ -i for i in b ]
+    #    m = abs(a[0]*b[1]-a[1]*b[0])
+    #    return copysign(m, 1.)*atan2(m, a[0]*b[0]+a[1]*b[1])
+
+    #(LX, LY) = Q00.shape
+    #w = np.zeros((LX, LY))
+
+    #for i in range(LX):
+    #    for j in range(LY):
+    #        ax1 = [ Q00[(i+1)%LX,j],   Q01[(i+1)%LX,j]   ]
+    #        ax2 = [ Q00[(i-1)%LX,j],   Q01[(i-1)%LX,j]   ]
+    #        ax3 = [ Q00[i,(j-1)%LY],   Q01[i,(j-1)%LY]   ]
+    #        ax4 = [ Q00[i,(j+1)%LY],   Q01[i,(j+1)%LY]   ]
+    #        ax5 = [ Q00[(i+1)%LX,(j-1)%LY], Q01[(i+1)%LX,(j-1)%LY] ]
+    #        ax6 = [ Q00[(i-1)%LX,(j-1)%LY], Q01[(i-1)%LX,(j-1)%LY] ]
+    #        ax7 = [ Q00[(i+1)%LX,(j+1)%LY], Q01[(i+1)%LX,(j+1)%LY] ]
+    #        ax8 = [ Q00[(i-1)%LX,(j+1)%LY], Q01[(i-1)%LX,(j+1)%LY] ]
+
+    #        w[i,j]  = wang(ax1, ax5)
+    #        w[i,j] += wang(ax5, ax3);
+    #        w[i,j] += wang(ax3, ax6);
+    #        w[i,j] += wang(ax6, ax2);
+    #        w[i,j] += wang(ax2, ax8);
+    #        w[i,j] += wang(ax8, ax4);
+    #        w[i,j] += wang(ax4, ax7);
+    #        w[i,j] += wang(ax7, ax1);
+    #        w[i,j] /= 2.*pi
+    #return w
+
+    #
+    # derivatives
+    #
+    dxQ00 = ndimage.convolve1d(Q00, [-.5, 0, .5], axis=0, mode='wrap')
+    dyQ00 = ndimage.convolve1d(Q00, [-.5, 0, .5], axis=1, mode='wrap')
+    dxQ01 = ndimage.convolve1d(Q01, [-.5, 0, .5], axis=0, mode='wrap')
+    dyQ01 = ndimage.convolve1d(Q01, [-.5, 0, .5], axis=1, mode='wrap')
+
+    S = np.vectorize(sqrt)(Q00**2 + Q01**2)
+
+    # charge array
+    #C = (dxQ00*dyQ01 - dyQ00*dxQ01)/S*8./9./pi
+    C = (dxQ00*dyQ01 - dxQ01*dyQ00 - dxQ01*dyQ01 + dxQ00*dyQ01)/S/4./pi
+    C = ndimage.filters.uniform_filter(C, size=3, mode='wrap')
+
+    chop = lambda x: 0 if abs(x)<1e-6 else x
+    C = np.vectorize(chop)(C)
+
+
+    return C
 
 def phasefields(frame, engine=plt):
     """Plot all phase fields"""
@@ -88,17 +155,37 @@ def com(frame, engine=plt):
     for c in frame.com:
         engine.plot(c[0], c[1], 'ro')
 
-def ellipses(frame, engine=plt):
-    """Plot the shape-ellipses of each cell"""
-    for n in range(frame.nphases):
-        radius = np.sqrt(frame.area[n]/np.pi/(1-frame.S_order[n]**2))
-        print frame.S_order[n], radius
-        omega  = frame.S_angle[n]
-        p = frame.phi[n].reshape(frame.parameters['Size'])
-        c = frame.com[n]
-        an = np.linspace(-omega, 2*np.pi-omega, 100)
-        engine.plot(c[0] + radius*(1+10*frame.S_order[n])*np.cos(an),
-                    c[1] + radius*(1-10*frame.S_order[n])*np.sin(an))
+def shape(frame, engine=plt):
+    """Print shape tensor of each cell"""
+    for i in range(frame.nphases):
+        Q00 = frame.S00[i]
+        Q01 = frame.S01[i]
+        S = sqrt(Q00**2 + Q01**2)
+        nx = sqrt((1 + Q00/S)/2)
+        ny = copysign(1, Q01)*sqrt((1 - Q00/S)/2)
+        c = frame.com[i]
+        a = S
+        engine.arrow(c[0], c[1],  a*nx,  a*ny, color='k')
+        engine.arrow(c[0], c[1], -a*nx, -a*ny, color='k')
+
+def director(frame, Q00, Q01, size=15, avg=1, scale=False, engine=plt):
+    """Plot director field associated with nematic tensor with components Q00, Q01"""
+    S, nx, ny = get_director(frame.phi, Q00, Q01, size)
+    S  = ndimage.generic_filter(S , np.mean, size=avg)
+    nx = ndimage.generic_filter(nx, np.mean, size=avg)
+    ny = ndimage.generic_filter(ny, np.mean, size=avg)
+    x = []
+    y = []
+    for i, j in product(np.arange(frame.parameters['Size'][0], step=avg),
+                        np.arange(frame.parameters['Size'][1], step=avg)):
+        f = avg*(S[i,j] if scale else 1.)
+        x.append(i + .5 - f*nx[i,j]/2.)
+        x.append(i + .5 + f*nx[i,j]/2.)
+        x.append(None)
+        y.append(j + .5 - f*ny[i,j]/2.)
+        y.append(j + .5 + f*ny[i,j]/2.)
+        y.append(None)
+    engine.plot(x, y, color='k', linestyle='-', linewidth=1)
 
 def velc(frame, engine=plt):
     """Print contractile part of the velocity"""
@@ -171,33 +258,13 @@ def phase(frame, n, engine=plt):
                         )
     cbar = plt.colorbar(cax)
 
-def nematicfield(frame, size=15, avg=1, scale=False, engine=plt):
-    """Plot the director field"""
-    S, nx, ny = get_director(frame.phi, frame.Q00, frame.Q01, size)
-    S  = ndimage.generic_filter(S , np.mean, size=avg)
-    nx = ndimage.generic_filter(nx, np.mean, size=avg)
-    ny = ndimage.generic_filter(ny, np.mean, size=avg)
-    x = []
-    y = []
-    for i, j in product(np.arange(frame.parameters['Size'][0], step=avg),
-                        np.arange(frame.parameters['Size'][1], step=avg)):
-        f = avg*(S[i,j] if scale else 1.)
-        x.append(i + .5 - f*nx[i,j]/2.)
-        x.append(i + .5 + f*nx[i,j]/2.)
-        x.append(None)
-        y.append(j + .5 - f*ny[i,j]/2.)
-        y.append(j + .5 + f*ny[i,j]/2.)
-        y.append(None)
-    engine.plot(x, y, color='k', linestyle='-', linewidth=1)
-
-
 def velocityfield(frame, size=15, engine=plt):
     """Plot the total veloctity field assiciated with the cells"""
     v = get_velocity_field(frame.phi, frame.parameters['alpha']*frame.pol+frame.velp)
     vx = np.array([ i[0] for i in v ])
     vy = np.array([ i[1] for i in v ])
-    vx = ndimage.filters.uniform_filter(vx, size=size, mode='constant')
-    vy = ndimage.filters.uniform_filter(vy, size=size, mode='constant')
+    vx = ndimage.filters.uniform_filter(vx, size=size, mode='wrap')
+    vy = ndimage.filters.uniform_filter(vy, size=size, mode='wrap')
     cax = engine.quiver(np.arange(0, frame.parameters['Size'][0]),
                         np.arange(0, frame.parameters['Size'][1]),
                         vx.T, vy.T,
