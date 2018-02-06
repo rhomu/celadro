@@ -19,10 +19,11 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
-from math import sqrt, pi, copysign, atan2
+from math import sqrt, pi, atan2
 from matplotlib.colors import LinearSegmentedColormap
 from scipy import ndimage
 from itertools import product
+from Queue import Queue
 
 def get_velocity_field(phases, Qxx, Qxy):
     """Compute the collective velocity field from a collection of phase-fields
@@ -60,62 +61,99 @@ def get_director(phases, Qxx, Qxy, size):
 
     return S, nx, ny
 
-def get_defects(Q00, Q01):
-    """Returns list of defects with format [ ((xpos,ypos), charge) ]"""
+def charge_array(Q00, Q01):
+    """Compute the charge array associated with a Q-tensor field. The defects
+    show up as small regions of non-zero charge (typically 2x2)."""
 
-    #def wang(a, b):
-    #    """Infamous chinese function"""
-    #    ang = atan2(abs(a[0]*b[1]-a[1]*b[0]), a[0]*b[0]+a[1]*b[1])
-    #    if ang>pi/2.:
-    #        b = [ -i for i in b ]
-    #    m = abs(a[0]*b[1]-a[1]*b[0])
-    #    return copysign(m, 1.)*atan2(m, a[0]*b[0]+a[1]*b[1])
+    # compute angle
+    def wang(a, b):
+        """Infamous chinese function"""
+        ang = atan2(abs(a[0]*b[1]-a[1]*b[0]), a[0]*b[0]+a[1]*b[1])
+        if ang>pi/2.:
+            b = [ -i for i in b ]
+        m = a[0]*b[1]-a[1]*b[0]
+        return -np.sign(m)*atan2(abs(m), a[0]*b[0]+a[1]*b[1])
 
-    #(LX, LY) = Q00.shape
-    #w = np.zeros((LX, LY))
+    # get shape and init charge array
+    (LX, LY) = Q00.shape
+    w = np.zeros((LX, LY))
 
-    #for i in range(LX):
-    #    for j in range(LY):
-    #        ax1 = [ Q00[(i+1)%LX,j],   Q01[(i+1)%LX,j]   ]
-    #        ax2 = [ Q00[(i-1)%LX,j],   Q01[(i-1)%LX,j]   ]
-    #        ax3 = [ Q00[i,(j-1)%LY],   Q01[i,(j-1)%LY]   ]
-    #        ax4 = [ Q00[i,(j+1)%LY],   Q01[i,(j+1)%LY]   ]
-    #        ax5 = [ Q00[(i+1)%LX,(j-1)%LY], Q01[(i+1)%LX,(j-1)%LY] ]
-    #        ax6 = [ Q00[(i-1)%LX,(j-1)%LY], Q01[(i-1)%LX,(j-1)%LY] ]
-    #        ax7 = [ Q00[(i+1)%LX,(j+1)%LY], Q01[(i+1)%LX,(j+1)%LY] ]
-    #        ax8 = [ Q00[(i-1)%LX,(j+1)%LY], Q01[(i-1)%LX,(j+1)%LY] ]
+    # we use the director field instead of Q
+    S  = np.vectorize(sqrt)(Q00**2 + Q01**2)
+    nx = np.vectorize(sqrt)((1 + Q00/S)/2)
+    ny = np.sign(Q01)*np.vectorize(sqrt)((1 - Q00/S)/2)
 
-    #        w[i,j]  = wang(ax1, ax5)
-    #        w[i,j] += wang(ax5, ax3);
-    #        w[i,j] += wang(ax3, ax6);
-    #        w[i,j] += wang(ax6, ax2);
-    #        w[i,j] += wang(ax2, ax8);
-    #        w[i,j] += wang(ax8, ax4);
-    #        w[i,j] += wang(ax4, ax7);
-    #        w[i,j] += wang(ax7, ax1);
-    #        w[i,j] /= 2.*pi
-    #return w
+    # This mysterious part was stolen from Amin's code.
+    for i in range(LX):
+        for j in range(LY):
+            ax1 = [ nx[(i+1)%LX,j],              ny[(i+1)%LX,j]              ]
+            ax2 = [ nx[(i-1+LX)%LX,j],           ny[(i-1+LX)%LX,j]           ]
+            ax3 = [ nx[i,(j-1+LY)%LY],           ny[i,(j-1+LY)%LY]           ]
+            ax4 = [ nx[i,(j+1)%LY],              ny[i,(j+1)%LY]              ]
+            ax5 = [ nx[(i+1)%LX,(j-1+LY)%LY],    ny[(i+1)%LX,(j-1+LY)%LY]    ]
+            ax6 = [ nx[(i-1+LX)%LX,(j-1+LY)%LY], ny[(i-1+LX)%LX,(j-1+LY)%LY] ]
+            ax7 = [ nx[(i+1)%LX,(j+1)%LY],       ny[(i+1)%LX,(j+1)%LY]       ]
+            ax8 = [ nx[(i-1+LX)%LX,(j+1)%LY],    ny[(i-1+LX)%LX,(j+1)%LY]    ]
 
-    #
-    # derivatives
-    #
-    dxQ00 = ndimage.convolve1d(Q00, [-.5, 0, .5], axis=0, mode='wrap')
-    dyQ00 = ndimage.convolve1d(Q00, [-.5, 0, .5], axis=1, mode='wrap')
-    dxQ01 = ndimage.convolve1d(Q01, [-.5, 0, .5], axis=0, mode='wrap')
-    dyQ01 = ndimage.convolve1d(Q01, [-.5, 0, .5], axis=1, mode='wrap')
+            w[i,j]  = wang(ax1, ax5)
+            w[i,j] += wang(ax5, ax3);
+            w[i,j] += wang(ax3, ax6);
+            w[i,j] += wang(ax6, ax2);
+            w[i,j] += wang(ax2, ax8);
+            w[i,j] += wang(ax8, ax4);
+            w[i,j] += wang(ax4, ax7);
+            w[i,j] += wang(ax7, ax1);
+            w[i,j] /= 2.*pi
 
-    S = np.vectorize(sqrt)(Q00**2 + Q01**2)
+    return w
 
-    # charge array
-    #C = (dxQ00*dyQ01 - dyQ00*dxQ01)/S*8./9./pi
-    C = (dxQ00*dyQ01 - dxQ01*dyQ00 - dxQ01*dyQ01 + dxQ00*dyQ01)/S/4./pi
-    C = ndimage.filters.uniform_filter(C, size=3, mode='wrap')
+def get_defects(w):
+    """Returns list of defects from charge array.
 
-    chop = lambda x: 0 if abs(x)<1e-6 else x
-    C = np.vectorize(chop)(C)
+    Input:
+        w   charge array
+    Ouptut:
+        list of the form [ [ (x, y), charge] ]
+    """
 
+    # defects show up as 2x2 regions in the charge array w and must be
+    # collapsed to a single point by taking the average position of neighbouring
+    # points with the same charge (by breath first search).
 
-    return C
+    # bfs recursive function
+    def collapse(i, j, s, x=0, y=0, n=0):
+        if s*w[i,j]>.4:
+            x += i + 1.5
+            y += j + 1.5
+            n += 1
+            w[i,j] = 0
+            collapse((i+1)%LX, j, s, x, y, n)
+            collapse((i-1+LX)%LX, j, s, x, y, n)
+            collapse(i, (j+1)%LY, s, x, y, n)
+            collapse(i, (j-1+LY)%LY, s, x, y, n)
+        return x/n, y/n
+
+    (LX, LY) = w.shape
+    d = []
+
+    for i in range(LX):
+        for j in range(LY):
+            if abs(w[i,j])>0.4:
+                # charge sign
+                s = np.sign(w[i,j])
+                # bfs
+                x, y = collapse(i, j, s)
+                # add defect to list
+                d.append([ [x, y], .5*s ])
+
+    return d
+
+def defects(Q00, Q01, engine=plt):
+    """Plot single defects of the nematic field Q"""
+    w = charge_array(Q00, Q01)
+    defects = get_defects(w)
+    for d in defects:
+        engine.plot(d[0][0], d[0][1], 'ro' if d[1]==0.5 else 'b^')
 
 def phasefields(frame, engine=plt):
     """Plot all phase fields"""
@@ -163,7 +201,7 @@ def shape(frame, engine=plt):
         Q01 = frame.S01[i]
         S = sqrt(Q00**2 + Q01**2)
         nx = sqrt((1 + Q00/S)/2)
-        ny = copysign(1, Q01)*sqrt((1 - Q00/S)/2)
+        ny = np.sign(Q01)*sqrt((1 - Q00/S)/2)
         c = frame.com[i]
         a = S
         engine.arrow(c[0], c[1],  a*nx,  a*ny, color='k')
@@ -216,7 +254,7 @@ def nematic(frame, engine=plt):
         Q01 = frame.Q01[i]
         S = sqrt(Q00**2 + Q01**2)
         nx = sqrt((1 + Q00/S)/2)
-        ny = copysign(1, Q01)*sqrt((1 - Q00/S)/2)
+        ny = np.sign(Q01)*sqrt((1 - Q00/S)/2)
         c = frame.com[i]
         a = frame.parameters['R'][i]/2.5*S
         #print S
