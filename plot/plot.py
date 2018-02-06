@@ -49,18 +49,6 @@ def get_Qtensor(phases, Qxx, Qxy, size):
 
     return (QQxx, QQxy)
 
-
-def get_director(phases, Qxx, Qxy, size):
-    # get coarse grained Q-tensor
-    (QQxx, QQxy) = get_Qtensor(phases, Qxx, Qxy, size)
-
-    # obtain S, nx, and ny
-    S = np.vectorize(sqrt)(QQxy**2 + QQxx**2)
-    nx = np.vectorize(sqrt)((1 + QQxx/S)/2)
-    ny = np.sign(QQxy)*np.vectorize(sqrt)((1 - QQxx/S)/2)
-
-    return S, nx, ny
-
 def charge_array(Q00, Q01):
     """Compute the charge array associated with a Q-tensor field. The defects
     show up as small regions of non-zero charge (typically 2x2)."""
@@ -206,16 +194,26 @@ def shape(frame, engine=plt):
         engine.arrow(c[0], c[1],  a*nx,  a*ny, color='k')
         engine.arrow(c[0], c[1], -a*nx, -a*ny, color='k')
 
-def director(frame, Q00, Q01, size=15, avg=1, scale=False, engine=plt):
+def director(Qxx, Qxy, avg=1, scale=False, engine=plt):
     """Plot director field associated with nematic tensor with components Q00, Q01"""
-    S, nx, ny = get_director(frame.phi, Q00, Q01, size)
+
+    # obtain S, nx, and ny
+    S  = np.vectorize(sqrt)(QQxy**2 + QQxx**2)
+    nx = np.vectorize(sqrt)((1 + QQxx/S)/2)
+    ny = np.sign(QQxy)*np.vectorize(sqrt)((1 - QQxx/S)/2)
+
+    # coarse grain
     S  = ndimage.generic_filter(S , np.mean, size=avg)
     nx = ndimage.generic_filter(nx, np.mean, size=avg)
     ny = ndimage.generic_filter(ny, np.mean, size=avg)
+
+    (LX, LY) = S.shape
+
+    # construct nematic lines
     x = []
     y = []
-    for i, j in product(np.arange(frame.parameters['Size'][0], step=avg),
-                        np.arange(frame.parameters['Size'][1], step=avg)):
+    for i, j in product(np.arange(LX, step=avg),
+                        np.arange(LY, step=avg)):
         f = avg*(S[i,j] if scale else 1.)
         x.append(i + .5 - f*nx[i,j]/2.)
         x.append(i + .5 + f*nx[i,j]/2.)
@@ -223,7 +221,28 @@ def director(frame, Q00, Q01, size=15, avg=1, scale=False, engine=plt):
         y.append(j + .5 - f*ny[i,j]/2.)
         y.append(j + .5 + f*ny[i,j]/2.)
         y.append(None)
+
     engine.plot(x, y, color='k', linestyle='-', linewidth=1)
+
+def nematicfield(frame, size=1, avg=1, show_def=False, engine=plt):
+    """Plot nematic field associated with the internal degree of freedom"""
+
+    # get field
+    (Qxx, Qxy) = get_Qtensor(frame.phi, frame.Q00, frame.Q01, size=size)
+    # plot
+    director(Qxx, Qxy, avg=avg, engine=engine)
+    # defects
+    if show_def: defects(Qxx, Qxy, engine)
+
+def shapefield(frame, size=1, avg=1, show_def=False, engine=plt):
+    """Plot nematic field associated with the shape of each cell"""
+
+    # get field
+    (Qxx, Qxy) = get_Qtensor(frame.phi, frame.S00, frame.S01, size=size)
+    # plot
+    director(Qxx, Qxy, avg=avg, engine=engine)
+    # defects
+    if show_def: defects(Qxx, Qxy, engine)
 
 def velc(frame, engine=plt):
     """Print contractile part of the velocity"""
