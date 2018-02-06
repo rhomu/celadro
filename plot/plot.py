@@ -198,9 +198,9 @@ def director(Qxx, Qxy, avg=1, scale=False, engine=plt):
     """Plot director field associated with nematic tensor with components Q00, Q01"""
 
     # obtain S, nx, and ny
-    S  = np.vectorize(sqrt)(QQxy**2 + QQxx**2)
-    nx = np.vectorize(sqrt)((1 + QQxx/S)/2)
-    ny = np.sign(QQxy)*np.vectorize(sqrt)((1 - QQxx/S)/2)
+    S  = np.vectorize(sqrt)(Qxy**2 + Qxx**2)
+    nx = np.vectorize(sqrt)((1 + Qxx/S)/2)
+    ny = np.sign(Qxy)*np.vectorize(sqrt)((1 - Qxx/S)/2)
 
     # coarse grain
     S  = ndimage.generic_filter(S , np.mean, size=avg)
