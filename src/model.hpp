@@ -73,8 +73,6 @@ struct Model
   std::vector<double> square, square_cnt;
   /** Phase-field for the walls */
   std::vector<double> walls, walls_dx, walls_dy, walls_laplace;
-  /** Cell polarity */
-  std::vector<vec<double, 2>> pol;
   /** Passive velocities */
   std::vector<vec<double, 2>> velp;
   /** Contraction velocities */
@@ -235,8 +233,6 @@ struct Model
   double omega;
   /** Prefered radii (area = pi*R*R) and radius growth */
   std::vector<double> R, dR;
-  /** Migration speed */
-  double alpha;
   /** Coupling between area and contractility */
   double beta;
   /** Nematic parameters */
@@ -278,7 +274,6 @@ struct Model
        & auto_name(mu)
        & auto_name(lambda)
        & auto_name(kappa)
-       & auto_name(alpha)
        & auto_name(R)
        & auto_name(xi)
        & auto_name(omega)
@@ -421,7 +416,7 @@ struct Model
          *d_walls_laplace, *d_walls_dx, *d_walls_dy, *d_sum_cnt, *d_square_cnt,
          *d_Q00_cnt, *d_Q01_cnt, *d_area, *d_area_cnt, *d_c, *d_S00, *d_S01, *d_S_order,
          *d_S_angle, *d_theta, *d_gam, *d_mu;
-  vec<double, 2>  *d_pol, *d_vel, *d_velp, *d_velc, *d_velf, *d_com, *d_com_prev;
+  vec<double, 2>  *d_vel, *d_velp, *d_velc, *d_velf, *d_com, *d_com_prev;
   stencil         *d_neighbors, *d_neighbors_patch;
   coord           *d_patch_min, *d_patch_max, *d_offset;
   cuDoubleComplex *d_com_x, *d_com_y, *d_com_x_table, *d_com_y_table;

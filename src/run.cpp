@@ -29,7 +29,6 @@ void Model::Pre()
   {
     double save_zeta = 0.; swap(zeta, save_zeta);
     double save_beta = 0.; swap(beta, save_beta);
-    double save_alpha = 0.; swap(alpha, save_alpha);
 
     if(relax_nsubsteps) swap(nsubsteps, relax_nsubsteps);
 
@@ -40,7 +39,6 @@ void Model::Pre()
 
     swap(zeta, save_zeta);
     swap(beta, save_beta);
-    swap(alpha, save_alpha);
   }
 }
 
@@ -161,8 +159,8 @@ void Model::UpdateAtNode(unsigned n, unsigned q, bool store)
         - 2.*gam[n]*ll
       )
       // advection term
-      - (alpha*pol[n][0]+velp[n][0]+velc[n][0]+velf[n][0])*dx/xi
-      - (alpha*pol[n][1]+velp[n][1]+velc[n][1]+velf[n][1])*dy/xi
+      - (velp[n][0]+velc[n][0]+velf[n][0])*dx/xi
+      - (velp[n][1]+velc[n][1]+velf[n][1])*dy/xi
       );
   }
 

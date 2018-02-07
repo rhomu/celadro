@@ -19,22 +19,29 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
-from math import sqrt, pi, atan2
+from math import sqrt, pi, atan2, floor
 from matplotlib.colors import LinearSegmentedColormap
 from scipy import ndimage
 from itertools import product
 from Queue import Queue
 
-def get_velocity_field(phases, Qxx, Qxy):
-    """Compute the collective velocity field from a collection of phase-fields
-     and their velocities"""
-    v = []
-    for k in range(len(phases[0])):
-        v = v + [ [ sum([ vel[n][0]*phases[n][k] for n in range(len(phases)) ]),
-                    sum([ vel[n][1]*phases[n][k] for n in range(len(phases)) ]) ] ]
-    return np.array(v)
+def get_velocity_field(phases, vel, size=1):
+    """Compute the coarse grained collective velocity field from a collection
+    of phase-fields and their velocities"""
+    # glue all velocities together
+    vx = np.zeros(phases[0].shape)
+    vy = np.zeros(phases[0].shape)
+    for n in range(len(phases)):
+        vx += vel[n][0]*phases[n]
+        vy += vel[n][1]*phases[n]
 
-def get_Qtensor(phases, Qxx, Qxy, size):
+    # coarse grain
+    vx = ndimage.filters.uniform_filter(vx, size=size, mode='wrap')
+    vy = ndimage.filters.uniform_filter(vy, size=size, mode='wrap')
+
+    return vx, vy
+
+def get_Qtensor(phases, Qxx, Qxy, size=1):
     """Compute the coarse grained tissue nematic field from individual cells"""
     # glue all Q-tensors together
     QQxx = np.zeros(phases[0].shape)
@@ -47,7 +54,29 @@ def get_Qtensor(phases, Qxx, Qxy, size):
     QQxx = ndimage.filters.uniform_filter(QQxx, size=size, mode='wrap')
     QQxy = ndimage.filters.uniform_filter(QQxy, size=size, mode='wrap')
 
-    return (QQxx, QQxy)
+    return QQxx, QQxy
+
+def get_vorticity_field(ux, uy):
+    """Compute vorticity from velocity field"""
+    dyux = np.gradient(ux, axis=1)
+    dxuy = np.gradient(uy, axis=0)
+    return dxuy - dyux
+
+def get_corr(u):
+    """Compute the correlation of a real two dimensional field"""
+    # get 2d correlations
+    c = np.fft.rfft2(u)
+    c = np.fft.irfft2(np.multiply(c, np.conj(c)))
+    # go to polar coords
+    r = np.empty(c.size)
+    w = np.empty(c.size)
+    k = 0
+    for (i, j), v in np.ndenumerate(c):
+        r[k] = sqrt(i**2 + j**2)
+        w[k] = v
+        k += 1
+    h, b = np.histogram(r, bins=range(int(sqrt(c.size)/2)), weights=w)
+    return h
 
 def charge_array(Q00, Q01):
     """Compute the charge array associated with a Q-tensor field. The defects
@@ -143,8 +172,8 @@ def defects(Q00, Q01, engine=plt):
     for d in defects:
         engine.plot(d[0][0], d[0][1], 'ro' if d[1]==0.5 else 'b^')
 
-def phasefields(frame, engine=plt):
-    """Plot all phase fields"""
+def cells(frame, engine=plt):
+    """Plot all phase fields defining the cells contours"""
     for p in frame.phi:
         engine.contour(np.arange(0, frame.parameters['Size'][0]),
                        np.arange(0, frame.parameters['Size'][1]),
@@ -154,18 +183,7 @@ def phasefields(frame, engine=plt):
                        #color='mediumblue'
                        colors='k')
 
-def interfaces(frame, engine=plt):
-    """Plot the interfaces density"""
-    totphi = np.zeros(frame.parameters['Size'])
-    for i in range(len(frame.phi)):
-        totphi += frame.phi[i]*frame.parameters['walls']
-        for j in range(i+1, len(frame.phi)):
-            totphi += frame.phi[i]*frame.phi[j]
-
-    cmap = LinearSegmentedColormap.from_list('mycmap', ['grey', 'white'])
-    engine.imshow(totphi.T, interpolation='lanczos', cmap=cmap, origin='lower')
-
-def solidarea(frame, engine=plt):
+def solid_area(frame, engine=plt):
     """Plot all phase fields with solid colours corresponding to individual areas"""
     for i in range(len(frame.phi)):
         engine.contourf(np.arange(0, frame.parameters['Size'][0]),
@@ -177,12 +195,13 @@ def solidarea(frame, engine=plt):
                         #colors=str(frame.area[i]/(np.pi*frame.parameters['R']**2)))
 
 def com(frame, engine=plt):
-    """Plot the center-of-mass of each cell"""
+    """Plot the center-of-mass of each cell as a red dot"""
     for c in frame.com:
         engine.plot(c[0], c[1], 'ro')
 
 def shape(frame, engine=plt):
-    """Print shape tensor of each cell"""
+    """Print shape tensor of each cell as a nematic vector"""
+
     for i in range(frame.nphases):
         Q00 = frame.S00[i]
         Q01 = frame.S01[i]
@@ -224,7 +243,7 @@ def director(Qxx, Qxy, avg=1, scale=False, engine=plt):
 
     engine.plot(x, y, color='k', linestyle='-', linewidth=1)
 
-def nematicfield(frame, size=1, avg=1, show_def=False, engine=plt):
+def nematic_field(frame, size=1, avg=1, show_def=False, engine=plt):
     """Plot nematic field associated with the internal degree of freedom"""
 
     # get field
@@ -234,7 +253,7 @@ def nematicfield(frame, size=1, avg=1, show_def=False, engine=plt):
     # defects
     if show_def: defects(Qxx, Qxy, engine)
 
-def shapefield(frame, size=1, avg=1, show_def=False, engine=plt):
+def shape_field(frame, size=1, avg=1, show_def=False, engine=plt):
     """Plot nematic field associated with the shape of each cell"""
 
     # get field
@@ -265,6 +284,25 @@ def velp(frame, engine=plt):
         a = frame.parameters['ninfo']*frame.parameters['nsubsteps']
         engine.arrow(c[0], c[1], a*v[0], a*v[1], color='b')
 
+def velf(frame, engine=plt):
+    """Print active part of the velocity"""
+    for i in range(frame.nphases):
+        p = frame.phi[i].reshape(frame.parameters['Size'])
+        c = frame.com[i]
+        v = frame.velf[i]
+        # correction factor
+        a = frame.parameters['ninfo']*frame.parameters['nsubsteps']
+        engine.arrow(c[0], c[1], a*v[0], a*v[1], color='brown')
+
+def vel(frame, engine=plt):
+    """Print active part of the velocity"""
+    for i in range(frame.nphases):
+        p = frame.phi[i].reshape(frame.parameters['Size'])
+        c = frame.com[i]
+        v = frame.vel
+        a = frame.parameters['ninfo']*frame.parameters['nsubsteps']
+        engine.arrow(c[0], c[1], a*v[0], a*v[1], color='k', head_width=1, zorder=10)
+
 def nematic(frame, engine=plt):
     """Print director of each cell"""
     for i in range(frame.nphases):
@@ -279,35 +317,6 @@ def nematic(frame, engine=plt):
         engine.arrow(c[0], c[1],  a*nx,  a*ny, color='k')
         engine.arrow(c[0], c[1], -a*nx, -a*ny, color='k')
 
-def velf(frame, engine=plt):
-    """Print active part of the velocity"""
-    for i in range(frame.nphases):
-        p = frame.phi[i].reshape(frame.parameters['Size'])
-        c = frame.com[i]
-        v = frame.velf[i]
-        # correction factor
-        a = frame.parameters['ninfo']*frame.parameters['nsubsteps']
-        engine.arrow(c[0], c[1], a*v[0], a*v[1], color='brown')
-
-def vela(frame, engine=plt):
-    """Print active part of the velocity"""
-    for i in range(frame.nphases):
-        p = frame.phi[i].reshape(frame.parameters['Size'])
-        c = frame.com[i]
-        v = frame.pol[i]
-        a = frame.parameters['alpha']/frame.parameters['xi']*frame.parameters['ninfo']*frame.parameters['nsubsteps']
-        engine.arrow(c[0], c[1], a*v[0], a*v[1], color='r')
-
-def vel(frame, engine=plt):
-    """Print active part of the velocity"""
-    for i in range(frame.nphases):
-        p = frame.phi[i].reshape(frame.parameters['Size'])
-        c = frame.com[i]
-        v = frame.vela[i] + frame.veli[i] + frame.velf[i] + frame.velc[i]
-        a = frame.parameters['ninfo']*frame.parameters['nsubsteps']
-        engine.arrow(c[0], c[1], a*v[0], a*v[1], color='k', head_width=1, zorder=10)
-
-
 def phase(frame, n, engine=plt):
     """Plot single phase as a density plot"""
     cax = engine.imshow(frame.phi[n].T, interpolation='lanczos', cmap='Greys', origin='lower'
@@ -315,17 +324,24 @@ def phase(frame, n, engine=plt):
                         )
     cbar = plt.colorbar(cax)
 
-def velocityfield(frame, size=15, engine=plt):
+def velocity_field(frame, size=15, engine=plt, magn=True):
     """Plot the total veloctity field assiciated with the cells"""
-    v = get_velocity_field(frame.phi, frame.parameters['alpha']*frame.pol+frame.velp)
-    vx = np.array([ i[0] for i in v ])
-    vy = np.array([ i[1] for i in v ])
-    vx = ndimage.filters.uniform_filter(vx, size=size, mode='wrap')
-    vy = ndimage.filters.uniform_filter(vy, size=size, mode='wrap')
+    vx, vy = get_velocity_field(frame.phi, frame.velp + frame.velc + frame.velf, size)
     cax = engine.quiver(np.arange(0, frame.parameters['Size'][0]),
                         np.arange(0, frame.parameters['Size'][1]),
                         vx.T, vy.T,
                         pivot='tail', units='dots', scale_units='dots')
+    if magn:
+        m = np.sqrt(vx**2 + vy**2)
+        cax = engine.imshow(m.T, interpolation='lanczos', cmap='plasma', origin='lower')
+        plt.colorbar(cax)
+
+def vorticity_field(frame, size=15, engine=plt, cbar=True):
+    """Plot the total veloctity field assiciated with the cells"""
+    vx, vy = get_velocity_field(frame.phi, frame.velp + frame.velc + frame.velf, size)
+    w = get_vorticity_field(vx, vy)
+    cax = engine.imshow(w.T, interpolation='lanczos', cmap='viridis', origin='lower')
+    if cbar: plt.colorbar(cax)
 
 def walls(frame, engine=plt):
     """Plot the wall phase-field"""

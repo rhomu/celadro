@@ -95,8 +95,6 @@ void Model::ParseProgramOptions(int ac, char **av)
       "Interface thickness parameter")
     ("kappa", opt::value<double>(&kappa),
       "Interaction strength")
-    ("alpha", opt::value<double>(&alpha),
-      "Migration alpha (passive)")
     ("beta", opt::value<double>(&beta),
       "..........")
     ("npc", opt::value<unsigned>(&npc)->default_value(1u),

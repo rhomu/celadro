@@ -81,7 +81,6 @@ void Model::Initialize()
   Q01.resize(nphases, 0.);
   Q00_old.resize(nphases, 0.);
   Q01_old.resize(nphases, 0.);
-  pol.resize(nphases, {0., 0.});
   velp.resize(nphases, {0., 0.});
   velc.resize(nphases, {0., 0.});
   velf.resize(nphases, {0., 0.});
@@ -111,9 +110,6 @@ void Model::Initialize()
   // check parameters
   for(unsigned n=0; n<nphases; ++n)
     if(margin<R[n]) throw error_msg("Margin is too small, make it bigger than R.");
-
-  if(alpha/nsubsteps>=.5)
-    throw error_msg("Cell speed is too high with respect to the step size.");
 
   // check birth boundaries
   if(birth_bdries.size()==0)
@@ -189,7 +185,6 @@ void Model::SwapCells(unsigned n, unsigned m)
   swap(patch_max[n], patch_max[m]);
   swap(com[n], com[m]);
   swap(com_prev[n], com_prev[m]);
-  swap(pol[n], pol[m]);
   swap(velp[n], velp[m]);
   swap(velc[n], velc[m]);
   swap(velf[n], velf[m]);
