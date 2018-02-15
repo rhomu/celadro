@@ -42,10 +42,8 @@ if len(sys.argv)==3:
 # plot simple animation of phases
 
 def myplot(frame, engine):
-    plot.cells(frame, engine)
-    #plot.com(frame, engine)
-    #plot.patch(frame, 0, engine)
-    plot.nematic(frame)
+    plot.velocityfield(frame, engine=engine)
+    plot.domain(frame, 0, engine=engine)
     engine.axes.set_aspect('equal', adjustable='box')
     engine.set_xlim([0, frame.parameters['Size'][0]-1])
     engine.set_ylim([0, frame.parameters['Size'][1]-1])

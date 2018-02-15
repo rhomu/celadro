@@ -21,7 +21,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from math import sqrt, pi, atan2, floor
 from matplotlib.colors import LinearSegmentedColormap
-from scipy import ndimage
+from scipy import ndimage, signal
 from itertools import product
 from Queue import Queue
 
@@ -63,20 +63,47 @@ def get_vorticity_field(ux, uy):
     return dxuy - dyux
 
 def get_corr(u):
-    """Compute the correlation of a real two dimensional field"""
+    """Compute the correlation of a real two dimensional scalar field"""
     # get 2d correlations
     c = np.fft.rfft2(u)
     c = np.fft.irfft2(np.multiply(c, np.conj(c)))
     # go to polar coords
-    r = np.empty(c.size)
-    w = np.empty(c.size)
+    s = int(sqrt(c.size)/2)
+    r = np.zeros(s)
+    n = np.zeros(s)
     k = 0
     for (i, j), v in np.ndenumerate(c):
-        r[k] = sqrt(i**2 + j**2)
-        w[k] = v
-        k += 1
-    h, b = np.histogram(r, bins=range(int(sqrt(c.size)/2)), weights=w)
-    return h
+        k = int(sqrt(i**2 + j**2))
+        if k>=s:
+            continue
+        r[k] += v
+        n[k] += 1
+    r = np.divide(r, n)
+    r /= r[0]
+    return r
+
+def get_corr2(ux, uy):
+    """Compute the correlation of a real two dimensional vector field"""
+    # get 2d correlations
+    cx = np.fft.rfft2(ux)
+    cx = np.fft.irfft2(np.multiply(cx, np.conj(cx)))
+    cy = np.fft.rfft2(uy)
+    cy = np.fft.irfft2(np.multiply(cy, np.conj(cy)))
+    c  = cx + cy
+    # go to polar coords
+    s = int(sqrt(c.size)/2)
+    r = np.zeros(s)
+    n = np.zeros(s)
+    k = 0
+    for (i, j), v in np.ndenumerate(c):
+        k = int(sqrt(i**2 + j**2))
+        if k>=s:
+            continue
+        r[k] += v
+        n[k] += 1
+    r = np.divide(r, n)
+    r /= r[0]
+    return r
 
 def charge_array(Q00, Q01):
     """Compute the charge array associated with a Q-tensor field. The defects
@@ -161,16 +188,88 @@ def get_defects(w):
                 # bfs
                 x, y = collapse(i, j, s)
                 # add defect to list
-                d.append([ [x, y], .5*s ])
+                d.append({ "pos": np.array([x, y]), "charge": .5*s })
 
     return d
+
+class defect_tracker:
+    """Defect tracker
+
+    Honestly this is not good code... if you are reading this I feel for you!
+    """
+
+    def __init__(self, max_dst = 5):
+        # all defects in id order
+        self.defects = []
+        # list of id of active defects by charge
+        self.active  = {}
+        # cutoff distance for matching
+        self.max_dst = max_dst
+
+    # wrapping distance on pbc domain (ugly)
+    def norm(self, v1, v2, LX, LY):
+        return min(
+                [ np.linalg.norm(v1-v2+[x*LX, y*LY])
+                  for x, y in product([-1, 0, 1], [-1, 0, 1]) ]
+                )
+
+    def add_frame(self, Q00, Q01, t):
+        """Add a new frame and detect defects"""
+        # get dimension of pbc domain
+        (LX, LY) = Q00.shape
+        # get defects from new frame
+        w       = charge_array(Q00, Q01)
+        defects = get_defects(w)
+        # new list of active defects
+        active  = {}
+        # compare with old ones
+        for new in defects:
+            # distance from all active defects with same charge
+            dist = [ self.norm(new["pos"], self.defects[i]["pos"][-1], LX, LY)
+                     for i in self.active.get(new['charge'], []) ]
+            if len(dist)!=0:
+                # find minimum and index
+                v, i = min((v, i) for (i, v) in enumerate(dist))
+                # if min dist is smaller than cutoff then we have found our defect
+                if v < self.max_dst:
+                    # add position to stored defect
+                    self.defects[self.active[new['charge']][i]]['pos'].append(new['pos'])
+                    # register it as active for next round
+                    active[new['charge']] = active.get(new['charge'], []) + [
+                            self.active[new['charge']][i] ]
+                    # delete from current list
+                    del self.active[new['charge']][i]
+                    continue
+
+            # we have found a new defect
+            self.defects.append({
+                'charge': new['charge'],
+                'birth': t,
+                'pos': [ new['pos'] ]
+                })
+            # register it as active for next round
+            active[new['charge']] = active.get(new['charge'], []) + [ len(self.defects)-1 ]
+
+        # save list of acive defects for next run (all the remaining defects are inactive)
+        self.active = active
+
+    def plot(self, engine=plt):
+        # get all active defects with a certain charge
+        for chg, dft in self.active.iteritems():
+            # get all indices of these defects
+            for ind in dft:
+                p = self.defects[ind]['pos'][-1]
+                engine.plot(p[0], p[1],
+                            'b' if chg==0.5 else 'g',
+                            marker=r"$ {} $".format(ind),
+                            markersize=15)
 
 def defects(Q00, Q01, engine=plt):
     """Plot single defects of the nematic field Q"""
     w = charge_array(Q00, Q01)
     defects = get_defects(w)
     for d in defects:
-        engine.plot(d[0][0], d[0][1], 'ro' if d[1]==0.5 else 'b^')
+        engine.plot(d["pos"][0], d["pos"][1], 'bo' if d["charge"]==0.5 else 'g^')
 
 def cells(frame, engine=plt):
     """Plot all phase fields defining the cells contours"""

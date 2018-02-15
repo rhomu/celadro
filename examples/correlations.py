@@ -42,17 +42,16 @@ if len(sys.argv)==3:
 # plot simple animation of phases
 
 def myplot(frame, engine):
-    plot.cells(frame, engine)
-    #plot.com(frame, engine)
-    #plot.patch(frame, 0, engine)
-    plot.nematic(frame)
-    engine.axes.set_aspect('equal', adjustable='box')
-    engine.set_xlim([0, frame.parameters['Size'][0]-1])
-    engine.set_ylim([0, frame.parameters['Size'][1]-1])
-    #engine.axis('off')
+    vx, vy = plot.get_velocity_field(frame.phi, frame.velp + frame.velc + frame.velf, size=24)
+    w      = plot.get_vorticity_field(vx, vy)
+    corr1  = plot.get_corr2(vx, vy)
+    corr2  = plot.get_corr(w)
+    engine.plot(range(len(corr1)), corr1, label='Velocity correlation')
+    engine.plot(range(len(corr2)), corr2, label='Vorticity correlation')
+    engine.legend()
 
 if len(oname)==0:
-    animation.animate(ar, myplot, show=True); exit(0)
+    animation.animate(ar, myplot, rng=[500, 600], show=True); exit(0)
 else:
     an = plot.animation.animate(ar, myplot, show=False)
     animation.save(an, oname+'.mp4', 5)

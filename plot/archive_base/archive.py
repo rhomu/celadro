@@ -105,7 +105,7 @@ class archive(object):
         Parameters:
         frame -- the frame number to be read (0,1,2...)
         """
-        if frame>self.nsteps/self.ninfo:
+        if frame>self._nframes:
             raise ValueError('Frame does not exist.')
         # get the json
         dat = self.extract_and_read('frame' + str(self.nstart+frame*self.ninfo))
