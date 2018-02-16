@@ -423,17 +423,24 @@ def phase(frame, n, engine=plt):
                         )
     cbar = plt.colorbar(cax)
 
-def velocity_field(frame, size=15, engine=plt, magn=True):
+def velocity_field(frame, size=15, engine=plt, magn=True, avg=1):
     """Plot the total veloctity field assiciated with the cells"""
     vx, vy = get_velocity_field(frame.phi, frame.velp + frame.velc + frame.velf, size)
-    cax = engine.quiver(np.arange(0, frame.parameters['Size'][0]),
-                        np.arange(0, frame.parameters['Size'][1]),
-                        vx.T, vy.T,
-                        pivot='tail', units='dots', scale_units='dots')
+
     if magn:
         m = np.sqrt(vx**2 + vy**2)
         cax = engine.imshow(m.T, interpolation='lanczos', cmap='plasma', origin='lower')
         plt.colorbar(cax)
+
+    vx = vx.reshape((vx.shape[0]//avg, avg, vx.shape[1]//avg, avg))
+    vx = np.mean(vx, axis=(1,3))
+    vy = vy.reshape((vy.shape[0]//avg, avg, vy.shape[1]//avg, avg))
+    vy = np.mean(vy, axis=(1,3))
+
+    cax = engine.quiver(np.arange(0, frame.parameters['Size'][0], step=avg),
+                        np.arange(0, frame.parameters['Size'][1], step=avg),
+                        vx.T, vy.T,
+                        pivot='tail', units='dots', scale_units='dots')
 
 def vorticity_field(frame, size=15, engine=plt, cbar=True):
     """Plot the total veloctity field assiciated with the cells"""
