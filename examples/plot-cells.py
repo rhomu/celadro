@@ -35,7 +35,7 @@ ar = archive.loadarchive(sys.argv[1])
 
 oname = ""
 if len(sys.argv)==3:
-    oname = "_"+sys.argv[2]
+    oname = "movie_"+sys.argv[2]
     print "Output name is", sys.argv[2]
 
 ##################################################
@@ -43,16 +43,27 @@ if len(sys.argv)==3:
 
 def myplot(frame, engine):
     plot.cells(frame, engine)
+    plot.nematic(frame, engine)
+
+    #avg = 1
+    #dxphi = -np.gradient(np.sqrt(frame.phi[4]), axis=0)
+    #dyphi = -np.gradient(np.sqrt(frame.phi[4]), axis=1)
     #plot.com(frame, engine)
     #plot.patch(frame, 0, engine)
-    plot.nematic(frame)
+
     engine.axes.set_aspect('equal', adjustable='box')
+    #plt.xlim([frame.com[4][0]-20, frame.com[4][0]+20])
+    #plt.ylim([frame.com[4][1]-20, frame.com[4][1]+20])
     engine.set_xlim([0, frame.parameters['Size'][0]-1])
     engine.set_ylim([0, frame.parameters['Size'][1]-1])
-    #engine.axis('off')
+    engine.axis('off')
+
+#frame = ar.read_frame(170)
+#myplot(frame, plt)
+#plt.show(); exit(0)
 
 if len(oname)==0:
     animation.animate(ar, myplot, show=True); exit(0)
 else:
-    an = plot.animation.animate(ar, myplot, show=False)
+    an = animation.animate(ar, myplot, show=False)
     animation.save(an, oname+'.mp4', 5)

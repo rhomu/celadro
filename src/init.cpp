@@ -95,6 +95,8 @@ void Model::Initialize()
 
   // ---------------------------------------------------------------------------
 
+  if(zeta!=0.) sign_zeta = zeta>0. ? 1 : -1;
+
   // pre-compute coefficients
   C1 = 60./lambda/lambda;
   C3 = C1/lambda/lambda;

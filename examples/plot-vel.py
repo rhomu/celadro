@@ -42,18 +42,17 @@ if len(sys.argv)==3:
 # plot simple animation of phases
 
 def myplot(frame, engine):
-    #plot.phasefields(frame, engine)
+    plot.velocity_field(frame, engine=engine, size=24, magn=True, avg=2)
     #plot.com(frame, engine)
     #plot.patch(frame, 0, engine)
     #plot.nematic(frame)
-    plot.nematic_field(frame, size=24, avg=4, show_def=True)
     engine.axes.set_aspect('equal', adjustable='box')
     engine.set_xlim([0, frame.parameters['Size'][0]-1])
     engine.set_ylim([0, frame.parameters['Size'][1]-1])
     #engine.axis('off')
 
 if len(oname)==0:
-    animation.animate(ar, myplot, show=True, rng=[400, 600]); exit(0)
+    animation.animate(ar, myplot, show=True); exit(0)
 else:
-    an = animation.animate(ar, myplot, show=False)
+    an = plot.animation.animate(ar, myplot, show=False)
     animation.save(an, oname+'.mp4', 5)

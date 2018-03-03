@@ -129,11 +129,13 @@ void Model::UpdateFieldsAtNode(unsigned n, unsigned q)
   velp[n][0] += dx*force;
   velp[n][1] += dy*force;
   // contractility force
-  velc[n][0] += ( (P+zeta*sumQ00[k])*dx + zeta*sumQ01[k]*dy );
-  velc[n][1] += ( zeta*sumQ01[k]*dx + (P-zeta*sumQ00[k])*dy );
+  velc[n][0] += zeta*sumQ00[k]*dx + zeta*sumQ01[k]*dy;
+  velc[n][1] += zeta*sumQ01[k]*dx + zeta*sumQ00[k]*dy;
   // difference in contractility
-  deltaQ00[n] += (sumQ00[k] - 2*phi[n][q]*Q00[n])*(L*zeta*(Q00[n]*(dx*dx-dy*dy)+2*Q01[n]*dx*dy) + K*(dx*dx+dy*dy));
-  deltaQ01[n] += (sumQ01[k] - 2*phi[n][q]*Q01[n])*(L*zeta*(Q00[n]*(dx*dx-dy*dy)+2*Q01[n]*dx*dy) + K*(dx*dx+dy*dy));
+  deltaQ00[n] += (sumQ00[k] - phi[n][q]*Q00[n])*
+    (L*sign_zeta*(Q00[n]*(dx*dx-dy*dy)+2*Q01[n]*dx*dy) + K*(dx*dx+dy*dy));
+  deltaQ01[n] += (sumQ01[k] - phi[n][q]*Q01[n])*
+    (L*sign_zeta*(Q00[n]*(dx*dx-dy*dy)+2*Q01[n]*dx*dy) + K*(dx*dx+dy*dy));
 }
 
 void Model::UpdateAtNode(unsigned n, unsigned q, bool store)

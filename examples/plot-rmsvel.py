@@ -16,6 +16,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import sys
 import numpy as np
+from math import sqrt
 
 # import local libs
 sys.path.insert(0, "../plot/")
@@ -33,27 +34,20 @@ if len(sys.argv)==1:
 # load archive from file
 ar = archive.loadarchive(sys.argv[1])
 
-oname = ""
-if len(sys.argv)==3:
-    oname = "_"+sys.argv[2]
-    print "Output name is", sys.argv[2]
-
 ##################################################
 # plot simple animation of phases
 
-def myplot(frame, engine):
-    #plot.phasefields(frame, engine)
-    #plot.com(frame, engine)
-    #plot.patch(frame, 0, engine)
-    #plot.nematic(frame)
-    plot.nematic_field(frame, size=24, avg=4, show_def=True)
-    engine.axes.set_aspect('equal', adjustable='box')
-    engine.set_xlim([0, frame.parameters['Size'][0]-1])
-    engine.set_ylim([0, frame.parameters['Size'][1]-1])
-    #engine.axis('off')
+ar = archive.loadarchive(sys.argv[1])
 
-if len(oname)==0:
-    animation.animate(ar, myplot, show=True, rng=[400, 600]); exit(0)
-else:
-    an = animation.animate(ar, myplot, show=False)
-    animation.save(an, oname+'.mp4', 5)
+rms = np.zeros(ar._nframes+1)
+
+c = 0
+for i in range(0, ar._nframes+1):
+    frame = ar.read_frame(i)
+    print "{}/{}".format(i, ar._nframes)
+    vx, vy = plot.get_velocity_field(frame.phi, frame.velp + frame.velc + frame.velf, size=24)
+    rms[c] = sqrt(np.mean(vx**2+vy**2))
+    c     += 1
+
+plt.plot(np.arange(0, len(rms)), rms)
+plt.show()

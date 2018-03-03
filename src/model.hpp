@@ -220,7 +220,7 @@ struct Model
   /**  Interaction stength */
   double kappa;
   /** Activity */
-  double zeta = 0.;
+  double zeta = 0., sign_zeta = 0.;
   /** Internal pressure */
   double P = 0;
   /** Cell-cell friction parameter */

@@ -19,7 +19,7 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
-from math import sqrt, pi, atan2, floor
+from math import sqrt, pi, atan2, floor, atan, cos, sin
 from matplotlib.colors import LinearSegmentedColormap
 from scipy import ndimage, signal
 from itertools import product
@@ -151,7 +151,7 @@ def charge_array(Q00, Q01):
 
     return w
 
-def get_defects(w):
+def get_defects(w, Qxx, Qxy):
     """Returns list of defects from charge array.
 
     Input:
@@ -187,8 +187,27 @@ def get_defects(w):
                 s = np.sign(w[i,j])
                 # bfs
                 x, y = collapse(i, j, s)
+                # compute angle, see doi:10.1039/c6sm01146b
+                num = 0
+                den = 0
+                for (dx, dy) in [ (0,0), (0,1), (1,1), (1,0) ]:
+                    # coordinates of nodes around the defect
+                    k = (int(x) + LX + dx) % LX
+                    l = (int(y) + LY + dy) % LY
+                    # derivative at these points
+                    dxQxx = .5*(Qxx[(k+1)%LX, l] - Qxx[(k-1+LX)%LX, l])
+                    dxQxy = .5*(Qxy[(k+1)%LX, l] - Qxy[(k-1+LX)%LX, l])
+                    dyQxx = .5*(Qxx[k, (l+1)%LY] - Qxx[k, (l-1+LY)%LY])
+                    dyQxy = .5*(Qxy[k, (l+1)%LY] - Qxy[k, (l-1+LY)%LY])
+                    # accumulate numerator and denominator
+                    num += s*dxQxy - dyQxx
+                    den += dxQxx + s*dyQxy
+                psi = s/(2.-s)*atan2(num, den)
                 # add defect to list
-                d.append({ "pos": np.array([x, y]), "charge": .5*s })
+                d.append({ "pos": np.array([x, y]),
+                           "charge": .5*s,
+                           "angle": psi
+                        })
 
     return d
 
@@ -219,7 +238,7 @@ class defect_tracker:
         (LX, LY) = Q00.shape
         # get defects from new frame
         w       = charge_array(Q00, Q01)
-        defects = get_defects(w)
+        defects = get_defects(w, Q00, Q01)
         # new list of active defects
         active  = {}
         # compare with old ones
@@ -232,7 +251,7 @@ class defect_tracker:
                 v, i = min((v, i) for (i, v) in enumerate(dist))
                 # if min dist is smaller than cutoff then we have found our defect
                 if v < self.max_dst:
-                    # add position to stored defect
+                    # add position and angle to stored defect
                     self.defects[self.active[new['charge']][i]]['pos'].append(new['pos'])
                     # register it as active for next round
                     active[new['charge']] = active.get(new['charge'], []) + [
@@ -267,20 +286,34 @@ class defect_tracker:
 def defects(Q00, Q01, engine=plt):
     """Plot single defects of the nematic field Q"""
     w = charge_array(Q00, Q01)
-    defects = get_defects(w)
+    defects = get_defects(w, Q00, Q01)
     for d in defects:
-        engine.plot(d["pos"][0], d["pos"][1], 'bo' if d["charge"]==0.5 else 'g^')
+        if d['charge']==0.5:
+            engine.plot(d["pos"][0], d["pos"][1], 'go')
+            a = 5 # arrow length
+            engine.arrow(d['pos'][0], d['pos'][1],
+                         a*cos(d['angle']),  a*sin(d['angle']),
+                         color='k', head_width=2, head_length=3)
+        else:
+            engine.plot(d["pos"][0], d["pos"][1], 'b^')
+
+
+def cell(frame, i, engine=plt):
+    """Plot phase field defining one cells contour"""
+    p = frame.phi[i]
+    engine.contour(np.arange(0, frame.parameters['Size'][0]),
+                   np.arange(0, frame.parameters['Size'][1]),
+                   p.T,
+                   #levels = [1e-10, 1e-5, .5])
+                   levels = [.5],
+                   #color='mediumblue'
+                   colors='k')
+
 
 def cells(frame, engine=plt):
     """Plot all phase fields defining the cells contours"""
-    for p in frame.phi:
-        engine.contour(np.arange(0, frame.parameters['Size'][0]),
-                       np.arange(0, frame.parameters['Size'][1]),
-                       p.T,
-                       #levels = [1e-10, 1e-5, .5])
-                       levels = [.5],
-                       #color='mediumblue'
-                       colors='k')
+    for i in range(len(frame.phi)):
+        cell(frame, i, engine)
 
 def solid_area(frame, engine=plt):
     """Plot all phase fields with solid colours corresponding to individual areas"""

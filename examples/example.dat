@@ -43,13 +43,13 @@ wall-omega     = 0
 
 # dynamics of the polarisation
 D = .05
-J = .05
+#J = .05
 
 # dynamics of the contractility
-alpha = 0.1
+#alpha = 0.1
 beta  = 0
-tauc  = 5
+#tauc  = 5
 zeta  = 0 #-0.012
-c0    = 0 #.018
+#c0    = 0 #.018
 
 margin = 25

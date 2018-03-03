@@ -39,6 +39,11 @@ flag `--compression` or `-c`.
 
 Type `./celadro -h` for a list of available options.
 
+## Examples
+
+Exampleson how to run the code and some ploting scripts can be found in the
+example directory.
+
 ## Multi-threading and CUDA
 
 The code supports both multi-threading and CUDA.
