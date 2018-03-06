@@ -18,6 +18,7 @@
 #ifndef VEC_HPP_
 #define VEC_HPP_
 
+#include <cmath>
 #include <array>
 #include <iostream>
 
@@ -144,6 +145,10 @@ struct vec
   /** Square */
   T sq() const
   { return (*this)*(*this); }
+
+  /** Absolute value */
+  T abs() const
+  { return sqrt(abs(sq())); }
 
   /** Return unit vector */
   vec unit_vector() const

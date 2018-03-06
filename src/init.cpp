@@ -81,9 +81,10 @@ void Model::Initialize()
   Q01.resize(nphases, 0.);
   Q00_old.resize(nphases, 0.);
   Q01_old.resize(nphases, 0.);
-  velp.resize(nphases, {0., 0.});
-  velc.resize(nphases, {0., 0.});
-  velf.resize(nphases, {0., 0.});
+  force_tot.resize(nphases, {0., 0.});
+  force_p.resize(nphases, {0., 0.});
+  force_c.resize(nphases, {0., 0.});
+  force_f.resize(nphases, {0., 0.});
   com_x.resize(nphases, 0.);
   com_y.resize(nphases, 0.);
   S00.resize(nphases, 0.);
@@ -187,9 +188,9 @@ void Model::SwapCells(unsigned n, unsigned m)
   swap(patch_max[n], patch_max[m]);
   swap(com[n], com[m]);
   swap(com_prev[n], com_prev[m]);
-  swap(velp[n], velp[m]);
-  swap(velc[n], velc[m]);
-  swap(velf[n], velf[m]);
+  swap(force_p[n], force_p[m]);
+  swap(force_c[n], force_c[m]);
+  swap(force_f[n], force_f[m]);
   swap(com_x[n], com_x[m]);
   swap(com_y[n], com_y[m]);
   swap(S00[n], S00[m]);

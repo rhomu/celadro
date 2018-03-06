@@ -113,8 +113,8 @@ void Model::ParseProgramOptions(int ac, char **av)
      "elastic constant")
     ("C", opt::value<double>(&C),
      "Strength of LdG potential")
-    ("P", opt::value<double>(&P),
-     "Tissue pressure")
+    ("J", opt::value<double>(&J),
+     "Flow alignment strength")
     ("zeta", opt::value<double>(&zeta),
      "Activity")
     ("omega", opt::value<double>(&omega),

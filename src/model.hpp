@@ -73,12 +73,8 @@ struct Model
   std::vector<double> square, square_cnt;
   /** Phase-field for the walls */
   std::vector<double> walls, walls_dx, walls_dy, walls_laplace;
-  /** Passive velocities */
-  std::vector<vec<double, 2>> velp;
-  /** Contraction velocities */
-  std::vector<vec<double, 2>> velc;
-  /** Friction velocities */
-  std::vector<vec<double, 2>> velf;
+  /** Passive, contractile, friction, and total forces */
+  std::vector<vec<double, 2>> force_p, force_c, force_f, force_tot;
   /** Shape parameter: order */
   std::vector<double> S_order;
   /** Shape parameter: angle */
@@ -221,8 +217,6 @@ struct Model
   double kappa;
   /** Activity */
   double zeta = 0., sign_zeta = 0.;
-  /** Internal pressure */
-  double P = 0;
   /** Cell-cell friction parameter */
   double f;
   /** Cell-wall friction parameter */
@@ -237,6 +231,8 @@ struct Model
   double beta;
   /** Nematic parameters */
   double C, K, D, L;
+  /** Flow alignment strenght */
+  double J = 0;
   /** Pre-computed coefficients */
   double C1, C3;
 
@@ -283,6 +279,7 @@ struct Model
        & auto_name(C)
        & auto_name(K)
        & auto_name(L)
+       & auto_name(J)
        & auto_name(f)
        & auto_name(f_walls)
        & auto_name(wall_thickness)
@@ -306,9 +303,10 @@ struct Model
          & auto_name(S01)
          & auto_name(Q00)
          & auto_name(Q01)
-         & auto_name(velp)
-         & auto_name(velf)
-         & auto_name(velc)
+         & auto_name(force_tot)
+         & auto_name(force_p)
+         & auto_name(force_f)
+         & auto_name(force_c)
          & auto_name(patch_min)
          & auto_name(patch_max);
   }
@@ -416,7 +414,7 @@ struct Model
          *d_walls_laplace, *d_walls_dx, *d_walls_dy, *d_sum_cnt, *d_square_cnt,
          *d_Q00_cnt, *d_Q01_cnt, *d_area, *d_area_cnt, *d_c, *d_S00, *d_S01, *d_S_order,
          *d_S_angle, *d_theta, *d_gam, *d_mu;
-  vec<double, 2>  *d_vel, *d_velp, *d_velc, *d_velf, *d_com, *d_com_prev;
+  vec<double, 2>  *d_vel, *d_force_p, *d_force_c, *d_force_f, *d_com, *d_com_prev;
   stencil         *d_neighbors, *d_neighbors_patch;
   coord           *d_patch_min, *d_patch_max, *d_offset;
   cuDoubleComplex *d_com_x, *d_com_y, *d_com_x_table, *d_com_y_table;

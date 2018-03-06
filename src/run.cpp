@@ -126,11 +126,13 @@ void Model::UpdateFieldsAtNode(unsigned n, unsigned q)
   // potential
   V[n][q]     = force;
   // passive force
-  velp[n][0] += dx*force;
-  velp[n][1] += dy*force;
+  force_p[n][0] += dx*force;
+  force_p[n][1] += dy*force;
   // contractility force
-  velc[n][0] += zeta*sumQ00[k]*dx + zeta*sumQ01[k]*dy;
-  velc[n][1] += zeta*sumQ01[k]*dx + zeta*sumQ00[k]*dy;
+  force_c[n][0] += zeta*sumQ00[k]*dx + zeta*sumQ01[k]*dy;
+  force_c[n][1] += zeta*sumQ01[k]*dx - zeta*sumQ00[k]*dy;
+  // friction force
+  // ...
   // difference in contractility
   deltaQ00[n] += (sumQ00[k] - phi[n][q]*Q00[n])*
     (L*sign_zeta*(Q00[n]*(dx*dx-dy*dy)+2*Q01[n]*dx*dy) + K*(dx*dx+dy*dy));
@@ -161,8 +163,7 @@ void Model::UpdateAtNode(unsigned n, unsigned q, bool store)
         - 2.*gam[n]*ll
       )
       // advection term
-      - (velp[n][0]+velc[n][0]+velf[n][0])*dx/xi
-      - (velp[n][1]+velc[n][1]+velf[n][1])*dy/xi
+      - (force_tot[n][0]*dx + force_tot[n][1]*dy)/xi
       );
   }
 
@@ -194,15 +195,22 @@ void Model::UpdateAtNode(unsigned n, unsigned q, bool store)
 
 void Model::UpdatePolarization(unsigned n, bool store)
 {
+  // tot force
+  //const double fn  = force_tot.abs();
+  const double V00 =   force_tot[n][0]*force_tot[n][0] -
+                       force_tot[n][1]*force_tot[n][1];
+  const double V01 = 2*force_tot[n][0]*force_tot[n][1];
+
   if(store)
   {
+    // Euler-marijuana update
     Q00_old[n] = Q00[n] + sqrt(time_step)*D*random_normal();
     Q01_old[n] = Q01[n] + sqrt(time_step)*D*random_normal();
   }
 
   const double tr = 1 - Q00[n]*Q00[n] - Q01[n]*Q01[n];
-  Q00[n] = Q00_old[n] + time_step*.5*(C*tr*Q00[n] + deltaQ00[n]);
-  Q01[n] = Q01_old[n] + time_step*.5*(C*tr*Q01[n] + deltaQ01[n]);
+  Q00[n] = Q00_old[n] + time_step*.5*(C*tr*Q00[n] + deltaQ00[n]) + J*(V00-Q00[n]);
+  Q01[n] = Q01_old[n] + time_step*.5*(C*tr*Q01[n] + deltaQ01[n]) + J*(V01-Q01[n]);
 }
 
 void Model::ComputeCoM(unsigned n)
@@ -218,21 +226,17 @@ void Model::ComputeCoM(unsigned n)
 void Model::UpdatePatch(unsigned n)
 {
   // obtain the new location of the patch min and max
-  const coord new_min = {
-    (static_cast<unsigned>(round(com[n][0])) + Size[0] - patch_margin[0])%Size[0],
-    (static_cast<unsigned>(round(com[n][1])) + Size[1] - patch_margin[1])%Size[1]
-  };
-  const coord new_max = {
-    (static_cast<unsigned>(round(com[n][0])) + patch_margin[0] - 1u)%Size[0],
-    (static_cast<unsigned>(round(com[n][1])) + patch_margin[1] - 1u)%Size[1]
-  };
-  coord displacement = (Size + new_min - patch_min[n])%Size;
+  const coord com_grd { unsigned(round(com[n][0])), unsigned(round(com[n][1])) };
+  const coord new_min = ( com_grd + Size - patch_margin ) % Size;
+  const coord new_max = ( com_grd + patch_margin - coord {1u, 1u} ) % Size;
+  coord displacement  = ( Size + new_min - patch_min[n]) % Size;
+
   // I guess there is somehthing better than this...
   if(displacement[0]==Size[0]-1u) displacement[0] = patch_size[0]-1u;
   if(displacement[1]==Size[1]-1u) displacement[1] = patch_size[1]-1u;
 
   // update offset and patch location
-  offset[n]    = ( offset[n] + patch_size - displacement )%patch_size;
+  offset[n]    = ( offset[n] + patch_size - displacement ) % patch_size;
   patch_min[n] = new_min;
   patch_max[n] = new_max;
 }
@@ -282,15 +286,18 @@ void Model::Update(bool store, unsigned nstart)
   PRAGMA_OMP(omp parallel for num_threads(nthreads) if(nthreads))
   for(unsigned n=nstart; n<nphases; ++n)
   {
-    velp[n] = {0., 0.};
-    velc[n] = {0., 0.};
-    velf[n] = {0., 0.};
+    force_p[n] = {0., 0.};
+    force_c[n] = {0., 0.};
+    force_f[n] = {0., 0.};
     deltaQ00[n] = 0;
     deltaQ01[n] = 0;
 
     // update in restricted patch only
     for(unsigned q=0; q<patch_N; ++q)
       UpdateFieldsAtNode(n, q);
+
+    // total force
+    force_tot[n] = force_p[n] + force_c[n] + force_f[n];
   }
 
   // 2) Predictor-corrector function for updating the phase fields
