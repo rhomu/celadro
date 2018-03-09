@@ -232,7 +232,7 @@ struct Model
   /** Elasitc nematic parameters */
   double K = 0, L = 0;
   /** Strength of mexican hat potential */
-  double Cpol = 10, Cnem = 10, Snem = 0; // olé!
+  double Cpol = 10, Cnem = 10, Spol = 0, Snem = 0; // olé!
   /** Flow alignment strenght */
   double Jpol = 0, Jnem = 0;
   /** Noise strength */

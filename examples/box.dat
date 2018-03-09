@@ -11,6 +11,7 @@ LY         = 100
 nsubsteps  = 5
 bc         = 1
 margin     = 25
+noise      = 1
 relax-time = 50
 
 # model parameters...
@@ -44,4 +45,4 @@ wall-omega     = 0
 alpha = .1
 D-pol = .08
 J-pol = .08
-
+S-pol = 1

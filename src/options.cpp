@@ -123,6 +123,8 @@ void Model::ParseProgramOptions(int ac, char **av)
       "Polarisation noise strength")
     ("S-nem", opt::value<double>(&Snem),
       "Order of the nematic tensors")
+    ("S-pol", opt::value<double>(&Spol),
+      "Norm of the polarisation vector")
     ("zeta", opt::value<double>(&zeta),
      "Activity")
     ("alpha", opt::value<double>(&alpha),

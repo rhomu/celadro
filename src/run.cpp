@@ -182,6 +182,10 @@ void Model::UpdateAtNode(unsigned n, unsigned q, bool store)
     const auto  dx = derivX(phi[n], sq);
     const auto  dy = derivY(phi[n], sq);
     const auto  ll = laplacian(phi[n], sq);
+    // distance from the center of mass
+    const auto dc = diff(vec<double, 2>(GetPosition(k)), com[n]);
+    const auto el = pol[n].sq()<1e-6 ? 0. :
+      - 2./(Pi*r*r)*delta[n]*p*(dc - pol[n]*(pol[n]*dc)/pol[n].sq()).sq();
 
     potential[n][q] = (
       // free energy term
@@ -191,6 +195,8 @@ void Model::UpdateAtNode(unsigned n, unsigned q, bool store)
         - 2.*mu[n]*(1.-a/(Pi*r*r))*2.*p
         - 2.*gam[n]*ll
       )
+      // elongation potential
+      + el
       // advection term
       - velocity[n][0]*dx - velocity[n][1]*dy
       );
@@ -250,7 +256,7 @@ void Model::UpdatePolarization(unsigned n, bool store)
   const double torque = -fn*atan2(force_tot[n][0]*pol[n][1]-force_tot[n][1]*pol[n][0],
                                   force_tot[n][0]*pol[n][0]+force_tot[n][1]*pol[n][1]);
   theta_pol[n] = theta_pol_old[n] + time_step*Jpol*torque;
-  pol[n] = { cos(theta_pol[n]), sin(theta_pol[n]) };
+  pol[n] = { Spol*cos(theta_pol[n]), Spol*sin(theta_pol[n]) };
 }
 
 void Model::ComputeCoM(unsigned n)
@@ -362,7 +368,7 @@ void Model::Update(bool store, unsigned nstart)
       UpdateAtNode(n, q, store);
       UpdateStructureTensorAtNode(n, q);
     }
-    // Update Q-tensor
+    // Update Q-tensor and polarisation
     UpdatePolarization(n, store);
     // update center of mass
     ComputeCoM(n);
