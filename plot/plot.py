@@ -25,7 +25,7 @@ from scipy import ndimage, signal
 from itertools import product
 from Queue import Queue
 
-def get_velocity_field(phases, vel, size=1):
+def get_velocity_field(phases, vel, size=1, mode='wrap'):
     """Compute the coarse grained collective velocity field from a collection
     of phase-fields and their velocities"""
     # glue all velocities together
@@ -36,12 +36,12 @@ def get_velocity_field(phases, vel, size=1):
         vy += vel[n][1]*phases[n]
 
     # coarse grain
-    vx = ndimage.filters.uniform_filter(vx, size=size, mode='wrap')
-    vy = ndimage.filters.uniform_filter(vy, size=size, mode='wrap')
+    vx = ndimage.filters.uniform_filter(vx, size=size, mode=mode)
+    vy = ndimage.filters.uniform_filter(vy, size=size, mode=mode)
 
     return vx, vy
 
-def get_Qtensor(phases, Qxx, Qxy, size=1):
+def get_Qtensor(phases, Qxx, Qxy, size=1, mode='wrap'):
     """Compute the coarse grained tissue nematic field from individual cells"""
     # glue all Q-tensors together
     QQxx = np.zeros(phases[0].shape)
@@ -51,8 +51,8 @@ def get_Qtensor(phases, Qxx, Qxy, size=1):
         QQxy += Qxy[n]*phases[n]
 
     # coarse grain
-    QQxx = ndimage.filters.uniform_filter(QQxx, size=size, mode='wrap')
-    QQxy = ndimage.filters.uniform_filter(QQxy, size=size, mode='wrap')
+    QQxx = ndimage.filters.uniform_filter(QQxx, size=size, mode=mode)
+    QQxy = ndimage.filters.uniform_filter(QQxy, size=size, mode=mode)
 
     return QQxx, QQxy
 
@@ -218,10 +218,11 @@ def defects(Q00, Q01, engine=plt):
     for d in defects:
         if d['charge']==0.5:
             engine.plot(d["pos"][0], d["pos"][1], 'go')
-            a = 5 # arrow length
-            engine.arrow(d['pos'][0], d['pos'][1],
-                         a*cos(d['angle']),  a*sin(d['angle']),
-                         color='k', head_width=2, head_length=3)
+            # plot direction of pos defects
+            #a = 5 # arrow length
+            #engine.arrow(d['pos'][0], d['pos'][1],
+            #             a*cos(d['angle']),  a*sin(d['angle']),
+            #             color='k', head_width=2, head_length=3)
         else:
             engine.plot(d["pos"][0], d["pos"][1], 'b^')
 
@@ -343,7 +344,10 @@ def nematic_field(frame, size=1, avg=1, show_def=False, engine=plt):
     """Plot nematic field associated with the internal degree of freedom"""
 
     # get field
-    (Qxx, Qxy) = get_Qtensor(frame.phi, frame.Q00, frame.Q01, size=size)
+    mode   = 'wrap' if frame.parameters['BC']==0 else 'constant'
+    (Qxx, Qxy) = get_Qtensor(frame.phi, frame.Q00, frame.Q01, size=size, mode=mode)
+    Qxx *= (1.-frame.parameters['walls'])
+    Qxy *= (1.-frame.parameters['walls'])
     # plot
     director(Qxx, Qxy, avg=avg, engine=engine)
     # defects
@@ -353,7 +357,10 @@ def shape_field(frame, size=1, avg=1, show_def=False, engine=plt):
     """Plot nematic field associated with the shape of each cell"""
 
     # get field
-    (Qxx, Qxy) = get_Qtensor(frame.phi, frame.S00, frame.S01, size=size)
+    mode   = 'wrap' if frame.parameters['BC']==0 else 'constant'
+    (Qxx, Qxy) = get_Qtensor(frame.phi, frame.S00, frame.S01, size=size, mode=mode)
+    Qxx *= (1.-frame.parameters['walls'])
+    Qxy *= (1.-frame.parameters['walls'])
     # plot
     director(Qxx, Qxy, avg=avg, engine=engine)
     # defects
@@ -420,7 +427,10 @@ def phase(frame, n, engine=plt):
 
 def velocity_field(frame, size=15, engine=plt, magn=True, avg=1):
     """Plot the total veloctity field assiciated with the cells"""
-    vx, vy = get_velocity_field(frame.phi, frame.velocity, size)
+    mode   = 'wrap' if frame.parameters['BC']==0 else 'constant'
+    vx, vy = get_velocity_field(frame.phi, frame.velocity, size, mode=mode)
+    vx *= (1.-frame.parameters['walls'])
+    vy *= (1.-frame.parameters['walls'])
 
     if magn:
         m = np.sqrt(vx**2 + vy**2)
