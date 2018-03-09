@@ -39,7 +39,6 @@ charge      = 0.5
 avg = 4
 
 ar = archive.loadarchive(sys.argv[1])
-tracker = plot.defect_tracker(max_dst=15)
 
 # https://stackoverflow.com/questions/46657423/rotated-image-coordinates-after-scipy-ndimage-interpolation-rotate
 def rot(image, xy, angle, crop):
@@ -58,11 +57,10 @@ vx_tot  = np.zeros((window_size, window_size))
 vy_tot  = np.zeros((window_size, window_size))
 
 for i in np.arange(ar._nframes+1, step=5):
-#for i in np.arange(300, 310):
     frame = ar.read_frame(i)
     print "{}/{}".format(i, ar._nframes)
 
-    vx, vy   = plot.get_velocity_field(frame.phi, frame.velp + frame.velc + frame.velf, size=24)
+    vx, vy   = plot.get_velocity_field(frame.phi, frame.velocity, size=24)
     Q00, Q01 = plot.get_Qtensor(frame.phi, frame.Q00, frame.Q01, size=24)
     defects  = plot.get_defects(plot.charge_array(Q00, Q01), Q00, Q01)
 
