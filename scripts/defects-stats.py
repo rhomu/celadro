@@ -13,16 +13,14 @@
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
+from scipy import ndimage
+from itertools import product
 from math import log
 import sys
 
 # import local libs
 sys.path.insert(0, "../plot/")
-import plot
 import archive
-import animation
-from scipy import ndimage
-from itertools import product
 
 ##################################################
 # Init

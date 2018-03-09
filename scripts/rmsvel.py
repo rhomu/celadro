@@ -47,7 +47,7 @@ c = 0
 for i in range(0, ar._nframes+1):
     frame = ar.read_frame(i)
     print "{}/{}".format(i, ar._nframes),
-    vx, vy = plot.get_velocity_field(frame.phi, frame.velp + frame.velc + frame.velf, size=24)
+    vx, vy = plot.get_velocity_field(frame.phi, frame.velocity, size=24)
     rms[c] = sqrt(np.mean(vx**2+vy**2))
     tox[c] = np.mean(vx)
     toy[c] = np.mean(vy)
