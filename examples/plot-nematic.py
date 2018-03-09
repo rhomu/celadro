@@ -4,7 +4,7 @@
 #
 # Usage:
 #
-#   python2 plot-cells.py input [output]
+#   python2 plot-nematic.py input [output]
 #
 #  where
 #
@@ -42,18 +42,15 @@ if len(sys.argv)==3:
 # plot simple animation of phases
 
 def myplot(frame, engine):
-    #plot.phasefields(frame, engine)
-    #plot.com(frame, engine)
-    #plot.patch(frame, 0, engine)
-    #plot.nematic(frame)
-    plot.nematic_field(frame, size=24, avg=4, show_def=True)
+    plot.nematic_field(frame, size=24, avg=4, show_def=True, engine=engine)
+
     engine.axes.set_aspect('equal', adjustable='box')
     engine.set_xlim([0, frame.parameters['Size'][0]-1])
     engine.set_ylim([0, frame.parameters['Size'][1]-1])
-    #engine.axis('off')
+    engine.axis('off')
 
 if len(oname)==0:
-    animation.animate(ar, myplot, show=True, rng=[400, 600]); exit(0)
+    animation.animate(ar, myplot, show=True); exit(0)
 else:
     an = animation.animate(ar, myplot, show=False)
     animation.save(an, oname+'.mp4', 5)

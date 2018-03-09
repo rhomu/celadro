@@ -16,6 +16,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import sys
 import numpy as np
+from math import sqrt
 
 # import local libs
 sys.path.insert(0, "../plot/")
@@ -33,32 +34,27 @@ if len(sys.argv)==1:
 # load archive from file
 ar = archive.loadarchive(sys.argv[1])
 
-oname = ""
-if len(sys.argv)==3:
-    oname = "movie_"+sys.argv[2]
-    print "Output name is", sys.argv[2]
-
 ##################################################
 # plot simple animation of phases
 
-def myplot(frame, engine):
-    plot.cells(frame, engine)
-    plot.nematic(frame, engine)
-    plot.solidarea(frame, engine)
-    plot.nematic(frame, engine)
-    plot.walls(frame, engine)
-    plot.force_p(frame, engine)
-    plot.force_c(frame, engine)
-    plot.force_f(frame, engine)
-    plot.traction(frame, engine)
+ar = archive.loadarchive(sys.argv[1])
 
-    engine.axes.set_aspect('equal', adjustable='box')
-    engine.set_xlim([0, frame.parameters['Size'][0]-1])
-    engine.set_ylim([0, frame.parameters['Size'][1]-1])
-    engine.axis('off')
+rms = np.zeros(ar._nframes+1)
+tox = np.zeros(ar._nframes+1)
+toy = np.zeros(ar._nframes+1)
 
-if len(oname)==0:
-    animation.animate(ar, myplot, show=True); exit(0)
-else:
-    an = animation.animate(ar, myplot, show=False)
-    animation.save(an, oname+'.mp4', 5)
+c = 0
+for i in range(0, ar._nframes+1):
+    frame = ar.read_frame(i)
+    print "{}/{}".format(i, ar._nframes),
+    vx, vy = plot.get_velocity_field(frame.phi, frame.velp + frame.velc + frame.velf, size=24)
+    rms[c] = sqrt(np.mean(vx**2+vy**2))
+    tox[c] = np.mean(vx)
+    toy[c] = np.mean(vy)
+    print "vx={}, vy={}, rms={}".format(tox[c], toy[c], rms[c])
+    c     += 1
+
+plt.plot(np.arange(0, len(rms)), rms)
+plt.plot(np.arange(0, len(rms)), tox)
+plt.plot(np.arange(0, len(rms)), toy)
+plt.show()

@@ -21,11 +21,11 @@
 
 using namespace std;
 
-void Model::AddCellAtNode(unsigned n, unsigned k, const coord& center)
+void Model::AddCellAtNode(unsigned n, unsigned q, const coord& center)
 {
+  const auto      k = GetIndexFromPatch(n, q);
   const unsigned xk = GetXPosition(k);
   const unsigned yk = GetYPosition(k);
-  const unsigned q  = GetPatchIndex(n, {xk, yk});
 
   // we create smaller cells that will then relax
   // this improves greatly the stability at the first steps
@@ -67,7 +67,8 @@ void Model::AddCell(unsigned n, const coord& center)
   Q01[n]   = cos(theta[n])*sin(theta[n]);
 
   // create the cells at the centers we just computed
-  UpdateDomain(&Model::AddCellAtNode, n ,center);
+  for(unsigned q=0; q<patch_N; ++q)
+    AddCellAtNode(n, q, center);
 
   com[n]   = vec<double, 2>(center);
 }
@@ -160,6 +161,13 @@ void Model::Configure()
                         -rad(Size[0]/2.-center[0], Size[1]/2.-center[1]);
 
           if(d<0.9*R[n]) continue;
+        }
+        // ... cross
+        if(BC==4)
+        {
+          if(fabs(center[0]-Size[0]/2.)+0.9*R[n]>cross_ratio*.5*Size[0] and
+             fabs(center[1] - Size[1]/2.)+0.9*R[n]>cross_ratio*.5*Size[1])
+            continue;
         }
 
         // overlapp between cells
@@ -269,6 +277,82 @@ void Model::ConfigureWalls()
         walls[k] = exp(-d/wall_thickness);
     }
     break;
+  // cross-road
+  case 4:
+    for(unsigned k=0; k<N; ++k)
+    {
+      const double b1 = (1.0 - cross_ratio)*0.5;  // lower end of the boundary
+      const double b2 = 1.0 - b1;               // upper end of the boundary
+
+      const double x = GetXPosition(k);
+      const double y = GetYPosition(k);
+
+      if(x < Size[0]/2 and y < Size[1]/2){ // left bottom corner
+        const double xb = Size[0]*b1;
+        const double yb = Size[1]*b1;
+
+        // evaluate distance from the wall
+        double  d = 0.;
+        if(x >= xb and y >= yb) d = sqrt(pow(x-xb,2.)+pow(y-yb,2.));
+        else if(x >= xb)        d = x-xb;
+        else if(y >= yb)        d = y-yb;
+
+        if(x < xb and y < yb) walls[k] = 1.;
+        else                  walls[k] = exp(-d/wall_thickness);
+
+        if(x >= xb and y < yb) walls[k] += exp(-y/wall_thickness);
+        if(x < xb and y >= yb) walls[k] += exp(-x/wall_thickness);
+      }
+
+      if(x >= Size[0]/2 && y < Size[1]/2){ // right bottom corner
+        const double xb = Size[0]*b2;
+        const double yb = Size[1]*b1;
+
+        double  d = 0.;
+        if(x < xb and y >= yb) d = sqrt(pow(x-xb,2.)+pow(y-yb,2.));
+        else if(x < xb)        d = xb-x;
+        else if(y >= yb)       d = y-yb;
+
+        if(x >= xb && y < yb) walls[k] = 1.;
+        else                  walls[k] = exp(-d/wall_thickness);
+
+        if(x <  xb and y <  yb) walls[k] += exp(-y/wall_thickness);
+        if(x >= xb and y >= yb) walls[k] += exp(-(Size[0]-1-x)/wall_thickness);
+      }
+
+      if(x < Size[0]/2 && y >= Size[1]/2){// left top corner
+        const double xb = Size[0]*b1;
+        const double yb = Size[1]*b2;
+
+        double  d = 0.;
+        if(x >= xb and y < yb) d = sqrt(pow(x-xb,2.)+pow(y-yb,2.));
+        else if(x >= xb)       d = x-xb;
+        else if(y < yb)        d = yb-y;
+
+        if(x < xb && y >= yb) walls[k] = 1.;
+        else                  walls[k] = exp(-d/wall_thickness);
+
+        if(x >= xb and y >= yb) walls[k] += exp(-(Size[1]-1-y)/wall_thickness);
+        if(x <  xb and y <  yb) walls[k] += exp(-x/wall_thickness);
+      }
+
+      if(x >= Size[0]/2 && y >= Size[1]/2){ // right top corner
+        const double xb = Size[0]*b2;
+        const double yb = Size[1]*b2;
+
+        double  d = 0.;
+        if(x < xb and y < yb) d = sqrt(pow(x-xb,2.)+pow(y-yb,2.));
+        else if(x < xb)       d = xb-x;
+        else if(y < yb)       d = yb-y;
+
+        if(x >= xb && y >= yb) walls[k] = 1.;
+        else                   walls[k] = exp(-d/wall_thickness);
+
+        if(x >= xb and y <  yb) walls[k] += exp(-(Size[0]-1-x)/wall_thickness);
+        if(x <  xb and y >= yb) walls[k] += exp(-(Size[1]-1-y)/wall_thickness);
+      }
+    }
+    break;
   default:
     throw error_msg("boundary condition unknown.");
   }
@@ -282,114 +366,4 @@ void Model::ConfigureWalls()
     walls_dy[k] = derivY(walls, s);
     walls_laplace[k] = laplacian(walls, s);
   }
-}
-
-
-// =============================================================================
-// Implementation
-
-template<typename Ret, typename ...Args>
-void Model::UpdateSubDomain(Ret (Model::*fun)(unsigned, unsigned, Args...),
-                                unsigned n,
-                                unsigned m0, unsigned m1,
-                                unsigned M0, unsigned M1,
-                                Args&&... args)
-{
-  // only update on the subregion
-  for(unsigned i=m0; i<M0; ++i)
-    for(unsigned j=m1; j<M1; ++j)
-      (this->*fun)(n, GetIndex({i, j}),
-                std::forward<Args>(args)...);
-}
-
-template<typename Ret, typename ...Args>
-void Model::UpdateSubDomainP(Ret (Model::*fun)(unsigned, unsigned, Args...),
-                                 unsigned n,
-                                 unsigned m0, unsigned m1,
-                                 unsigned M0, unsigned M1,
-                                 Args&&... args)
-{
-  // same but with openmp
-  PRAGMA_OMP(omp parallel for num_threads(nthreads) if(nthreads))
-  for(unsigned k=0; k<(M0-m0)*(M1-m1); ++k)
-      (this->*fun)(n, GetIndex({m0+k%(M0-m0), m1+k/(M0-m0)}),
-                std::forward<Args>(args)...);
-}
-
-template<typename Ret, typename ...Args>
-void Model::UpdateDomainP(Ret (Model::*fun)(unsigned, unsigned, Args...),
-                              unsigned n, Args&&... args)
-{
-  if(patch_min[n][0]>=patch_max[n][0] and
-     patch_min[n][1]>=patch_max[n][1])
-  {
-    // patch is across the corners
-    UpdateSubDomainP(fun, n, patch_min[n][0], patch_min[n][1], Size[0], Size[1],
-                     std::forward<Args>(args)...);
-    UpdateSubDomainP(fun, n, 0u, 0u, patch_max[n][0], patch_max[n][1],
-                     std::forward<Args>(args)...);
-    UpdateSubDomainP(fun, n, patch_min[n][0], 0u, Size[0], patch_max[n][1],
-                     std::forward<Args>(args)...);
-    UpdateSubDomainP(fun, n, 0u, patch_min[n][1], patch_max[n][0], Size[1],
-                     std::forward<Args>(args)...);
-  }
-  else if(patch_min[n][0]>=patch_max[n][0])
-  {
-    // patch is across the left/right border
-    UpdateSubDomainP(fun, n, patch_min[n][0], patch_min[n][1], Size[0], patch_max[n][1],
-                     std::forward<Args>(args)...);
-    UpdateSubDomainP(fun, n, 0u, patch_min[n][1], patch_max[n][0], patch_max[n][1],
-                     std::forward<Args>(args)...);
-  }
-  else if(patch_min[n][1]>=patch_max[n][1])
-  {
-    // patch is across the up/down border
-    UpdateSubDomainP(fun, n, patch_min[n][0], patch_min[n][1], patch_max[n][0], Size[1],
-                     std::forward<Args>(args)...);
-    UpdateSubDomainP(fun, n, patch_min[n][0], 0u, patch_max[n][0], patch_max[n][1],
-                     std::forward<Args>(args)...);
-  }
-  else
-    // patch is in the middle
-    UpdateSubDomainP(fun, n, patch_min[n][0], patch_min[n][1], patch_max[n][0], patch_max[n][1],
-                     std::forward<Args>(args)...);
-}
-
-template<typename Ret, typename ...Args>
-void Model::UpdateDomain(Ret (Model::*fun)(unsigned, unsigned, Args...),
-                             unsigned n, Args&&... args)
-{
-  if(patch_min[n][0]>=patch_max[n][0] and
-     patch_min[n][1]>=patch_max[n][1])
-  {
-    // patch is across the corners
-    UpdateSubDomain(fun, n, patch_min[n][0], patch_min[n][1], Size[0], Size[1],
-                    std::forward<Args>(args)...);
-    UpdateSubDomain(fun, n, 0u, 0u, patch_max[n][0], patch_max[n][1],
-                    std::forward<Args>(args)...);
-    UpdateSubDomain(fun, n, patch_min[n][0], 0u, Size[0], patch_max[n][1],
-                    std::forward<Args>(args)...);
-    UpdateSubDomain(fun, n, 0u, patch_min[n][1], patch_max[n][0], Size[1],
-                    std::forward<Args>(args)...);
-  }
-  else if(patch_min[n][0]>=patch_max[n][0])
-  {
-    // patch is across the left/right border
-    UpdateSubDomain(fun, n, patch_min[n][0], patch_min[n][1], Size[0], patch_max[n][1],
-                    std::forward<Args>(args)...);
-    UpdateSubDomain(fun, n, 0u, patch_min[n][1], patch_max[n][0], patch_max[n][1],
-                    std::forward<Args>(args)...);
-  }
-  else if(patch_min[n][1]>=patch_max[n][1])
-  {
-    // patch is across the up/down border
-    UpdateSubDomain(fun, n, patch_min[n][0], patch_min[n][1], patch_max[n][0], Size[1],
-                    std::forward<Args>(args)...);
-    UpdateSubDomain(fun, n, patch_min[n][0], 0u, patch_max[n][0], patch_max[n][1],
-                    std::forward<Args>(args)...);
-  }
-  else
-    // patch is in the middle
-    UpdateSubDomain(fun, n, patch_min[n][0], patch_min[n][1], patch_max[n][0], patch_max[n][1],
-                    std::forward<Args>(args)...);
 }

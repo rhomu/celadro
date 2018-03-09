@@ -23,6 +23,7 @@ using namespace std;
 void Model::Initialize()
 {
   N = Size[0]*Size[1];
+  sqrt_time_step = sqrt(time_step);
 
   // ---------------------------------------------------------------------------
 
@@ -39,6 +40,10 @@ void Model::Initialize()
   sumQ01.resize(N, 0.);
   sumQ00_cnt.resize(N, 0.);
   sumQ01_cnt.resize(N, 0.);
+  P0.resize(N, 0.);
+  P1.resize(N, 0.);
+  P0_cnt.resize(N, 0.);
+  P1_cnt.resize(N, 0.);
 
   // rectifies margin in case it is bigger than domain
   // and compensate for the boundary layer
@@ -81,6 +86,10 @@ void Model::Initialize()
   Q01.resize(nphases, 0.);
   Q00_old.resize(nphases, 0.);
   Q01_old.resize(nphases, 0.);
+  pol.resize(nphases, {0., 0.});
+  velocity.resize(nphases, {0., 0.});
+  theta_pol.resize(nphases, 0.);
+  theta_pol_old.resize(nphases, 0.);
   force_tot.resize(nphases, {0., 0.});
   force_p.resize(nphases, {0., 0.});
   force_c.resize(nphases, {0., 0.});

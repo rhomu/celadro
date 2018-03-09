@@ -148,11 +148,11 @@ struct vec
 
   /** Absolute value */
   T abs() const
-  { return sqrt(abs(sq())); }
+  { return sqrt(sq()); }
 
   /** Return unit vector */
   vec unit_vector() const
-  { return *this/sqrt(sq()); }
+  { return *this/abs(); }
 
   template<class U, size_t E> friend
   vec<U, E> operator+(const U&, const vec<U, E>&);

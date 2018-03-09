@@ -28,7 +28,14 @@ void Model::Pre()
   if(relax_time>0)
   {
     double save_zeta = 0.; swap(zeta, save_zeta);
-    double save_beta = 0.; swap(beta, save_beta);
+    double save_alpha = 0; swap(alpha, save_alpha);
+    double save_Dnem  = 0; swap(Dnem, save_Dnem);
+    double save_Dpol  = 0; swap(Dpol, save_Dpol);
+    double save_Jnem  = 0; swap(Jnem, save_Jnem);
+    double save_Jpol  = 0; swap(Jpol, save_Jpol);
+    double save_Cnem  = 0; swap(Cnem, save_Cnem);
+    double save_K  = 0; swap(K, save_K);
+    double save_L  = 0; swap(L, save_L);
 
     if(relax_nsubsteps) swap(nsubsteps, relax_nsubsteps);
 
@@ -38,7 +45,14 @@ void Model::Pre()
     if(relax_nsubsteps) swap(nsubsteps, relax_nsubsteps);
 
     swap(zeta, save_zeta);
-    swap(beta, save_beta);
+    swap(alpha, save_alpha);
+    swap(Jnem, save_Jnem);
+    swap(Jpol, save_Jpol);
+    swap(Dnem, save_Dnem);
+    swap(Dpol, save_Dpol);
+    swap(Cnem, save_Cnem);
+    swap(L, save_L);
+    swap(K, save_K);
   }
 }
 
@@ -49,15 +63,17 @@ void Model::PreRunStats()
 {
   // packing fraction
   {
+    // total cell area
     double packing = 0.;
     for(unsigned n=0; n<nphases; ++n)
       packing += R[n]*R[n];
     packing *= Pi;
 
-    if(BC<=2)
-      packing/= (birth_bdries[1]-birth_bdries[0])
-               *(birth_bdries[3]-birth_bdries[2]);
-    if(BC==3) packing /= Pi*N/4.;
+    // divide by available area
+    double area = 0;
+    for(unsigned k=0; k<N; ++k)
+      area += 1.-walls[k];
+    packing /= area;
 
     cout << "Packing fraction = " << packing << endl;
   }
@@ -106,8 +122,16 @@ void Model::UpdateFieldsAtNode(unsigned n, unsigned q)
   const auto  dy = derivY(phi[n], sq);
   // all-cells properties
   const auto  ls   = laplacian(sum, s);
+  const auto  dxs  = derivX(sum, s);
+  const auto  dys  = derivY(sum, s);
+  const auto  dxp0 = derivX(P0, s);
+  const auto  dyp0 = derivY(P0, s);
+  const auto  dxp1 = derivX(P1, s);
+  const auto  dyp1 = derivY(P1, s);
   // walls properties
   const auto  lw = walls_laplace[k];
+  const auto dxw = walls_dx[k];
+  const auto dyw = walls_dy[k];
 
   // delta F / delta phi
   const double force = (
@@ -132,7 +156,12 @@ void Model::UpdateFieldsAtNode(unsigned n, unsigned q)
   force_c[n][0] += zeta*sumQ00[k]*dx + zeta*sumQ01[k]*dy;
   force_c[n][1] += zeta*sumQ01[k]*dx - zeta*sumQ00[k]*dy;
   // friction force
-  // ...
+  force_f[n][0] += + f*alpha*pol[n][0]*(dx*(dxs-dx)+dy*(dys-dy))
+                   - f*alpha*(dx*(dxp0-pol[n][0]*dx)+dy*(dyp0-pol[n][0]*dy))
+                   - dyw*f_walls*(pol[n][1]*dxw-pol[n][0]*dyw)*(dx*dxw+dy*dyw);
+  force_f[n][1] += + f*alpha*pol[n][1]*(dx*(dxs-dx)+dy*(dys-dy))
+                   - f*alpha*(dx*(dxp1-pol[n][1]*dx)+dy*(dyp1-pol[n][1]*dy))
+                   + dxw*f_walls*(pol[n][1]*dxw-pol[n][0]*dyw)*(dx*dxw+dy*dyw);
   // difference in contractility
   deltaQ00[n] += (sumQ00[k] - phi[n][q]*Q00[n])*
     (L*sign_zeta*(Q00[n]*(dx*dx-dy*dy)+2*Q01[n]*dx*dy) + K*(dx*dx+dy*dy));
@@ -163,7 +192,7 @@ void Model::UpdateAtNode(unsigned n, unsigned q, bool store)
         - 2.*gam[n]*ll
       )
       // advection term
-      - (force_tot[n][0]*dx + force_tot[n][1]*dy)/xi
+      - velocity[n][0]*dx - velocity[n][1]*dy
       );
   }
 
@@ -196,21 +225,32 @@ void Model::UpdateAtNode(unsigned n, unsigned q, bool store)
 void Model::UpdatePolarization(unsigned n, bool store)
 {
   // tot force
-  //const double fn  = force_tot.abs();
+  const double fn  = force_tot[n].abs();
+
+  // force tensor
   const double V00 =   force_tot[n][0]*force_tot[n][0] -
                        force_tot[n][1]*force_tot[n][1];
   const double V01 = 2*force_tot[n][0]*force_tot[n][1];
 
+  // update nematics and polarity
   if(store)
   {
-    // Euler-marijuana update
-    Q00_old[n] = Q00[n] + sqrt(time_step)*D*random_normal();
-    Q01_old[n] = Q01[n] + sqrt(time_step)*D*random_normal();
+    // euler-marijuana update
+    Q00_old[n] = Q00[n] + sqrt_time_step*Dnem*random_normal();
+    Q01_old[n] = Q01[n] + sqrt_time_step*Dnem*random_normal();
+    theta_pol_old[n] = theta_pol[n] + sqrt_time_step*Dpol*random_normal();
   }
 
-  const double tr = 1 - Q00[n]*Q00[n] - Q01[n]*Q01[n];
-  Q00[n] = Q00_old[n] + time_step*.5*(C*tr*Q00[n] + deltaQ00[n]) + J*(V00-Q00[n]);
-  Q01[n] = Q01_old[n] + time_step*.5*(C*tr*Q01[n] + deltaQ01[n]) + J*(V01-Q01[n]);
+  // nematics
+  const double tr = Snem*Snem - Q00[n]*Q00[n] - Q01[n]*Q01[n];
+  Q00[n] = Q00_old[n] + time_step*.5*(Cnem*tr*Q00[n] + deltaQ00[n]) + Jnem*(V00-Q00[n]);
+  Q01[n] = Q01_old[n] + time_step*.5*(Cnem*tr*Q01[n] + deltaQ01[n]) + Jnem*(V01-Q01[n]);
+
+  // polarisation
+  const double torque = -fn*atan2(force_tot[n][0]*pol[n][1]-force_tot[n][1]*pol[n][0],
+                                  force_tot[n][0]*pol[n][0]+force_tot[n][1]*pol[n][1]);
+  theta_pol[n] = theta_pol_old[n] + time_step*Jpol*torque;
+  pol[n] = { cos(theta_pol[n]), sin(theta_pol[n]) };
 }
 
 void Model::ComputeCoM(unsigned n)
@@ -262,6 +302,8 @@ void Model::SquareAndSumAtNode(unsigned n, unsigned q)
   square_cnt[k] += p*p;
   sumQ00_cnt[k] += p*Q00[n];
   sumQ01_cnt[k] += p*Q01[n];
+  P0_cnt[k]     += p*pol[n][0];
+  P1_cnt[k]     += p*pol[n][1];
 }
 
 inline void Model::ReinitSquareAndSumAtNode(unsigned k)
@@ -270,6 +312,8 @@ inline void Model::ReinitSquareAndSumAtNode(unsigned k)
   square[k] = 0;
   sumQ00[k] = 0;
   sumQ01[k] = 0;
+  P0[k]     = 0;
+  P1[k]     = 0;
 }
 
 #ifndef _CUDA_ENABLED
@@ -296,8 +340,9 @@ void Model::Update(bool store, unsigned nstart)
     for(unsigned q=0; q<patch_N; ++q)
       UpdateFieldsAtNode(n, q);
 
-    // total force
+    // total force and velocity
     force_tot[n] = force_p[n] + force_c[n] + force_f[n];
+    velocity[n]  = (force_tot[n] + alpha*pol[n])/xi;
   }
 
   // 2) Predictor-corrector function for updating the phase fields
@@ -352,6 +397,8 @@ void Model::Update(bool store, unsigned nstart)
   swap(square, square_cnt);
   swap(sumQ00, sumQ00_cnt);
   swap(sumQ01, sumQ01_cnt);
+  swap(P0, P0_cnt);
+  swap(P1, P1_cnt);
 }
 
 #endif

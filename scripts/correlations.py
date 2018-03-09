@@ -35,30 +35,23 @@ ar = archive.loadarchive(sys.argv[1])
 
 oname = ""
 if len(sys.argv)==3:
-    oname = "movie_"+sys.argv[2]
+    oname = "_"+sys.argv[2]
     print "Output name is", sys.argv[2]
 
 ##################################################
 # plot simple animation of phases
 
 def myplot(frame, engine):
-    plot.cells(frame, engine)
-    plot.nematic(frame, engine)
-    plot.solidarea(frame, engine)
-    plot.nematic(frame, engine)
-    plot.walls(frame, engine)
-    plot.force_p(frame, engine)
-    plot.force_c(frame, engine)
-    plot.force_f(frame, engine)
-    plot.traction(frame, engine)
-
-    engine.axes.set_aspect('equal', adjustable='box')
-    engine.set_xlim([0, frame.parameters['Size'][0]-1])
-    engine.set_ylim([0, frame.parameters['Size'][1]-1])
-    engine.axis('off')
+    vx, vy = plot.get_velocity_field(frame.phi, frame.velp + frame.velc + frame.velf, size=24)
+    w      = plot.get_vorticity_field(vx, vy)
+    corr1  = plot.get_corr2(vx, vy)
+    corr2  = plot.get_corr(w)
+    engine.plot(range(len(corr1)), corr1, label='Velocity correlation')
+    engine.plot(range(len(corr2)), corr2, label='Vorticity correlation')
+    engine.legend()
 
 if len(oname)==0:
-    animation.animate(ar, myplot, show=True); exit(0)
+    animation.animate(ar, myplot, rng=[500, 600], show=True); exit(0)
 else:
-    an = animation.animate(ar, myplot, show=False)
+    an = plot.animation.animate(ar, myplot, show=False)
     animation.save(an, oname+'.mp4', 5)

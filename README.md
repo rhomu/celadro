@@ -41,17 +41,22 @@ Type `./celadro -h` for a list of available options.
 
 ## Examples
 
-Exampleson how to run the code and some ploting scripts can be found in the
-example directory.
+Examples runs and ploting scripts can be found in the `example` directory. Try
+to run the following:
+
+```
+./celadro box.dat -fco output_dir/
+python2 plot-cells.py output_dir/
+```
 
 ## Multi-threading and CUDA
 
 The code supports both multi-threading and CUDA.
 
-THe CUDA-enabled version of the code can be built using
+The CUDA-enabled version of the code can be built using
 ```
 mkdir build-cuda
 cd build-cuda
 cmake ..
-make celadro-cuda 
+make celadro-cuda
 ```

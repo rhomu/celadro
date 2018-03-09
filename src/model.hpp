@@ -63,6 +63,8 @@ struct Model
   std::vector<field> potential_old;
   /** Active velocity angle */
   std::vector<double> theta;
+  /** Total velocity */
+  std::vector<vec<double, 2>> velocity;
   /** Area associated with a phase field */
   std::vector<double> area;
   /** Counter for computing the area */
@@ -83,8 +85,14 @@ struct Model
   std::vector<double> S00, S01;
   /** Q-tensor */
   std::vector<double> Q00, Q01, deltaQ00, deltaQ01, Q00_old, Q01_old;
-  /** Nematic field */
+  /** Polarisation */
+  std::vector<vec<double, 2>> pol;
+  /** Direction of the polarisation */
+  std::vector<double> theta_pol, theta_pol_old;
+  /** Total nematic field */
   std::vector<double> sumQ00, sumQ01, sumQ00_cnt, sumQ01_cnt;
+  /** Total polarization of the tissue */
+  std::vector<double> P0, P1, P0_cnt, P1_cnt;
   /** Elasticity */
   std::vector<double> gam;
   /** Energy penalty for area */
@@ -149,7 +157,7 @@ struct Model
   unsigned pad;
   /** name of the inpute file */
   std::string inputname = "";
-  /** Switches */
+  /** Delete output? */
   bool force_delete;
   /** The random number seed */
   unsigned long seed; // picked using a fair die
@@ -175,31 +183,23 @@ struct Model
   /** Total number of time steps */
   unsigned nsteps;
   /** Time interval between data outputs */
-  unsigned ninfo;
+  unsigned ninfo = 10;
   /** Time at which to start the output */
-  unsigned nstart;
+  unsigned nstart = 0;
   /** number of subdivisions for a time step */
-  unsigned nsubsteps;
+  unsigned nsubsteps = 10;
   /** effective time step */
-  double time_step;
+  double time_step, sqrt_time_step;
   /** Number of phases */
   unsigned nphases;
-  /** Boundary conditions flag */
-  unsigned BC;
   /** angle in degrees (input variable only) */
   double angle_deg;
   /** Margin for the definition of patches */
-  unsigned margin;
-  /** Intial configuration */
-  std::string init_config;
-  /** Noise level for initial configurations */
-  double noise = 0;
-  /** Wall thickness */
-  double wall_thickness = 1.;
+  unsigned margin = 25;
   /** Repuslion by the wall */
-  double wall_kappa;
+  double wall_kappa = 2;
   /** Adhesion on the wall */
-  double wall_omega;
+  double wall_omega = 0;
   /** Boudaries for cell generation
    *
    * These are the boundaries (min and max x and y components) of the domain in
@@ -212,27 +212,31 @@ struct Model
    * @{ */
 
   /** Interface thickness */
-  double lambda;
+  double lambda = 8;
   /**  Interaction stength */
-  double kappa;
+  double kappa = 0.4;
   /** Activity */
   double zeta = 0., sign_zeta = 0.;
+  /** Strengh of propulsion */
+  double alpha = 0.;
   /** Cell-cell friction parameter */
-  double f;
+  double f = 0;
   /** Cell-wall friction parameter */
-  double f_walls;
+  double f_walls = 0;
   /** Substrate friction parameter */
-  double xi;
+  double xi = 1;
   /** Adhesion parameter */
-  double omega;
+  double omega = 0;
   /** Prefered radii (area = pi*R*R) and radius growth */
   std::vector<double> R, dR;
-  /** Coupling between area and contractility */
-  double beta;
-  /** Nematic parameters */
-  double C, K, D, L;
+  /** Elasitc nematic parameters */
+  double K = 0, L = 0;
+  /** Strength of mexican hat potential */
+  double Cpol = 10, Cnem = 10, Snem = 0; // olé!
   /** Flow alignment strenght */
-  double J = 0;
+  double Jpol = 0, Jnem = 0;
+  /** Noise strength */
+  double Dpol = 0, Dnem = 0;
   /** Pre-computed coefficients */
   double C1, C3;
 
@@ -259,58 +263,6 @@ struct Model
   /** Output all program options */
   void PrintProgramOptions();
 
-  // ===========================================================================
-  // Serialization
-
-  /** Serialization of parameters (in and out)*/
-  template<class Archive>
-  void SerializeParameters(Archive& ar)
-  {
-    ar & auto_name(gam)
-       & auto_name(mu)
-       & auto_name(lambda)
-       & auto_name(kappa)
-       & auto_name(R)
-       & auto_name(xi)
-       & auto_name(omega)
-       & auto_name(init_config)
-       & auto_name(zeta)
-       & auto_name(D)
-       & auto_name(C)
-       & auto_name(K)
-       & auto_name(L)
-       & auto_name(J)
-       & auto_name(f)
-       & auto_name(f_walls)
-       & auto_name(wall_thickness)
-       & auto_name(wall_kappa)
-       & auto_name(wall_omega)
-       & auto_name(walls)
-       & auto_name(patch_margin)
-       & auto_name(patch_size);
-  }
-
-  /** Serialization of parameters (in and out)*/
-  template<class Archive>
-  void SerializeFrame(Archive& ar)
-  {
-      ar & auto_name(nphases)
-         & auto_name(phi)
-         & auto_name(offset)
-         & auto_name(area)
-         & auto_name(com)
-         & auto_name(S00)
-         & auto_name(S01)
-         & auto_name(Q00)
-         & auto_name(Q01)
-         & auto_name(force_tot)
-         & auto_name(force_p)
-         & auto_name(force_f)
-         & auto_name(force_c)
-         & auto_name(patch_min)
-         & auto_name(patch_max);
-  }
-
   // =========================================================================
   // Program managment. Implemented in main.cpp
 
@@ -325,6 +277,37 @@ struct Model
 
   /** Clean after you */
   void Cleanup();
+
+  // ===========================================================================
+  // Configuration. Implemented in configure.cpp
+
+  /** Initial configuration parameters
+   * @{ */
+
+  /** Initial configuration name */
+  std::string init_config;
+  /** Boundary conditions flag */
+  unsigned BC = 0;
+  /** Noise level for initial configurations */
+  double noise = 0;
+  /** Wall thickness */
+  double wall_thickness = 1.;
+  /** Ratio of the cross vs size of the domain (BC=4) */
+  double cross_ratio = .25;
+
+  /** @} */
+
+  /** Add cell with number n at a certain position */
+  void AddCell(unsigned n, const coord& center);
+
+  /** Subfunction for AddCell() */
+  void AddCellAtNode(unsigned n, unsigned q, const coord& center);
+
+  /** Set initial condition for the fields */
+  void Configure();
+
+  /** Set initial configuration for the walls */
+  void ConfigureWalls();
 
   // ==========================================================================
   // Writing to file. Implemented in write.cpp
@@ -485,21 +468,6 @@ struct Model
   #endif
 
   // ===========================================================================
-  // Configuration. Implemented in configure.cpp
-
-  /** Add cell with number n at a certain position */
-  void AddCell(unsigned n, const coord& center);
-
-  /** Subfunction for AddCell() */
-  void AddCellAtNode(unsigned n, unsigned k, const coord& center);
-
-  /** Set initial condition for the fields */
-  void Configure();
-
-  /** Set initial configuration for the walls */
-  void ConfigureWalls();
-
-  // ===========================================================================
   // Run. Implemented in run.cpp
 
   /** Time step
@@ -583,35 +551,6 @@ struct Model
    * */
   void Update(bool, unsigned=0);
 
-  /** Helper function
-   *
-   * Update the fields in a square patch that is entirely contained inside the
-   * patch, i.e. that is not wrapping around the borders.
-   * */
-  template<typename Ret, typename ...Args>
-  void UpdateSubDomain(Ret (Model::*)(unsigned, unsigned, Args...),
-                       unsigned, unsigned, unsigned, unsigned,
-                       unsigned, Args&&... args);
-  /** Parallel version */
-  template<typename Ret, typename ...Args>
-  void UpdateSubDomainP(Ret (Model::*)(unsigned, unsigned, Args...),
-                        unsigned, unsigned, unsigned, unsigned,
-                        unsigned, Args&&... args);
-  /** Helper function
-   *
-   * This function is used to updated the fields only in a restricted patch
-   * around the cell center. One needs to be careful because of the periodic
-   * boundary conditions. The template argument is the function used to update
-   * the fields at each node (called ***AtNode()).
-   * */
-  template<typename R, typename ...Args>
-  void UpdateDomain(R (Model::*)(unsigned, unsigned, Args...),
-                    unsigned, Args&&... args);
-  /** Parallel version */
-  template<typename R, typename ...Args>
-  void UpdateDomainP(R (Model::*)(unsigned, unsigned, Args...),
-                     unsigned, Args&&... args);
-
   // ===========================================================================
   // Division. Implemented in division.cpp
 
@@ -638,6 +577,66 @@ struct Model
    * TBD
    * */
   void Divide(unsigned i);
+
+  // ===========================================================================
+  // Serialization
+
+  /** Serialization of parameters (in and out) */
+  template<class Archive>
+  void SerializeParameters(Archive& ar)
+  {
+    ar & auto_name(gam)
+       & auto_name(mu)
+       & auto_name(lambda)
+       & auto_name(init_config)
+       & auto_name(kappa)
+       & auto_name(R)
+       & auto_name(xi)
+       & auto_name(omega)
+       & auto_name(zeta)
+       & auto_name(alpha)
+       & auto_name(Dpol)
+       & auto_name(Dnem)
+       & auto_name(Jpol)
+       & auto_name(Jnem)
+       & auto_name(Cpol)
+       & auto_name(Cnem)
+       & auto_name(K)
+       & auto_name(L)
+       & auto_name(f)
+       & auto_name(f_walls)
+       & auto_name(wall_thickness)
+       & auto_name(wall_kappa)
+       & auto_name(wall_omega)
+       & auto_name(walls)
+       & auto_name(patch_margin)
+       & auto_name(patch_size);
+  }
+
+  /** Serialization of parameters (in and out) */
+  template<class Archive>
+  void SerializeFrame(Archive& ar)
+  {
+      ar & auto_name(nphases)
+         & auto_name(phi)
+         & auto_name(offset)
+         & auto_name(area)
+         & auto_name(com)
+         & auto_name(velocity)
+         & auto_name(S00)
+         & auto_name(S01)
+         & auto_name(Q00)
+         & auto_name(Q01)
+         & auto_name(P0)
+         & auto_name(P1)
+         & auto_name(force_tot)
+         & auto_name(force_p)
+         & auto_name(force_f)
+         & auto_name(force_c)
+         & auto_name(pol)
+         & auto_name(patch_min)
+         & auto_name(patch_max);
+  }
 
   // ===========================================================================
   // Tools

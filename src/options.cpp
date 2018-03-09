@@ -95,8 +95,6 @@ void Model::ParseProgramOptions(int ac, char **av)
       "Interface thickness parameter")
     ("kappa", opt::value<double>(&kappa),
       "Interaction strength")
-    ("beta", opt::value<double>(&beta),
-      "..........")
     ("npc", opt::value<unsigned>(&npc)->default_value(1u),
       "Number of predictor-corrector steps")
     ("margin", opt::value<unsigned>(&margin)->default_value(0u),
@@ -108,19 +106,29 @@ void Model::ParseProgramOptions(int ac, char **av)
     ("xi", opt::value<double>(&xi),
       "Substrate friction parameter")
     ("L", opt::value<double>(&L),
-     "nematic interaction parameter")
+     "strength of nematic disaligning interaction")
     ("K", opt::value<double>(&K),
-     "elastic constant")
-    ("C", opt::value<double>(&C),
-     "Strength of LdG potential")
-    ("J", opt::value<double>(&J),
-     "Flow alignment strength")
+     "elastic constant for the nematic")
+    //("C-pol", opt::value<double>(&Cpol),
+    // "Strength of LdG potential for the polarisation")
+    ("C-nem", opt::value<double>(&Cnem),
+     "Strength of LdG potential for the nematic")
+    ("J-pol", opt::value<double>(&Jpol),
+     "Nematic flow alignment strength")
+    ("J-nem", opt::value<double>(&Jnem),
+     "Nematic flow alignment strength")
+    ("D-nem", opt::value<double>(&Dnem),
+      "Nematic noise strength")
+    ("D-pol", opt::value<double>(&Dpol),
+      "Polarisation noise strength")
+    ("S-nem", opt::value<double>(&Snem),
+      "Order of the nematic tensors")
     ("zeta", opt::value<double>(&zeta),
      "Activity")
+    ("alpha", opt::value<double>(&alpha),
+     "strength of polar propulsion")
     ("omega", opt::value<double>(&omega),
       "Adhesion parameter")
-    ("D", opt::value<double>(&D),
-      "Nematic noise strength")
     ("wall-thickness", opt::value<double>(&wall_thickness),
       "Wall thickness (typical decay length)")
     ("wall-kappa", opt::value<double>(&wall_kappa)->default_value(kappa),
@@ -149,6 +157,8 @@ void Model::ParseProgramOptions(int ac, char **av)
       "Relaxation time steps at initialization.")
     ("noise", opt::value<double>(&noise),
       "Noise level")
+    ("cross-ratio", opt::value<double>(&cross_ratio),
+      "Ratio of the size of the cross compared to the domain size (for BC=4)")
     ("birth-boundaries", opt::value<vector<unsigned>>(&birth_bdries)->multitoken(),
      "Boundaries in which the cells are created "
      "when the initial configuration 'random' is choosed. "

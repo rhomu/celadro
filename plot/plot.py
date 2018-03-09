@@ -211,78 +211,6 @@ def get_defects(w, Qxx, Qxy):
 
     return d
 
-class defect_tracker:
-    """Defect tracker
-
-    Honestly this is not good code... if you are reading this I feel for you!
-    """
-
-    def __init__(self, max_dst = 5):
-        # all defects in id order
-        self.defects = []
-        # list of id of active defects by charge
-        self.active  = {}
-        # cutoff distance for matching
-        self.max_dst = max_dst
-
-    # wrapping distance on pbc domain (ugly)
-    def norm(self, v1, v2, LX, LY):
-        return min(
-                [ np.linalg.norm(v1-v2+[x*LX, y*LY])
-                  for x, y in product([-1, 0, 1], [-1, 0, 1]) ]
-                )
-
-    def add_frame(self, Q00, Q01, t):
-        """Add a new frame and detect defects"""
-        # get dimension of pbc domain
-        (LX, LY) = Q00.shape
-        # get defects from new frame
-        w       = charge_array(Q00, Q01)
-        defects = get_defects(w, Q00, Q01)
-        # new list of active defects
-        active  = {}
-        # compare with old ones
-        for new in defects:
-            # distance from all active defects with same charge
-            dist = [ self.norm(new["pos"], self.defects[i]["pos"][-1], LX, LY)
-                     for i in self.active.get(new['charge'], []) ]
-            if len(dist)!=0:
-                # find minimum and index
-                v, i = min((v, i) for (i, v) in enumerate(dist))
-                # if min dist is smaller than cutoff then we have found our defect
-                if v < self.max_dst:
-                    # add position and angle to stored defect
-                    self.defects[self.active[new['charge']][i]]['pos'].append(new['pos'])
-                    # register it as active for next round
-                    active[new['charge']] = active.get(new['charge'], []) + [
-                            self.active[new['charge']][i] ]
-                    # delete from current list
-                    del self.active[new['charge']][i]
-                    continue
-
-            # we have found a new defect
-            self.defects.append({
-                'charge': new['charge'],
-                'birth': t,
-                'pos': [ new['pos'] ]
-                })
-            # register it as active for next round
-            active[new['charge']] = active.get(new['charge'], []) + [ len(self.defects)-1 ]
-
-        # save list of acive defects for next run (all the remaining defects are inactive)
-        self.active = active
-
-    def plot(self, engine=plt):
-        # get all active defects with a certain charge
-        for chg, dft in self.active.iteritems():
-            # get all indices of these defects
-            for ind in dft:
-                p = self.defects[ind]['pos'][-1]
-                engine.plot(p[0], p[1],
-                            'b' if chg==0.5 else 'g',
-                            marker=r"$ {} $".format(ind),
-                            markersize=15)
-
 def defects(Q00, Q01, engine=plt):
     """Plot single defects of the nematic field Q"""
     w = charge_array(Q00, Q01)
@@ -325,6 +253,42 @@ def solid_area(frame, engine=plt):
                         levels = [.5, 10.],
                         colors='mediumblue')
                         #colors=str(frame.area[i]/(np.pi*frame.parameters['R']**2)))
+
+def interfaces(frame, engine=plt):
+    """Plot the interfaces density"""
+    totphi = np.zeros(frame.parameters['Size'])
+    for i in range(len(frame.phi)):
+        totphi += frame.phi[i]*frame.parameters['walls']
+        for j in range(i+1, len(frame.phi)):
+            totphi += frame.phi[i]*frame.phi[j]
+
+    cmap = LinearSegmentedColormap.from_list('mycmap', ['grey', 'white'])
+    engine.imshow(totphi.T, interpolation='lanczos', cmap=cmap, origin='lower')
+
+def interfaces2(frame, engine=plt):
+    """Plot the interfaces density"""
+    totphi = [ np.zeros(frame.parameters['Size']),
+               np.zeros(frame.parameters['Size']) ]
+    for i in range(len(frame.phi)):
+        k = 0 if i<64 else 1
+        totphi[k] += frame.phi[i]*frame.parameters['walls']
+        for j in range(i+1, len(frame.phi)):
+            totphi[k] += frame.phi[i]*frame.phi[j]
+
+    cmap0 = LinearSegmentedColormap.from_list('mycmap', ['grey', 'white'])
+    cmap1 = LinearSegmentedColormap.from_list('mycmap', ['blue', 'white'])
+    engine.imshow(totphi[0].T, interpolation='lanczos', cmap=cmap0, origin='lower')
+    engine.imshow(totphi[1].T, interpolation='lanczos', cmap=cmap1, origin='lower')
+
+
+def solidarea(frame, engine=plt):
+    """Plot all phase fields with solid colours corresponding to individual areas"""
+    for i in range(len(frame.phi)):
+        engine.contourf(np.arange(0, frame.parameters['Size'][0]),
+                        np.arange(0, frame.parameters['Size'][1]),
+                        frame.phi[i].T,
+                        levels = [.5, 10.],
+                        colors=str(frame.area[i]/(np.pi*frame.parameters['R'][i]**2)))
 
 def com(frame, engine=plt):
     """Plot the center-of-mass of each cell as a red dot"""
@@ -395,45 +359,43 @@ def shape_field(frame, size=1, avg=1, show_def=False, engine=plt):
     # defects
     if show_def: defects(Qxx, Qxy, engine)
 
-def velc(frame, engine=plt):
+def force(frame, i, v, engine=plt, **kwargs):
+    """Helper function to plot forces"""
+    c = frame.com[i]
+    engine.arrow(c[0], c[1], v[0], v[1], **kwargs)
+
+def force_c(frame, engine=plt):
     """Print contractile part of the velocity"""
     for i in range(frame.nphases):
-        p = frame.phi[i].reshape(frame.parameters['Size'])
-        c = frame.com[i]
-        v = frame.velc[i]
-        # correction factor
-        a = frame.parameters['ninfo']*frame.parameters['nsubsteps']
-        engine.arrow(c[0], c[1], a*v[0], a*v[1], color='g')
+        force(frame, i,
+              frame.parameters['ninfo']*frame.parameters['nsubsteps']*frame.force_c[i],
+              engine=engine,
+              color='g')
 
-
-def velp(frame, engine=plt):
-    """Print inactive part of the velocity"""
+def force_p(frame, engine=plt):
+    """Print passive force"""
     for i in range(frame.nphases):
-        p = frame.phi[i].reshape(frame.parameters['Size'])
-        c = frame.com[i]
-        v = frame.velp[i]
-        # correction factor
-        a = frame.parameters['ninfo']*frame.parameters['nsubsteps']
-        engine.arrow(c[0], c[1], a*v[0], a*v[1], color='b')
+        force(frame, i,
+              frame.parameters['ninfo']*frame.parameters['nsubsteps']*frame.force_p[i],
+              engine=engine,
+              color='b')
 
-def velf(frame, engine=plt):
-    """Print active part of the velocity"""
+def force_f(frame, engine=plt):
+    """Print friction force"""
     for i in range(frame.nphases):
-        p = frame.phi[i].reshape(frame.parameters['Size'])
-        c = frame.com[i]
-        v = frame.velf[i]
-        # correction factor
-        a = frame.parameters['ninfo']*frame.parameters['nsubsteps']
-        engine.arrow(c[0], c[1], a*v[0], a*v[1], color='brown')
+        force(frame, i,
+              frame.parameters['ninfo']*frame.parameters['nsubsteps']*frame.force_f[i],
+              engine=engine,
+              color='brown')
 
-def vel(frame, engine=plt):
-    """Print active part of the velocity"""
+def traction(frame, engine=plt):
+    """Print contractile part of the velocity"""
     for i in range(frame.nphases):
-        p = frame.phi[i].reshape(frame.parameters['Size'])
-        c = frame.com[i]
-        v = frame.vel
-        a = frame.parameters['ninfo']*frame.parameters['nsubsteps']
-        engine.arrow(c[0], c[1], a*v[0], a*v[1], color='k', head_width=1, zorder=10)
+        force(frame, i,
+              frame.parameters['ninfo']*frame.parameters['nsubsteps']*
+              frame.parameters['alpha']*frame.pol[i],
+              engine=engine,
+              color='r')
 
 def nematic(frame, engine=plt):
     """Print director of each cell"""
@@ -458,7 +420,7 @@ def phase(frame, n, engine=plt):
 
 def velocity_field(frame, size=15, engine=plt, magn=True, avg=1):
     """Plot the total veloctity field assiciated with the cells"""
-    vx, vy = get_velocity_field(frame.phi, frame.velp + frame.velc + frame.velf, size)
+    vx, vy = get_velocity_field(frame.phi, frame.velocity, size)
 
     if magn:
         m = np.sqrt(vx**2 + vy**2)

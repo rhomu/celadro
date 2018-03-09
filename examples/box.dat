@@ -3,14 +3,15 @@
 #
 
 # initial configuration
-config    = random
-nsteps    = 50000
-ninfo     = 10
-LX        = 100
-LY        = 100
-nsubsteps = 5
-margin    = 25
-bc        = 0
+config     = random
+nsteps     = 2000
+ninfo      = 10
+LX         = 100
+LY         = 100
+nsubsteps  = 5
+bc         = 1
+margin     = 25
+relax-time = 50
 
 # model parameters...
 # ...number of phases
@@ -30,23 +31,17 @@ xi    = 1
 # ...adhesion
 omega = 0
 # ...cell-cell friction
-friction = 0.
+friction = 0.2
 # ...cell-wall friction
 friction-walls = 0
-
-# initial configuration options...
-relax-time = 50
-noise      = 0
 
 # wall options
 wall-thickness = .5
 wall-kappa     = 2
 wall-omega     = 0
 
-# nematics
-zeta  = -10e-3
-S-nem = 1
-C-nem = 10
-K     = .01
-L     = .05
-D-nem = 1e-10
+# dynamics of the polarisation
+alpha = .1
+D-pol = .08
+J-pol = .08
+

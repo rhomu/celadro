@@ -4,7 +4,7 @@
 #
 # Usage:
 #
-#   python2 plot-cells.py input [output]
+#   python2 plot-velocity.py input [output]
 #
 #  where
 #
@@ -35,22 +35,14 @@ ar = archive.loadarchive(sys.argv[1])
 
 oname = ""
 if len(sys.argv)==3:
-    oname = "movie_"+sys.argv[2]
+    oname = "_"+sys.argv[2]
     print "Output name is", sys.argv[2]
 
 ##################################################
 # plot simple animation of phases
 
 def myplot(frame, engine):
-    plot.cells(frame, engine)
-    plot.nematic(frame, engine)
-    plot.solidarea(frame, engine)
-    plot.nematic(frame, engine)
-    plot.walls(frame, engine)
-    plot.force_p(frame, engine)
-    plot.force_c(frame, engine)
-    plot.force_f(frame, engine)
-    plot.traction(frame, engine)
+    plot.velocity_field(frame, engine=engine, size=24, magn=True, avg=2)
 
     engine.axes.set_aspect('equal', adjustable='box')
     engine.set_xlim([0, frame.parameters['Size'][0]-1])
