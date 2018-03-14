@@ -6,6 +6,8 @@ Phase-field modelling of epithelial cells using finite-difference integrator.
 
 TBD in an upcoming publication.
 
+![screenshot1](examples/cells.png) ![screenshot2](examples/interfaces.png)
+
 ## Building
 
 We use cmake. Typically you would type:
