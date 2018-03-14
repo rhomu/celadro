@@ -67,7 +67,7 @@ for i in range(len(defects)):
     # speed (only take defects that survive long enough)
     if len(d[2])>5:
 
-        vel = np.mean([ dist(d[2][i-1], d[2][i], ar.Size[0], ar.Size[1]) for i in range(1, len(d[2])) ])
+        vel = np.mean([ dist(d[2][k-1], d[2][k], ar.Size[0], ar.Size[1]) for k in range(1, len(d[2])) ])
 
         if d[0]>0:
             velp[i] = vel
@@ -75,15 +75,17 @@ for i in range(len(defects)):
             velm[i] = vel
 
 # mean defect density
-print "Mean defect density:", np.mean(dens[1000:4000])
+print "Mean defect density:", np.mean(dens)
 print "Mean velcotiy of plus defects:", np.mean(velp)
 print "Mean velcotiy of minus defects:", np.mean(velm)
 
 plt.figure()
 plt.subplot(211)
-plt.plot(time, char, 'r')
-plt.plot(time, dens)
-plt.plot(time, ndimage.uniform_filter1d(dens, size=500))
+plt.plot(time, char/size, 'r', label='charge density')
+plt.plot(time, dens, label='defect density')
+plt.plot(time, ndimage.uniform_filter1d(dens, size=50), label='smoothed defect density')
+plt.legend()
 plt.subplot(212)
-plt.hist([ log(len(d[2])) for d in defects ])
+plt.hist([ log(len(d[2])) for d in defects ], label='log(defect lifetime)')
+plt.legend()
 plt.show()
