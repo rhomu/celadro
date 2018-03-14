@@ -61,11 +61,12 @@ void Model::AddCell(unsigned n, const coord& center)
   patch_min[n] = (center+Size-patch_margin)%Size;
   patch_max[n] = (center+patch_margin-1u)%Size;
 
-  // init nematic tensor
-  theta[n] = 2*noise*Pi*random_real();
-  Q00[n]   = sqrt(4*Snem)*cos(2*theta[n])/2;
-  Q01[n]   = sqrt(4*Snem)*cos(theta[n])*sin(theta[n]);
-  pol[n]   = { Spol*cos(theta[n]), Spol*sin(theta[n]) };
+  // init polarisation and nematic
+  theta_pol[n] = noise*Pi*(1-2*random_real());
+  pol[n]   = { Spol*cos(theta_pol[n]), Spol*sin(theta_pol[n]) };
+  theta_nem[n] = noise*Pi*(1-2*random_real());
+  Q00[n]   = Snem*cos(2*theta_nem[n]);
+  Q01[n]   = Snem*sin(2*theta_nem[n]);
 
   // create the cells at the centers we just computed
   for(unsigned q=0; q<patch_N; ++q)

@@ -41,8 +41,8 @@ void Model::Initialize()
   sumQ00_cnt.resize(N, 0.);
   sumQ01_cnt.resize(N, 0.);
   P0.resize(N, 0.);
-  P1.resize(N, 0.);
   P0_cnt.resize(N, 0.);
+  P1.resize(N, 0.);
   P1_cnt.resize(N, 0.);
 
   // rectifies margin in case it is bigger than domain
@@ -80,16 +80,16 @@ void Model::Initialize()
   patch_max.resize(nphases, Size);
   com.resize(nphases, {0., 0.});
   com_prev.resize(nphases, {0., 0.});
-  deltaQ00.resize(nphases, 0.);
-  deltaQ01.resize(nphases, 0.);
   Q00.resize(nphases, 0.);
   Q01.resize(nphases, 0.);
-  Q00_old.resize(nphases, 0.);
-  Q01_old.resize(nphases, 0.);
   pol.resize(nphases, {0., 0.});
   velocity.resize(nphases, {0., 0.});
   theta_pol.resize(nphases, 0.);
   theta_pol_old.resize(nphases, 0.);
+  delta_theta_pol.resize(nphases, 0.);
+  theta_nem.resize(nphases, 0.);
+  theta_nem_old.resize(nphases, 0.);
+  delta_theta_nem.resize(nphases, 0.);
   force_tot.resize(nphases, {0., 0.});
   force_p.resize(nphases, {0., 0.});
   force_c.resize(nphases, {0., 0.});
@@ -100,7 +100,6 @@ void Model::Initialize()
   S01.resize(nphases, 0.);
   S_order.resize(nphases, 0.);
   S_angle.resize(nphases, 0.);
-  theta.resize(nphases, 0.);
   offset.resize(nphases, {0u, 0u});
 
   // ---------------------------------------------------------------------------
@@ -206,6 +205,7 @@ void Model::SwapCells(unsigned n, unsigned m)
   swap(S01[n], S01[m]);
   swap(S_order[n], S_order[m]);
   swap(S_angle[n], S_angle[m]);
-  swap(theta[n], theta[m]);
+  swap(theta_pol[n], theta_pol[m]);
+  swap(theta_nem[n], theta_nem[m]);
   swap(offset[n], offset[m]);
 }

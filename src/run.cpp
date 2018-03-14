@@ -33,9 +33,8 @@ void Model::Pre()
     double save_Dpol  = 0; swap(Dpol, save_Dpol);
     double save_Jnem  = 0; swap(Jnem, save_Jnem);
     double save_Jpol  = 0; swap(Jpol, save_Jpol);
-    double save_Cnem  = 0; swap(Cnem, save_Cnem);
-    double save_K  = 0; swap(K, save_K);
-    double save_L  = 0; swap(L, save_L);
+    double save_Kpol  = 0; swap(Kpol, save_Kpol);
+    double save_Knem  = 0; swap(Knem, save_Knem);
 
     if(relax_nsubsteps) swap(nsubsteps, relax_nsubsteps);
 
@@ -50,9 +49,8 @@ void Model::Pre()
     swap(Jpol, save_Jpol);
     swap(Dnem, save_Dnem);
     swap(Dpol, save_Dpol);
-    swap(Cnem, save_Cnem);
-    swap(L, save_L);
-    swap(K, save_K);
+    swap(Kpol, save_Kpol);
+    swap(Knem, save_Knem);
   }
 }
 
@@ -162,11 +160,19 @@ void Model::UpdateFieldsAtNode(unsigned n, unsigned q)
   force_f[n][1] += + f*alpha*pol[n][1]*(dx*(dxs-dx)+dy*(dys-dy))
                    - f*alpha*(dx*(dxp1-pol[n][1]*dx)+dy*(dyp1-pol[n][1]*dy))
                    + dxw*f_walls*(pol[n][1]*dxw-pol[n][0]*dyw)*(dx*dxw+dy*dyw);
-  // difference in contractility
-  deltaQ00[n] += (sumQ00[k] - phi[n][q]*Q00[n])*
-    (L*sign_zeta*(Q00[n]*(dx*dx-dy*dy)+2*Q01[n]*dx*dy) + K*(dx*dx+dy*dy));
-  deltaQ01[n] += (sumQ01[k] - phi[n][q]*Q01[n])*
-    (L*sign_zeta*(Q00[n]*(dx*dx-dy*dy)+2*Q01[n]*dx*dy) + K*(dx*dx+dy*dy));
+  // differential torques...
+  {
+    // ... overlap between cells
+    const double ovlap = -(dx*(dxs-dx)+dy*(dys-dy));
+    // ... polarisation torque
+    const vec<double, 2> P = {P0[k]-phi[n][k]*pol[n][0], P1[k]-phi[n][k]*pol[n][1]};
+    delta_theta_pol[n] += ovlap*atan2(P[0]*pol[n][1]-P[1]*pol[n][0],
+                                       P[0]*pol[n][0]+P[1]*pol[n][1]);
+    // ... nematic torque
+    const vec<double, 2> Q = {sumQ00[k]-phi[n][k]*Q00[n], sumQ01[k]-phi[n][k]*Q01[n]};
+    delta_theta_nem[n] += ovlap*atan2(Q[0]*Q01[n]-Q[1]*Q00[n],
+                                      Q[0]*Q00[n]+Q[1]*Q01[n]);
+  }
 }
 
 void Model::UpdateAtNode(unsigned n, unsigned q, bool store)
@@ -232,30 +238,30 @@ void Model::UpdatePolarization(unsigned n, bool store)
 {
   // tot force
   const double fn  = force_tot[n].abs();
-
   // force tensor
-  const double V00 =   force_tot[n][0]*force_tot[n][0] -
-                       force_tot[n][1]*force_tot[n][1];
-  const double V01 = 2*force_tot[n][0]*force_tot[n][1];
+  const double F00 =   force_tot[n][0]*force_tot[n][0]
+                     - force_tot[n][1]*force_tot[n][1];
+  const double F01 = 2*force_tot[n][0]*force_tot[n][1];
 
   // update nematics and polarity
   if(store)
   {
     // euler-marijuana update
-    Q00_old[n] = Q00[n] + sqrt_time_step*Dnem*random_normal();
-    Q01_old[n] = Q01[n] + sqrt_time_step*Dnem*random_normal();
+    theta_nem_old[n] = theta_nem[n] + sqrt_time_step*Dnem*random_normal();
     theta_pol_old[n] = theta_pol[n] + sqrt_time_step*Dpol*random_normal();
   }
 
   // nematics
-  const double tr = Snem*Snem - Q00[n]*Q00[n] - Q01[n]*Q01[n];
-  Q00[n] = Q00_old[n] + time_step*.5*(Cnem*tr*Q00[n] + deltaQ00[n]) + Jnem*(V00-Q00[n]);
-  Q01[n] = Q01_old[n] + time_step*.5*(Cnem*tr*Q01[n] + deltaQ01[n]) + Jnem*(V01-Q01[n]);
+  theta_nem[n] = theta_nem_old[n] - time_step*(
+      + Knem*delta_theta_nem[n]
+      + Jnem*fn*atan2(F00*Q01[n]-F01*Q00[n], F00*Q00[n]+F01*Q01[n]));
+  Q00[n] = Snem*cos(2*theta_nem[n]);
+  Q01[n] = Snem*sin(2*theta_nem[n]);
 
   // polarisation
-  const double torque = -fn*atan2(force_tot[n][0]*pol[n][1]-force_tot[n][1]*pol[n][0],
-                                  force_tot[n][0]*pol[n][0]+force_tot[n][1]*pol[n][1]);
-  theta_pol[n] = theta_pol_old[n] + time_step*Jpol*torque;
+  theta_pol[n] = theta_pol_old[n] - time_step*(
+      + Kpol*delta_theta_pol[n]
+      + Jpol*fn*atan2(force_tot[n][0]*pol[n][1]-force_tot[n][1]*pol[n][0], force_tot[n]*pol[n]));
   pol[n] = { Spol*cos(theta_pol[n]), Spol*sin(theta_pol[n]) };
 }
 
@@ -339,8 +345,8 @@ void Model::Update(bool store, unsigned nstart)
     force_p[n] = {0., 0.};
     force_c[n] = {0., 0.};
     force_f[n] = {0., 0.};
-    deltaQ00[n] = 0;
-    deltaQ01[n] = 0;
+    delta_theta_pol[n] = 0;
+    delta_theta_nem[n] = 0;
 
     // update in restricted patch only
     for(unsigned q=0; q<patch_N; ++q)

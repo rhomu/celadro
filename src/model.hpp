@@ -61,8 +61,6 @@ struct Model
   std::vector<field> potential;
   /** Predicted potential in a P(C)^n step */
   std::vector<field> potential_old;
-  /** Active velocity angle */
-  std::vector<double> theta;
   /** Total velocity */
   std::vector<vec<double, 2>> velocity;
   /** Area associated with a phase field */
@@ -84,15 +82,16 @@ struct Model
   /** Structure tensor */
   std::vector<double> S00, S01;
   /** Q-tensor */
-  std::vector<double> Q00, Q01, deltaQ00, deltaQ01, Q00_old, Q01_old;
+  std::vector<double> Q00, Q01;
   /** Polarisation */
   std::vector<vec<double, 2>> pol;
-  /** Direction of the polarisation */
-  std::vector<double> theta_pol, theta_pol_old;
+  /** Direction of the polarisation/nematics */
+  std::vector<double> theta_pol, theta_pol_old, theta_nem, theta_nem_old;
+  std::vector<double> delta_theta_pol, delta_theta_nem;
   /** Total nematic field */
   std::vector<double> sumQ00, sumQ01, sumQ00_cnt, sumQ01_cnt;
   /** Total polarization of the tissue */
-  std::vector<double> P0, P1, P0_cnt, P1_cnt;
+  std::vector<double> P0, P0_cnt, P1, P1_cnt;
   /** Elasticity */
   std::vector<double> gam;
   /** Energy penalty for area */
@@ -229,10 +228,10 @@ struct Model
   double omega = 0;
   /** Prefered radii (area = pi*R*R) and radius growth */
   std::vector<double> R, dR;
-  /** Elasitc nematic parameters */
-  double K = 0, L = 0;
-  /** Strength of mexican hat potential */
-  double Cpol = 10, Cnem = 10, Spol = 0, Snem = 0; // olé!
+  /** Elasitc parameters */
+  double Knem = 0, Kpol = 0;
+  /** Strength of polarity / nematic */
+  double Spol = 0, Snem = 0; // olé!
   /** Flow alignment strenght */
   double Jpol = 0, Jnem = 0;
   /** Noise strength */
@@ -599,10 +598,8 @@ struct Model
        & auto_name(Dnem)
        & auto_name(Jpol)
        & auto_name(Jnem)
-       & auto_name(Cpol)
-       & auto_name(Cnem)
-       & auto_name(K)
-       & auto_name(L)
+       & auto_name(Kpol)
+       & auto_name(Knem)
        & auto_name(f)
        & auto_name(f_walls)
        & auto_name(wall_thickness)

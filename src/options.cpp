@@ -105,14 +105,12 @@ void Model::ParseProgramOptions(int ac, char **av)
       "Cell-wall friction parameter")
     ("xi", opt::value<double>(&xi),
       "Substrate friction parameter")
-    ("L", opt::value<double>(&L),
-     "strength of nematic disaligning interaction")
-    ("K", opt::value<double>(&K),
+    ("K-pol", opt::value<double>(&Kpol),
+     "elastic constant for the polarisation")
+    ("K-nem", opt::value<double>(&Knem),
      "elastic constant for the nematic")
     //("C-pol", opt::value<double>(&Cpol),
     // "Strength of LdG potential for the polarisation")
-    ("C-nem", opt::value<double>(&Cnem),
-     "Strength of LdG potential for the nematic")
     ("J-pol", opt::value<double>(&Jpol),
      "Nematic flow alignment strength")
     ("J-nem", opt::value<double>(&Jnem),
