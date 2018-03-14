@@ -56,7 +56,7 @@ Q01_tot = np.zeros((window_size, window_size))
 vx_tot  = np.zeros((window_size, window_size))
 vy_tot  = np.zeros((window_size, window_size))
 
-for i in np.arange(ar._nframes+1, step=5):
+for i in np.arange(ar._nframes+1, step=1):
     frame = ar.read_frame(i)
     print "{}/{}".format(i, ar._nframes)
 
