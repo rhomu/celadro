@@ -16,6 +16,7 @@ sys.path.insert(0, "../plot/")
 import plot
 import archive
 import animation
+from itertools import product
 
 ##################################################
 # Init
