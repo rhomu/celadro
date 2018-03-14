@@ -404,6 +404,14 @@ def traction(frame, engine=plt):
               engine=engine,
               color='r')
 
+def polarisation(frame, engine=plt):
+    """Print direction of polarisation"""
+    for i in range(frame.nphases):
+        force(frame, i,
+              .5*frame.parameters['R'][i]*frame.pol[i]/np.linalg.norm(frame.pol[i]),
+              engine=engine,
+              color='k')
+
 def nematic(frame, engine=plt):
     """Print director of each cell"""
     for i in range(frame.nphases):
