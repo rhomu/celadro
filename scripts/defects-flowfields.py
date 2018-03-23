@@ -3,11 +3,12 @@
 #
 # Usage:
 #
-#   python2 defects-flowfields.py input
+#   python2 defects-flowfields.py input [output]
 #
 #  where
 #
 #    intput -- the input file or directory
+#    output -- (optional) if present saves plots instead of showing them
 
 import numpy as np
 import matplotlib.pyplot as plt
