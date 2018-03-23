@@ -587,6 +587,7 @@ struct Model
     ar & auto_name(gam)
        & auto_name(mu)
        & auto_name(lambda)
+       & auto_name(nphases)
        & auto_name(init_config)
        & auto_name(kappa)
        & auto_name(R)
