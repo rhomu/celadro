@@ -35,7 +35,7 @@ ar = archive.loadarchive(sys.argv[1])
 
 oname = ""
 if len(sys.argv)==3:
-    oname = "_"+sys.argv[2]
+    oname = "movie_"+sys.argv[2]+"_nem"
     print "Output name is", sys.argv[2]
 
 ##################################################
