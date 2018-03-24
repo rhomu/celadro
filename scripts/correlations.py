@@ -46,6 +46,8 @@ vel_tot = np.zeros(size)
 vel_err = np.zeros(size)
 vor_tot = np.zeros(size)
 vor_err = np.zeros(size)
+nem_tot = np.zeros(size)
+nem_err = np.zeros(size)
 
 for i in np.arange(int(0.3*ar._nframes), ar._nframes+1, step=1):
 
@@ -64,7 +66,11 @@ for i in np.arange(int(0.3*ar._nframes), ar._nframes+1, step=1):
     vor_err += np.square(corr2)
 
     # Q
-    # tbd
+    Qxx, Qxy = plot.get_Qtensor(frame.phi, frame.Q00, frame.Q01, size=24)
+    corrQ    = plot.get_corr2(Qxx, Qxy) # nornalization is wrong but cancels
+
+    nem_tot += corrQ
+    nem_err += np.square(corrQ)
 
     count += 1
 
@@ -75,13 +81,37 @@ for i in range(size):
     vor_tot[i] /= count
     vor_err[i] /= count
     vor_err[i]  = sqrt(vor_err[i] - vor_tot[i]**2)
+    nem_tot[i] /= count
+    nem_err[i] /= count
+    nem_err[i]  = sqrt(nem_err[i] - nem_tot[i]**2)
 
+#
+# nematic
+#
+plt.figure()
+plt.plot(range(size), nem_tot, 'k')
+plt.fill_between(range(size), nem_tot-nem_err, nem_tot+nem_err)
+if oname=='': plt.show()
+else:
+    plt.savefig(oname+'_corr_nem.png')
+    np.save(oname+'_nem_tot', nem_tot)
+    np.save(oname+'_nem_err', nem_err)
+
+#
+# velocity
+#
 plt.figure()
 plt.plot(range(size), vel_tot, 'k')
 plt.fill_between(range(size), vel_tot-vel_err, vel_tot+vel_err)
 if oname=='': plt.show()
-else: plt.savefig(oname+'_corr_vel.png')
+else:
+    plt.savefig(oname+'_corr_vel.png')
+    np.save(oname+'_vel_tot', vel_tot)
+    np.save(oname+'_vel_err', vel_err)
 
+#
+# vorticity
+#
 def zero(x, y):
     indi = np.where(y[1:]*y[0:-1] < 0.0)[0][0]
     dx = x[indi+1] - x[indi]
@@ -99,4 +129,7 @@ plt.plot(range(size), vor_tot, 'k')
 plt.plot(xz, yz, 'ro')
 plt.fill_between(range(size), vor_tot-vor_err, vor_tot+vor_err)
 if oname=='': plt.show()
-else: plt.savefig(oname+'_corr_vor.png')
+else:
+    plt.savefig(oname+'_corr_vor.png')
+    np.save(oname+'_vor_tot', vor_tot)
+    np.save(oname+'_vor_err', vor_err)
