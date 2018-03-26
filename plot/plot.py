@@ -58,8 +58,8 @@ def get_Qtensor(phases, Qxx, Qxy, size=1, mode='wrap'):
 
 def get_vorticity_field(ux, uy):
     """Compute vorticity from velocity field"""
-    dyux = np.gradient(ux, axis=1)
-    dxuy = np.gradient(uy, axis=0)
+    dyux = np.gradient(np.pad(ux, 2, mode='wrap'), axis=1)[2:-2, 2:-2]
+    dxuy = np.gradient(np.pad(ux, 2, mode='wrap'), axis=0)[2:-2, 2:-2]
     return dxuy - dyux
 
 def get_corr(u):
