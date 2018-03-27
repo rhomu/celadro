@@ -314,7 +314,7 @@ struct Model
   void Configure();
 
   /** Set initial configuration for the walls */
-  void ConfigureWalls();
+  void ConfigureWalls(int BC);
 
   // ==========================================================================
   // Writing to file. Implemented in write.cpp
