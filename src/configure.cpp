@@ -234,9 +234,9 @@ void Model::Configure()
       init_config, "' unknown.");
 }
 
-void Model::ConfigureWalls()
+void Model::ConfigureWalls(int BC_)
 {
-  switch(BC)
+  switch(BC_) // note that BC_ is argument, and different from class member BC
   {
   case 0:
     // no walls (pbc)
@@ -383,8 +383,9 @@ void Model::ConfigureWalls()
                  + exp(-(Size[0]-1-x)/wall_thickness)
                  + exp(-(Size[1]-1-y)/wall_thickness);
 
-      if(x <= xl) walls[k] += exp(-(xl - x)/wall_thickness);
-      if(x >= xr) walls[k] += exp(-(x - xr)/wall_thickness);
+      if(x <= xl)           walls[k] += exp(-(xl - x)/wall_thickness);
+      if(x >= xr)           walls[k] += exp(-(x - xr)/wall_thickness);
+      if(xl < x and x < xr) walls[k] =  1.;
     }
     break;
   // Same as above but channel.
