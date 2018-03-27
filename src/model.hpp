@@ -299,6 +299,8 @@ struct Model
   double wall_thickness = 1.;
   /** Ratio of the cross vs size of the domain (BC=4) */
   double cross_ratio = .25;
+  /** Ratio of the wound vs size of the domain (BC=5) */
+  double wound_ratio = .50;
 
   /** @} */
 

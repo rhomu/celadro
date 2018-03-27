@@ -464,7 +464,7 @@ def vorticity_field(frame, size=15, engine=plt, cbar=True):
 
 def walls(frame, engine=plt):
     """Plot the wall phase-field"""
-    cax = engine.imshow(frame.parameters['walls'], cmap='Greys', origin='lower', clim=(0., 1.))
+    cax = engine.imshow(frame.parameters['walls'].T, cmap='Greys', origin='lower', clim=(0., 1.))
 
 def patch(frame, n, engine=plt):
     """Plot the restricted patch of a single cell"""

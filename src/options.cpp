@@ -161,6 +161,8 @@ void Model::ParseProgramOptions(int ac, char **av)
       "Noise level")
     ("cross-ratio", opt::value<double>(&cross_ratio),
       "Ratio of the size of the cross compared to the domain size (for BC=4)")
+    ("wound-ratio", opt::value<double>(&wound_ratio),
+      "Ratio of the size of the wound open space compared to the domain size (for BC=5)")
     ("birth-boundaries", opt::value<vector<unsigned>>(&birth_bdries)->multitoken(),
      "Boundaries in which the cells are created "
      "when the initial configuration 'random' is choosed. "
