@@ -65,6 +65,8 @@ struct Model
   std::vector<vec<double, 2>> velocity;
   /** Area associated with a phase field */
   std::vector<double> area;
+  /** Vorticity around each cell */
+  std::vector<double> vorticity;
   /** Counter for computing the area */
   std::vector<double> area_cnt;
   /** Sum of phi at each node */
@@ -92,6 +94,8 @@ struct Model
   std::vector<double> sumQ00, sumQ01, sumQ00_cnt, sumQ01_cnt;
   /** Total polarization of the tissue */
   std::vector<double> P0, P0_cnt, P1, P1_cnt;
+  /** Total velocity of the tissue */
+  std::vector<double> U0, U1, U0_cnt, U1_cnt;
   /** Elasticity */
   std::vector<double> gam;
   /** Energy penalty for area */
@@ -234,6 +238,8 @@ struct Model
   double Spol = 0, Snem = 0; // olé!
   /** Flow alignment strenght */
   double Jpol = 0, Jnem = 0;
+  /** Vorticity coupling */
+  double Wnem = 0;
   /** Noise strength */
   double Dpol = 0, Dnem = 0;
   /** Pre-computed coefficients */

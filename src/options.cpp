@@ -115,6 +115,8 @@ void Model::ParseProgramOptions(int ac, char **av)
      "Nematic flow alignment strength")
     ("J-nem", opt::value<double>(&Jnem),
      "Nematic flow alignment strength")
+    ("W-nem", opt::value<double>(&Wnem),
+     "Strength of vorticity torque")
     ("D-nem", opt::value<double>(&Dnem),
       "Nematic noise strength")
     ("D-pol", opt::value<double>(&Dpol),

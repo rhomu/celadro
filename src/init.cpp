@@ -44,6 +44,10 @@ void Model::Initialize()
   P0_cnt.resize(N, 0.);
   P1.resize(N, 0.);
   P1_cnt.resize(N, 0.);
+  U0.resize(N, 0.);
+  U0_cnt.resize(N, 0.);
+  U1.resize(N, 0.);
+  U1_cnt.resize(N, 0.);
 
   // rectifies margin in case it is bigger than domain
   // and compensate for the boundary layer
@@ -94,6 +98,7 @@ void Model::Initialize()
   force_p.resize(nphases, {0., 0.});
   force_c.resize(nphases, {0., 0.});
   force_f.resize(nphases, {0., 0.});
+  vorticity.resize(nphases, 0.);
   com_x.resize(nphases, 0.);
   com_y.resize(nphases, 0.);
   S00.resize(nphases, 0.);

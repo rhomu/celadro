@@ -150,6 +150,8 @@ void Model::UpdateFieldsAtNode(unsigned n, unsigned q)
   // passive force
   force_p[n][0] += dx*force;
   force_p[n][1] += dy*force;
+  //force_p[n][0] += C1*kappa*(square[k]-p*p)*dx;
+  //force_p[n][1] += C1*kappa*(square[k]-p*p)*dy;
   // contractility force
   force_c[n][0] += zeta*sumQ00[k]*dx + zeta*sumQ01[k]*dy;
   force_c[n][1] += zeta*sumQ01[k]*dx - zeta*sumQ00[k]*dy;
@@ -173,6 +175,8 @@ void Model::UpdateFieldsAtNode(unsigned n, unsigned q)
     delta_theta_nem[n] += ovlap*atan2(Q[0]*Q01[n]-Q[1]*Q00[n],
                                       Q[0]*Q00[n]+Q[1]*Q01[n]);
   }
+  // local vorticity
+  vorticity[n] += U0[k]*dy-U1[k]*dx;
 }
 
 void Model::UpdateAtNode(unsigned n, unsigned q, bool store)
@@ -254,7 +258,8 @@ void Model::UpdatePolarization(unsigned n, bool store)
   // nematics
   theta_nem[n] = theta_nem_old[n] - time_step*(
       + Knem*delta_theta_nem[n]
-      + Jnem*fn*atan2(F00*Q01[n]-F01*Q00[n], F00*Q00[n]+F01*Q01[n]));
+      + Jnem*fn*atan2(F00*Q01[n]-F01*Q00[n], F00*Q00[n]+F01*Q01[n]))
+      + Wnem*vorticity[n];
   Q00[n] = Snem*cos(2*theta_nem[n]);
   Q01[n] = Snem*sin(2*theta_nem[n]);
 
@@ -316,6 +321,8 @@ void Model::SquareAndSumAtNode(unsigned n, unsigned q)
   sumQ01_cnt[k] += p*Q01[n];
   P0_cnt[k]     += p*pol[n][0];
   P1_cnt[k]     += p*pol[n][1];
+  U0_cnt[k]     += p*velocity[n][0];
+  U1_cnt[k]     += p*velocity[n][1];
 }
 
 inline void Model::ReinitSquareAndSumAtNode(unsigned k)
@@ -326,6 +333,8 @@ inline void Model::ReinitSquareAndSumAtNode(unsigned k)
   sumQ01[k] = 0;
   P0[k]     = 0;
   P1[k]     = 0;
+  U0[k]     = 0;
+  U1[k]     = 0;
 }
 
 #ifndef _CUDA_ENABLED
@@ -347,6 +356,7 @@ void Model::Update(bool store, unsigned nstart)
     force_f[n] = {0., 0.};
     delta_theta_pol[n] = 0;
     delta_theta_nem[n] = 0;
+    vorticity[n] = 0;
 
     // update in restricted patch only
     for(unsigned q=0; q<patch_N; ++q)
@@ -411,6 +421,8 @@ void Model::Update(bool store, unsigned nstart)
   swap(sumQ01, sumQ01_cnt);
   swap(P0, P0_cnt);
   swap(P1, P1_cnt);
+  swap(U0, U0_cnt);
+  swap(U1, U1_cnt);
 }
 
 #endif
