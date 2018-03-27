@@ -171,6 +171,18 @@ void Model::Configure()
              fabs(center[1] - Size[1]/2.)+0.9*R[n]>cross_ratio*.5*Size[1])
             continue;
         }
+        // ... wound
+        if(BC==5)
+        {
+          // wall boundary condition
+          if(center[0]<0.9*R[n] or Size[0]-center[0]<0.9*R[n]) continue;
+          if(center[1]<0.9*R[n] or Size[1]-center[1]<0.9*R[n]) continue;
+
+          double xl = Size[0]*.5*(1.-wound_ratio);
+          double xr = Size[0]*.5*(1.+wound_ratio);
+
+          if(xl-center[0]<0.9*R[n] and center[0]-xr<0.9*R[n]) continue;
+        }
 
         // overlapp between cells
         bool is_overlapping = false;
@@ -355,6 +367,27 @@ void Model::ConfigureWalls()
       }
     }
     break;
+  // wound
+  case 5:
+    for(unsigned k=0; k<N; ++k)
+    {
+      const double x  = GetXPosition(k);
+      const double y  = GetYPosition(k);
+      const double xl = Size[0]*.5*(1.-wound_ratio);
+      const double xr = Size[0]*.5*(1.+wound_ratio);
+
+      // this is the easiest way: each wall contributes as an exponentially
+      // falling potential and we do not care about overalps
+      walls[k] =   exp(-y/wall_thickness)
+                 + exp(-x/wall_thickness)
+                 + exp(-(Size[0]-1-x)/wall_thickness)
+                 + exp(-(Size[1]-1-y)/wall_thickness);
+
+      if(x <= xl) walls[k] += exp(-(xl - x)/wall_thickness);
+      if(x >= xr) walls[k] += exp(-(x - xr)/wall_thickness);
+    }
+    break;
+  // Same as above but channel.
   default:
     throw error_msg("boundary condition unknown.");
   }
