@@ -35,6 +35,7 @@ void Model::Pre()
     double save_Jpol  = 0; swap(Jpol, save_Jpol);
     double save_Kpol  = 0; swap(Kpol, save_Kpol);
     double save_Knem  = 0; swap(Knem, save_Knem);
+    double save_Wnem  = 0; swap(Wnem, save_Wnem);
 
     if(relax_nsubsteps) swap(nsubsteps, relax_nsubsteps);
 
@@ -51,6 +52,7 @@ void Model::Pre()
     swap(Dpol, save_Dpol);
     swap(Kpol, save_Kpol);
     swap(Knem, save_Knem);
+    swap(Wnem, save_Wnem);
   }
 }
 
