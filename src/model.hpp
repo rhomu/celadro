@@ -301,6 +301,8 @@ struct Model
   double cross_ratio = .25;
   /** Ratio of the wound vs size of the domain (BC=5) */
   double wound_ratio = .50;
+  /** Ratio of the tumor vs size of the domain (BC=6) */
+  double tumor_ratio = .80;
 
   /** @} */
 
