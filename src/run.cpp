@@ -150,10 +150,10 @@ void Model::UpdateFieldsAtNode(unsigned n, unsigned q)
   // potential
   V[n][q]     = force;
   // passive force
-  force_p[n][0] += dx*force;
-  force_p[n][1] += dy*force;
-  //force_p[n][0] += C1*kappa*(square[k]-p*p)*dx;
-  //force_p[n][1] += C1*kappa*(square[k]-p*p)*dy;
+  //force_p[n][0] += dx*force;
+  //force_p[n][1] += dy*force;
+  force_p[n][0] += C1*kappa*(square[k]-p*p)*dx;
+  force_p[n][1] += C1*kappa*(square[k]-p*p)*dy;
   // contractility force
   force_c[n][0] += zeta*sumQ00[k]*dx + zeta*sumQ01[k]*dy;
   force_c[n][1] += zeta*sumQ01[k]*dx - zeta*sumQ00[k]*dy;
@@ -173,11 +173,12 @@ void Model::UpdateFieldsAtNode(unsigned n, unsigned q)
     delta_theta_pol[n] += ovlap*atan2(P[0]*pol[n][1]-P[1]*pol[n][0],
                                        P[0]*pol[n][0]+P[1]*pol[n][1]);
     // ... nematic torque
-    const vec<double, 2> Q = {sumQ00[k]-phi[n][k]*Q00[n], sumQ01[k]-phi[n][k]*Q01[n]};
-    delta_theta_nem[n] += ovlap*atan2(Q[0]*Q01[n]-Q[1]*Q00[n],
-                                      Q[0]*Q00[n]+Q[1]*Q01[n]);
+    //const vec<double, 2> Q = {sumQ00[k]-phi[n][k]*Q00[n], sumQ01[k]-phi[n][k]*Q01[n]};
+    //delta_theta_nem[n] += ovlap*atan2(Q[0]*Q01[n]-Q[1]*Q00[n],
+    //                                  Q[0]*Q00[n]+Q[1]*Q01[n]);
   }
-  // local vorticity
+  // nematic torques
+  tau[n]       += sumQ00[k]*Q01[n]-sumQ01[k]*Q00[n];
   vorticity[n] += U0[k]*dy-U1[k]*dx;
 }
 
@@ -259,7 +260,7 @@ void Model::UpdatePolarization(unsigned n, bool store)
 
   // nematics
   theta_nem[n] = theta_nem_old[n] - time_step*(
-      + Knem*delta_theta_nem[n]
+      + Knem*tau[n]
       + Jnem*fn*atan2(F00*Q01[n]-F01*Q00[n], F00*Q00[n]+F01*Q01[n]))
       + Wnem*vorticity[n];
   Q00[n] = Snem*cos(2*theta_nem[n]);
@@ -357,14 +358,15 @@ void Model::Update(bool store, unsigned nstart)
     force_c[n] = {0., 0.};
     force_f[n] = {0., 0.};
     delta_theta_pol[n] = 0;
-    delta_theta_nem[n] = 0;
+    tau[n] = 0;
     vorticity[n] = 0;
 
     // update in restricted patch only
     for(unsigned q=0; q<patch_N; ++q)
       UpdateFieldsAtNode(n, q);
 
-    // total force and velocity
+    // normalise and compute total forces and vel
+    tau[n]      /= lambda;
     force_tot[n] = force_p[n] + force_c[n] + force_f[n];
     velocity[n]  = (force_tot[n] + alpha*pol[n])/xi;
   }

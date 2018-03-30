@@ -67,6 +67,8 @@ struct Model
   std::vector<double> area;
   /** Vorticity around each cell */
   std::vector<double> vorticity;
+  /** Elastic torque for the nematic */
+  std::vector<double> tau;
   /** Counter for computing the area */
   std::vector<double> area_cnt;
   /** Sum of phi at each node */
@@ -89,7 +91,7 @@ struct Model
   std::vector<vec<double, 2>> pol;
   /** Direction of the polarisation/nematics */
   std::vector<double> theta_pol, theta_pol_old, theta_nem, theta_nem_old;
-  std::vector<double> delta_theta_pol, delta_theta_nem;
+  std::vector<double> delta_theta_pol;
   /** Total nematic field */
   std::vector<double> sumQ00, sumQ01, sumQ00_cnt, sumQ01_cnt;
   /** Total polarization of the tissue */
