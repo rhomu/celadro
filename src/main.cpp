@@ -157,7 +157,7 @@ void Model::Setup(int argc, char **argv)
   if(verbose) cout << "system initialisation ..." << flush;
   try {
     Configure();
-    ConfigureWalls();
+    ConfigureWalls(BC);
   } catch(...) {
     if(verbose) cout << " error" << endl;
     throw;

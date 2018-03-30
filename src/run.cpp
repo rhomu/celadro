@@ -54,6 +54,9 @@ void Model::Pre()
     swap(Knem, save_Knem);
     swap(Wnem, save_Wnem);
   }
+
+  if(BC==5) ConfigureWalls(1);
+  if(BC==6) ConfigureWalls(0);
 }
 
 void Model::Post()
