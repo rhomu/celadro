@@ -227,16 +227,14 @@ def defects(Q00, Q01, engine=plt):
             engine.plot(d["pos"][0], d["pos"][1], 'b^')
 
 
-def cell(frame, i, engine=plt):
+def cell(frame, i, engine=plt, color='k'):
     """Plot phase field defining one cells contour"""
     p = frame.phi[i]
     engine.contour(np.arange(0, frame.parameters['Size'][0]),
                    np.arange(0, frame.parameters['Size'][1]),
                    p.T,
-                   #levels = [1e-10, 1e-5, .5])
                    levels = [.5],
-                   #color='mediumblue'
-                   colors='k')
+                   colors=color)
 
 
 def cells(frame, engine=plt):
