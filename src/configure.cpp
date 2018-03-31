@@ -171,6 +171,32 @@ void Model::Configure()
              fabs(center[1] - Size[1]/2.)+0.9*R[n]>cross_ratio*.5*Size[1])
             continue;
         }
+        // ... wound
+        if(BC==5)
+        {
+          // wall boundary condition
+          if(center[0]<0.9*R[n] or Size[0]-center[0]<0.9*R[n]) continue;
+          if(center[1]<0.9*R[n] or Size[1]-center[1]<0.9*R[n]) continue;
+
+          double xl = Size[0]*.5*(1.-wound_ratio);
+          double xr = Size[0]*.5*(1.+wound_ratio);
+
+          if(xl-center[0]<0.9*R[n] and center[0]-xr<0.9*R[n]) continue;
+        }
+        // ... two phase ellipse
+        if(BC==6)
+        {
+          // compute distance from the elliptic wall
+          // ... angle of the current point (from center of the patch)
+          const auto theta = atan2(Size[1]/2.-center[1], Size[0]/2.-center[0]);
+          // ... small helper function to compute radius
+          auto rad = [](auto x, auto y) { return sqrt(x*x + y*y); };
+          // ... distance is the difference between wall and current point
+          const auto d = rad(Size[0]/2.*cos(theta)*tumor_ratio, Size[1]/2.*sin(theta)*tumor_ratio)
+                        -rad(Size[0]/2.-center[0], Size[1]/2.-center[1]);
+
+          if(fabs(d)<0.9*R[n]) continue;
+        }
 
         // overlapp between cells
         bool is_overlapping = false;
@@ -222,9 +248,9 @@ void Model::Configure()
       init_config, "' unknown.");
 }
 
-void Model::ConfigureWalls()
+void Model::ConfigureWalls(int BC_)
 {
-  switch(BC)
+  switch(BC_) // note that BC_ is argument, and different from class member BC
   {
   case 0:
     // no walls (pbc)
@@ -355,6 +381,47 @@ void Model::ConfigureWalls()
       }
     }
     break;
+  // wound
+  case 5:
+    for(unsigned k=0; k<N; ++k)
+    {
+      const double x  = GetXPosition(k);
+      const double y  = GetYPosition(k);
+      const double xl = Size[0]*.5*(1.-wound_ratio);
+      const double xr = Size[0]*.5*(1.+wound_ratio);
+
+      // this is the easiest way: each wall contributes as an exponentially
+      // falling potential and we do not care about overalps
+      walls[k] =   exp(-y/wall_thickness)
+                 + exp(-x/wall_thickness)
+                 + exp(-(Size[0]-1-x)/wall_thickness)
+                 + exp(-(Size[1]-1-y)/wall_thickness);
+
+      if(x <= xl)           walls[k] += exp(-(xl - x)/wall_thickness);
+      if(x >= xr)           walls[k] += exp(-(x - xr)/wall_thickness);
+      if(xl < x and x < xr) walls[k] =  1.;
+    }
+    break;
+  // two phase ellipse
+  case 6:
+    for(unsigned k=0; k<N; ++k)
+    {
+      const auto x = GetXPosition(k);
+      const auto y = GetYPosition(k);
+
+      // compute distance from the elliptic wall
+      // ... angle of the current point (from center of the domain)
+      const auto theta = atan2(Size[1]/2.-y, Size[0]/2.-x);
+      // ... small helper function to compute radius
+      const auto rad = [](auto x, auto y) { return sqrt(x*x + y*y); };
+      // ... distance is the difference between wall and current point
+      const auto d = rad(Size[0]/2.*cos(theta)*tumor_ratio, Size[1]/2.*sin(theta)*tumor_ratio)
+                    -rad(Size[0]/2.-x, Size[1]/2.-y);
+      // set the wall
+      walls[k] = exp(-fabs(d)/wall_thickness);
+    }
+    break;
+  // Same as above but channel.
   default:
     throw error_msg("boundary condition unknown.");
   }

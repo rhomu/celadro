@@ -232,16 +232,14 @@ def defects(Q00, Q01, engine=plt):
             engine.plot(d["pos"][0], d["pos"][1], 'b^')
 
 
-def cell(frame, i, engine=plt):
+def cell(frame, i, engine=plt, color='k'):
     """Plot phase field defining one cells contour"""
     p = frame.phi[i]
     engine.contour(np.arange(0, frame.parameters['Size'][0]),
                    np.arange(0, frame.parameters['Size'][1]),
                    p.T,
-                   #levels = [1e-10, 1e-5, .5])
                    levels = [.5],
-                   #color='mediumblue'
-                   colors='k')
+                   colors=color)
 
 
 def cells(frame, engine=plt):
@@ -469,7 +467,7 @@ def vorticity_field(frame, size=15, engine=plt, cbar=True):
 
 def walls(frame, engine=plt):
     """Plot the wall phase-field"""
-    cax = engine.imshow(frame.parameters['walls'], cmap='Greys', origin='lower', clim=(0., 1.))
+    cax = engine.imshow(frame.parameters['walls'].T, cmap='Greys', origin='lower', clim=(0., 1.))
 
 def patch(frame, n, engine=plt):
     """Plot the restricted patch of a single cell"""

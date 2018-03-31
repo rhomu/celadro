@@ -65,6 +65,10 @@ struct Model
   std::vector<vec<double, 2>> velocity;
   /** Area associated with a phase field */
   std::vector<double> area;
+  /** Vorticity around each cell */
+  std::vector<double> vorticity;
+  /** Elastic torque for the nematic */
+  std::vector<double> tau;
   /** Counter for computing the area */
   std::vector<double> area_cnt;
   /** Sum of phi at each node */
@@ -87,11 +91,13 @@ struct Model
   std::vector<vec<double, 2>> pol;
   /** Direction of the polarisation/nematics */
   std::vector<double> theta_pol, theta_pol_old, theta_nem, theta_nem_old;
-  std::vector<double> delta_theta_pol, delta_theta_nem;
+  std::vector<double> delta_theta_pol;
   /** Total nematic field */
   std::vector<double> sumQ00, sumQ01, sumQ00_cnt, sumQ01_cnt;
   /** Total polarization of the tissue */
   std::vector<double> P0, P0_cnt, P1, P1_cnt;
+  /** Total velocity of the tissue */
+  std::vector<double> U0, U1, U0_cnt, U1_cnt;
   /** Elasticity */
   std::vector<double> gam;
   /** Energy penalty for area */
@@ -234,6 +240,8 @@ struct Model
   double Spol = 0, Snem = 0; // olé!
   /** Flow alignment strenght */
   double Jpol = 0, Jnem = 0;
+  /** Vorticity coupling */
+  double Wnem = 0;
   /** Noise strength */
   double Dpol = 0, Dnem = 0;
   /** Pre-computed coefficients */
@@ -293,6 +301,10 @@ struct Model
   double wall_thickness = 1.;
   /** Ratio of the cross vs size of the domain (BC=4) */
   double cross_ratio = .25;
+  /** Ratio of the wound vs size of the domain (BC=5) */
+  double wound_ratio = .50;
+  /** Ratio of the tumor vs size of the domain (BC=6) */
+  double tumor_ratio = .80;
 
   /** @} */
 
@@ -306,7 +318,7 @@ struct Model
   void Configure();
 
   /** Set initial configuration for the walls */
-  void ConfigureWalls();
+  void ConfigureWalls(int BC);
 
   // ==========================================================================
   // Writing to file. Implemented in write.cpp
