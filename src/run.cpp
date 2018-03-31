@@ -155,8 +155,8 @@ void Model::UpdateFieldsAtNode(unsigned n, unsigned q)
   // passive force
   //force_p[n][0] += dx*force;
   //force_p[n][1] += dy*force;
-  force_p[n][0] += C1*kappa*(square[k]-p*p)*dx;
-  force_p[n][1] += C1*kappa*(square[k]-p*p)*dy;
+  force_p[n][0] += C1*kappa*square[k]*dx;
+  force_p[n][1] += C1*kappa*square[k]*dy;
   // contractility force
   force_c[n][0] += zeta*sumQ00[k]*dx + zeta*sumQ01[k]*dy;
   force_c[n][1] += zeta*sumQ01[k]*dx - zeta*sumQ00[k]*dy;
