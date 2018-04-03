@@ -27,8 +27,10 @@ void Model::Pre()
   // we make the system relax (without activity)
   if(relax_time>0)
   {
+    vector<double> save_alpha(nphases, 0);
+    swap(alpha, save_alpha);
+
     double save_zeta = 0.; swap(zeta, save_zeta);
-//    double save_alpha = 0; swap(alpha, save_alpha);
     double save_Dnem  = 0; swap(Dnem, save_Dnem);
     double save_Dpol  = 0; swap(Dpol, save_Dpol);
     double save_Jnem  = 0; swap(Jnem, save_Jnem);
@@ -44,8 +46,8 @@ void Model::Pre()
 
     if(relax_nsubsteps) swap(nsubsteps, relax_nsubsteps);
 
+    swap(alpha, save_alpha);
     swap(zeta, save_zeta);
-//    swap(alpha, save_alpha);
     swap(Jnem, save_Jnem);
     swap(Jpol, save_Jpol);
     swap(Dnem, save_Dnem);
