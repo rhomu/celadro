@@ -62,9 +62,11 @@ void Model::Initialize()
   // extend the parameters with the last given value
   if(gam.empty()) throw error_msg("please specify gamma parameter");
   if(mu.empty()) throw error_msg("please specify mu parameter");
+  if(alpha.empty()) throw error_msg("please specify alpha parameter");
   if(R.empty()) throw error_msg("please specify R parameter");
   gam.resize(nphases, gam.back());
   mu.resize(nphases, mu.back());
+  alpha.resize(nphases, alpha.back());
   R.resize(nphases, R.back());
   delta.resize(nphases, delta.empty() ? 0. : delta.back());
 
@@ -184,6 +186,7 @@ void Model::SwapCells(unsigned n, unsigned m)
 {
   swap(gam[n], gam[m]);
   swap(mu[n], mu[m]);
+  swap(alpha[n], alpha[m]);
   swap(delta[n], delta[m]);
   swap(R[n], R[m]);
   swap(Q00[n], Q00[m]);
