@@ -98,6 +98,8 @@ struct Model
   std::vector<double> P0, P0_cnt, P1, P1_cnt;
   /** Total velocity of the tissue */
   std::vector<double> U0, U1, U0_cnt, U1_cnt;
+  /** Strengh of propulsion */
+  std::vector<double> alpha;
   /** Elasticity */
   std::vector<double> gam;
   /** Energy penalty for area */
@@ -222,8 +224,6 @@ struct Model
   double kappa = 0.4;
   /** Activity */
   double zeta = 0., sign_zeta = 0.;
-  /** Strengh of propulsion */
-  double alpha = 0.;
   /** Cell-cell friction parameter */
   double f = 0;
   /** Cell-wall friction parameter */
@@ -407,7 +407,7 @@ struct Model
          *d_square, *d_Q00, *d_Q01, *d_walls,
          *d_walls_laplace, *d_walls_dx, *d_walls_dy, *d_sum_cnt, *d_square_cnt,
          *d_Q00_cnt, *d_Q01_cnt, *d_area, *d_area_cnt, *d_c, *d_S00, *d_S01, *d_S_order,
-         *d_S_angle, *d_theta, *d_gam, *d_mu;
+         *d_S_angle, *d_theta, *d_alpha, *d_gam, *d_mu;
   vec<double, 2>  *d_vel, *d_force_p, *d_force_c, *d_force_f, *d_com, *d_com_prev;
   stencil         *d_neighbors, *d_neighbors_patch;
   coord           *d_patch_min, *d_patch_max, *d_offset;

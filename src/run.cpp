@@ -28,7 +28,7 @@ void Model::Pre()
   if(relax_time>0)
   {
     double save_zeta = 0.; swap(zeta, save_zeta);
-    double save_alpha = 0; swap(alpha, save_alpha);
+//    double save_alpha = 0; swap(alpha, save_alpha);
     double save_Dnem  = 0; swap(Dnem, save_Dnem);
     double save_Dpol  = 0; swap(Dpol, save_Dpol);
     double save_Jnem  = 0; swap(Jnem, save_Jnem);
@@ -45,7 +45,7 @@ void Model::Pre()
     if(relax_nsubsteps) swap(nsubsteps, relax_nsubsteps);
 
     swap(zeta, save_zeta);
-    swap(alpha, save_alpha);
+//    swap(alpha, save_alpha);
     swap(Jnem, save_Jnem);
     swap(Jpol, save_Jpol);
     swap(Dnem, save_Dnem);
@@ -161,11 +161,11 @@ void Model::UpdateFieldsAtNode(unsigned n, unsigned q)
   force_c[n][0] += zeta*sumQ00[k]*dx + zeta*sumQ01[k]*dy;
   force_c[n][1] += zeta*sumQ01[k]*dx - zeta*sumQ00[k]*dy;
   // friction force
-  force_f[n][0] += + f*alpha*pol[n][0]*(dx*(dxs-dx)+dy*(dys-dy))
-                   - f*alpha*(dx*(dxp0-pol[n][0]*dx)+dy*(dyp0-pol[n][0]*dy))
+  force_f[n][0] += + f*alpha[n]*pol[n][0]*(dx*(dxs-dx)+dy*(dys-dy))
+                   - f*alpha[n]*(dx*(dxp0-pol[n][0]*dx)+dy*(dyp0-pol[n][0]*dy))
                    - dyw*f_walls*(pol[n][1]*dxw-pol[n][0]*dyw)*(dx*dxw+dy*dyw);
-  force_f[n][1] += + f*alpha*pol[n][1]*(dx*(dxs-dx)+dy*(dys-dy))
-                   - f*alpha*(dx*(dxp1-pol[n][1]*dx)+dy*(dyp1-pol[n][1]*dy))
+  force_f[n][1] += + f*alpha[n]*pol[n][1]*(dx*(dxs-dx)+dy*(dys-dy))
+                   - f*alpha[n]*(dx*(dxp1-pol[n][1]*dx)+dy*(dyp1-pol[n][1]*dy))
                    + dxw*f_walls*(pol[n][1]*dxw-pol[n][0]*dyw)*(dx*dxw+dy*dyw);
   // differential torques...
   {
@@ -371,7 +371,7 @@ void Model::Update(bool store, unsigned nstart)
     // normalise and compute total forces and vel
     tau[n]      /= lambda;
     force_tot[n] = force_p[n] + force_c[n] + force_f[n];
-    velocity[n]  = (force_tot[n] + alpha*pol[n])/xi;
+    velocity[n]  = (force_tot[n] + alpha[n]*pol[n])/xi;
   }
 
   // 2) Predictor-corrector function for updating the phase fields
