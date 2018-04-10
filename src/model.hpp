@@ -234,6 +234,8 @@ struct Model
   double omega = 0;
   /** Prefered radii (area = pi*R*R) and radius growth */
   std::vector<double> R, dR;
+  /** Align to velocity rather than to total force */
+  bool align_to_velocity = false;
   /** Elasitc parameters */
   double Knem = 0, Kpol = 0;
   /** Strength of polarity / nematic */

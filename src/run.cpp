@@ -246,12 +246,13 @@ void Model::UpdateAtNode(unsigned n, unsigned q, bool store)
 
 void Model::UpdatePolarization(unsigned n, bool store)
 {
-  // tot force
-  const double fn  = force_tot[n].abs();
+  // we align to v or T
+  const auto ff = align_to_velocity ? velocity[n] : force_tot[n];
+  const auto fn = ff.abs();
   // force tensor
-  const double F00 =   force_tot[n][0]*force_tot[n][0]
-                     - force_tot[n][1]*force_tot[n][1];
-  const double F01 = 2*force_tot[n][0]*force_tot[n][1];
+  const double F00 =   ff[0]*ff[0]
+                     - ff[1]*ff[1];
+  const double F01 = 2*ff[0]*ff[1];
 
   // update nematics and polarity
   if(store)
@@ -272,7 +273,7 @@ void Model::UpdatePolarization(unsigned n, bool store)
   // polarisation
   theta_pol[n] = theta_pol_old[n] - time_step*(
       + Kpol*delta_theta_pol[n]
-      + Jpol*fn*atan2(force_tot[n][0]*pol[n][1]-force_tot[n][1]*pol[n][0], force_tot[n]*pol[n]));
+      + Jpol*fn*atan2(ff[0]*pol[n][1]-ff[1]*pol[n][0], ff*pol[n]));
   pol[n] = { Spol*cos(theta_pol[n]), Spol*sin(theta_pol[n]) };
 }
 

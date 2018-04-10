@@ -83,6 +83,8 @@ void Model::ParseProgramOptions(int ac, char **av)
      "(effective time step is 1/nsubsteps)")
     ("ninfo", opt::value<unsigned>(&ninfo),
      "save frame every so many steps")
+    ("align-to-velocity", opt::value<bool>(&align_to_velocity),
+     "align to velocity rather than to total force")
     ("nphases", opt::value<unsigned>(&nphases),
       "Number of phases")
     ("gamma", opt::value<vector<double>>(&gam),
