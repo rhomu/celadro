@@ -62,8 +62,8 @@ void Model::Initialize()
   // extend the parameters with the last given value
   if(gam.empty()) throw error_msg("please specify gamma parameter");
   if(mu.empty()) throw error_msg("please specify mu parameter");
-  if(alpha.empty()) throw error_msg("please specify alpha parameter");
   if(R.empty()) throw error_msg("please specify R parameter");
+  if(alpha.empty()) alpha.push_back(0.);
   gam.resize(nphases, gam.back());
   mu.resize(nphases, mu.back());
   alpha.resize(nphases, alpha.back());
