@@ -414,7 +414,7 @@ def traction(frame, engine=plt):
     for i in range(frame.nphases):
         force(frame, i,
               frame.parameters['ninfo']*frame.parameters['nsubsteps']*
-              frame.parameters['alpha']*frame.pol[i],
+              frame.parameters['alpha'][i]*frame.pol[i],
               engine=engine,
               color='r')
 
