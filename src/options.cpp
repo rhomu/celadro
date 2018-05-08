@@ -129,7 +129,7 @@ void Model::ParseProgramOptions(int ac, char **av)
       "Norm of the polarisation vector")
     ("zeta", opt::value<double>(&zeta),
      "Activity")
-    ("alpha", opt::value<double>(&alpha),
+    ("alpha", opt::value<vector<double>>(&alpha),
      "strength of polar propulsion")
     ("omega", opt::value<double>(&omega),
       "Adhesion parameter")
