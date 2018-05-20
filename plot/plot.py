@@ -447,7 +447,7 @@ def phase(frame, n, engine=plt):
                         )
     cbar = plt.colorbar(cax)
 
-def velocity_field(frame, size=15, engine=plt, magn=True, avg=1):
+def velocity_field(frame, size=15, engine=plt, magn=True, cbar=True, avg=1):
     """Plot the total veloctity field assiciated with the cells"""
     mode   = 'wrap' if frame.parameters['BC']==0 else 'constant'
     vx, vy = get_velocity_field(frame.phi, frame.velocity, size, mode=mode)
@@ -457,7 +457,7 @@ def velocity_field(frame, size=15, engine=plt, magn=True, avg=1):
     if magn:
         m = np.sqrt(vx**2 + vy**2)
         cax = engine.imshow(m.T, interpolation='lanczos', cmap='plasma', origin='lower')
-        plt.colorbar(cax)
+        if cbar: plt.colorbar(cax)
 
     vx = vx.reshape((vx.shape[0]//avg, avg, vx.shape[1]//avg, avg))
     vx = np.mean(vx, axis=(1,3))
@@ -471,7 +471,7 @@ def velocity_field(frame, size=15, engine=plt, magn=True, avg=1):
 
 def vorticity_field(frame, size=15, engine=plt, cbar=True):
     """Plot the total veloctity field assiciated with the cells"""
-    vx, vy = get_velocity_field(frame.phi, frame.velp + frame.velc + frame.velf, size)
+    vx, vy = get_velocity_field(frame.phi, frame.velocity, size)
     w = get_vorticity_field(vx, vy)
     cax = engine.imshow(w.T, interpolation='lanczos', cmap='viridis', origin='lower')
     if cbar: plt.colorbar(cax)
