@@ -258,17 +258,6 @@ def cells(frame, engine=plt):
     for i in range(len(frame.phi)):
         cell(frame, i, engine)
 
-def solid_area(frame, engine=plt):
-    """Plot all phase fields with solid colours corresponding to individual areas"""
-    for i in range(len(frame.phi)):
-        engine.contourf(np.arange(0, frame.parameters['Size'][0]),
-                        np.arange(0, frame.parameters['Size'][1]),
-                        frame.phi[i].T,
-                        #levels = [1e-10, 1e-5, .5])
-                        levels = [.5, 10.],
-                        colors='mediumblue')
-                        #colors=str(frame.area[i]/(np.pi*frame.parameters['R']**2)))
-
 def interfaces(frame, engine=plt):
     """Plot the interfaces density"""
     totphi = np.zeros(frame.parameters['Size'])
@@ -302,7 +291,7 @@ def solidarea(frame, engine=plt):
                         np.arange(0, frame.parameters['Size'][1]),
                         frame.phi[i].T,
                         levels = [.5, 10.],
-                        colors=str(frame.area[i]/(np.pi*frame.parameters['R'][i]**2)))
+                        colors=str(min(1, frame.area[i]/(np.pi*frame.R[i]**2))))
 
 def com(frame, engine=plt):
     """Plot the center-of-mass of each cell as a red dot"""
@@ -410,7 +399,7 @@ def traction(frame, engine=plt):
     for i in range(frame.nphases):
         force(frame, i,
               frame.parameters['ninfo']*frame.parameters['nsubsteps']*
-              frame.parameters['alpha'][i]*frame.pol[i],
+              frame.alpha[i]*frame.pol[i],
               engine=engine,
               color='r')
 
@@ -418,7 +407,7 @@ def polarisation(frame, engine=plt):
     """Print direction of polarisation"""
     for i in range(frame.nphases):
         force(frame, i,
-              .5*frame.parameters['R'][i]*frame.pol[i]/np.linalg.norm(frame.pol[i]),
+              .5*frame.R[i]*frame.pol[i]/np.linalg.norm(frame.pol[i]),
               engine=engine,
               color='k')
 
@@ -431,7 +420,7 @@ def nematic(frame, engine=plt):
         nx = sqrt((1 + Q00/S)/2)
         ny = np.sign(Q01)*sqrt((1 - Q00/S)/2)
         c = frame.com[i]
-        a = frame.parameters['R'][i]/2.5*S
+        a = frame.R[i]/2.5*S
         #print S
         engine.arrow(c[0], c[1],  a*nx,  a*ny, color='k')
         engine.arrow(c[0], c[1], -a*nx, -a*ny, color='k')

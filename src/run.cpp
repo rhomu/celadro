@@ -30,14 +30,14 @@ void Model::Pre()
     vector<double> save_alpha(nphases, 0);
     swap(alpha, save_alpha);
 
-    double save_zeta = 0.; swap(zeta, save_zeta);
-    double save_Dnem  = 0; swap(Dnem, save_Dnem);
-    double save_Dpol  = 0; swap(Dpol, save_Dpol);
-    double save_Jnem  = 0; swap(Jnem, save_Jnem);
-    double save_Jpol  = 0; swap(Jpol, save_Jpol);
-    double save_Kpol  = 0; swap(Kpol, save_Kpol);
-    double save_Knem  = 0; swap(Knem, save_Knem);
-    double save_Wnem  = 0; swap(Wnem, save_Wnem);
+    double save_zeta  = 0; swap(zeta,  save_zeta);
+    double save_Dnem  = 0; swap(Dnem,  save_Dnem);
+    double save_Dpol  = 0; swap(Dpol,  save_Dpol);
+    double save_Jnem  = 0; swap(Jnem,  save_Jnem);
+    double save_Jpol  = 0; swap(Jpol,  save_Jpol);
+    double save_Kpol  = 0; swap(Kpol,  save_Kpol);
+    double save_Knem  = 0; swap(Knem,  save_Knem);
+    double save_Wnem  = 0; swap(Wnem,  save_Wnem);
 
     if(relax_nsubsteps) swap(nsubsteps, relax_nsubsteps);
 
