@@ -79,10 +79,6 @@ struct Model
   std::vector<double> walls, walls_dx, walls_dy, walls_laplace;
   /** Passive, contractile, friction, and total forces */
   std::vector<vec<double, 2>> force_p, force_c, force_f, force_tot;
-  /** Shape parameter: order */
-  std::vector<double> S_order;
-  /** Shape parameter: angle */
-  std::vector<double> S_angle;
   /** Structure tensor */
   std::vector<double> S00, S01;
   /** Q-tensor */

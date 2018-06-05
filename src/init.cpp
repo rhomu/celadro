@@ -105,8 +105,6 @@ void Model::Initialize()
   com_y.resize(nphases, 0.);
   S00.resize(nphases, 0.);
   S01.resize(nphases, 0.);
-  S_order.resize(nphases, 0.);
-  S_angle.resize(nphases, 0.);
   offset.resize(nphases, {0u, 0u});
 
   // ---------------------------------------------------------------------------
@@ -211,8 +209,6 @@ void Model::SwapCells(unsigned n, unsigned m)
   swap(com_y[n], com_y[m]);
   swap(S00[n], S00[m]);
   swap(S01[n], S01[m]);
-  swap(S_order[n], S_order[m]);
-  swap(S_angle[n], S_angle[m]);
   swap(theta_pol[n], theta_pol[m]);
   swap(theta_nem[n], theta_nem[m]);
   swap(offset[n], offset[m]);
