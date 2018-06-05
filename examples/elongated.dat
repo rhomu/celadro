@@ -37,22 +37,17 @@ friction-walls = 0
 
 # initial configuration options...
 relax-time = 50
+noise = 1
 
 # wall options
 wall-thickness = .5
-wall-kappa     = 2
+wall-kappa     = .2
 wall-omega     = 0
 
 # dynamics of the polarisation
-S = .03
-D = .05
-J = .5
-
-# dynamics of the contractility
 alpha = 0.1
-beta  = 0
-tauc  = 5
-zeta  = 0 #-0.012
-c0    = 0 #.018
+S-pol = .03
+D-pol = .05
+J-pol = .5
 
 margin = 30
