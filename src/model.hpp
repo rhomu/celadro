@@ -606,7 +606,6 @@ struct Model
        & auto_name(nphases)
        & auto_name(init_config)
        & auto_name(kappa)
-       & auto_name(R)
        & auto_name(xi)
        & auto_name(omega)
        & auto_name(zeta)
