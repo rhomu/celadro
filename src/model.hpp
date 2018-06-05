@@ -85,8 +85,11 @@ struct Model
   std::vector<double> Q00, Q01;
   /** Polarisation */
   std::vector<vec<double, 2>> pol;
-  /** Direction of the polarisation/nematics */
-  std::vector<double> theta_pol, theta_pol_old, theta_nem, theta_nem_old;
+  /** Direction of the polarisation */
+  std::vector<double> theta_pol, theta_pol_old;
+  /** Direction of the nematics */
+  std::vector<double> theta_nem, theta_nem_old;
+  /** Polarisation total torque */
   std::vector<double> delta_theta_pol;
   /** Total nematic field */
   std::vector<double> sumQ00, sumQ01, sumQ00_cnt, sumQ01_cnt;
@@ -338,6 +341,9 @@ struct Model
 
   /** Initialize memory for field */
   void Initialize();
+
+  /** Allocate memory for individual cells */
+  void SetCellNumber(unsigned new_nphases);
 
   /** Initialize neighbors list (stencils) */
   void InitializeNeighbors();

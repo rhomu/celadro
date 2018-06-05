@@ -25,7 +25,15 @@ void Model::Initialize()
   N = Size[0]*Size[1];
   sqrt_time_step = sqrt(time_step);
 
-  // ---------------------------------------------------------------------------
+  // rectifies margin in case it is bigger than domain
+  // and compensate for the boundary layer
+  patch_margin = {
+    min(margin, Size[0]/2 - 1 + (Size[0]%2)),
+    min(margin, Size[1]/2 - 1 + (Size[1]%2))
+  };
+  // total size including bdry layer
+  patch_size = 2u*patch_margin + 1u;
+  patch_N = patch_size[0]*patch_size[1];
 
   // initialize memory for global fields
   walls.resize(N, 0.);
@@ -49,21 +57,57 @@ void Model::Initialize()
   U1.resize(N, 0.);
   U1_cnt.resize(N, 0.);
 
-  // rectifies margin in case it is bigger than domain
-  // and compensate for the boundary layer
-  patch_margin = {
-    min(margin, Size[0]/2 - 1 + (Size[0]%2)),
-    min(margin, Size[1]/2 - 1 + (Size[1]%2))
-  };
-  // total size including bdry layer
-  patch_size = 2u*patch_margin + 1u;
-  patch_N = patch_size[0]*patch_size[1];
-
-  // extend the parameters with the last given value
+  // allocate memory for individual cells
   if(gam.empty()) throw error_msg("please specify gamma parameter");
   if(mu.empty()) throw error_msg("please specify mu parameter");
   if(R.empty()) throw error_msg("please specify R parameter");
   if(alpha.empty()) alpha.push_back(0.);
+  SetCellNumber(nphases);
+
+  // ---------------------------------------------------------------------------
+
+  if(zeta!=0.) sign_zeta = zeta>0. ? 1 : -1;
+
+  // pre-compute coefficients
+  C1 = 60./lambda/lambda;
+  C3 = C1/lambda/lambda;
+
+  // compute tables
+  for(unsigned i=0; i<Size[0]; ++i)
+    com_x_table.push_back({ cos(-Pi+2.*Pi*i/Size[0]), sin(-Pi+2.*Pi*i/Size[0]) });
+  for(unsigned i=0; i<Size[1]; ++i)
+    com_y_table.push_back({ cos(-Pi+2.*Pi*i/Size[1]), sin(-Pi+2.*Pi*i/Size[1]) });
+
+  // ---------------------------------------------------------------------------
+
+  // check parameters
+  for(unsigned n=0; n<nphases; ++n)
+    if(margin<R[n]) throw error_msg("Margin is too small, make it bigger than R.");
+
+  // check birth boundaries
+  if(birth_bdries.size()==0)
+    birth_bdries = {0, Size[0], 0, Size[1]};
+  else if(birth_bdries.size()!=4)
+    throw error_msg("Birth boundaries have wrong format, see help.");
+
+  // ---------------------------------------------------------------------------
+
+  // setup division
+  division = (division_rate!=0.);
+
+  if(division_time==0)
+    throw error_msg("Division time can not be zero.");
+
+  if(division)
+    for(unsigned n=0; n<nphases; ++n)
+      ResetDivisionCounter(n);
+}
+
+void Model::SetCellNumber(unsigned new_nphases)
+{
+  nphases = new_nphases;
+
+  // extend the parameters with the last given value
   gam.resize(nphases, gam.back());
   mu.resize(nphases, mu.back());
   alpha.resize(nphases, alpha.back());
@@ -106,44 +150,6 @@ void Model::Initialize()
   S00.resize(nphases, 0.);
   S01.resize(nphases, 0.);
   offset.resize(nphases, {0u, 0u});
-
-  // ---------------------------------------------------------------------------
-
-  if(zeta!=0.) sign_zeta = zeta>0. ? 1 : -1;
-
-  // pre-compute coefficients
-  C1 = 60./lambda/lambda;
-  C3 = C1/lambda/lambda;
-
-  // compute tables
-  for(unsigned i=0; i<Size[0]; ++i)
-    com_x_table.push_back({ cos(-Pi+2.*Pi*i/Size[0]), sin(-Pi+2.*Pi*i/Size[0]) });
-  for(unsigned i=0; i<Size[1]; ++i)
-    com_y_table.push_back({ cos(-Pi+2.*Pi*i/Size[1]), sin(-Pi+2.*Pi*i/Size[1]) });
-
-  // ---------------------------------------------------------------------------
-
-  // check parameters
-  for(unsigned n=0; n<nphases; ++n)
-    if(margin<R[n]) throw error_msg("Margin is too small, make it bigger than R.");
-
-  // check birth boundaries
-  if(birth_bdries.size()==0)
-    birth_bdries = {0, Size[0], 0, Size[1]};
-  else if(birth_bdries.size()!=4)
-    throw error_msg("Birth boundaries have wrong format, see help.");
-
-  // ---------------------------------------------------------------------------
-
-  // setup division
-  division = (division_rate!=0.);
-
-  if(division_time==0)
-    throw error_msg("Division time can not be zero.");
-
-  if(division)
-    for(unsigned n=0; n<nphases; ++n)
-      ResetDivisionCounter(n);
 }
 
 void Model::InitializeNeighbors()
