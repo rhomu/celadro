@@ -90,6 +90,9 @@ void Model::Initialize()
   else if(birth_bdries.size()!=4)
     throw error_msg("Birth boundaries have wrong format, see help.");
 
+  if(omega!=0 or omega_wall!=0)
+    throw error_msg("Adhesion is not working for the moment.");
+
   // ---------------------------------------------------------------------------
 
   // setup division
