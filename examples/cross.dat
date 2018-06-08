@@ -40,7 +40,7 @@ cross-ratio = 0.333333
 
 # wall options
 wall-thickness = .5
-wall-kappa     = 2
+wall-kappa     = .2
 wall-omega     = 0
 
 # dynamics of the polarisation

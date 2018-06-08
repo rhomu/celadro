@@ -4,8 +4,8 @@
 
 # initial configuration
 config    = random
-nsteps    = 50000
-ninfo     = 10
+nsteps    = 1500
+ninfo     = 25
 LX        = 100
 LY        = 100
 nsubsteps = 5
@@ -14,7 +14,7 @@ bc        = 0
 
 # model parameters...
 # ...number of phases
-nphases = 56
+nphases = 60
 # ...elastic constants for each phase
 gamma   = .05
 # ...area energy penalty for each phase
@@ -22,7 +22,7 @@ mu      = .03
 # ...interface thickness parameter
 lambda  = 8
 # ...interaction strength
-kappa = 0.4
+kappa = 0.2
 # ...preferred radius (in units of lattice spacing)
 R     = 8
 # ...cell-substrate friction
@@ -35,8 +35,8 @@ friction = 0.
 friction-walls = 0
 
 # initial configuration options...
-relax-time = 50
-noise      = 0
+relax-time = 200
+noise      = 1
 
 # wall options
 wall-thickness = .5
@@ -44,9 +44,8 @@ wall-kappa     = 2
 wall-omega     = 0
 
 # nematics
-zeta  = -10e-3
+zeta  = 10e-3
 S-nem = 1
-C-nem = 10
-K     = .01
-L     = .05
-D-nem = 1e-10
+K-nem = 2e-5
+W-nem = 4e-3
+D-nem = 1e-12

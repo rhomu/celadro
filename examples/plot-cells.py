@@ -45,7 +45,6 @@ def myplot(frame, engine):
     plot.cells(frame, engine)
     plot.nematic(frame, engine)
     plot.solidarea(frame, engine)
-    plot.nematic(frame, engine)
     plot.walls(frame, engine)
     plot.force_p(frame, engine)
     plot.force_c(frame, engine)

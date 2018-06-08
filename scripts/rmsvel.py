@@ -4,13 +4,11 @@
 #
 # Usage:
 #
-#   python2 plot-cells.py input [output]
+#   python2 rmsvel.py input
 #
 #  where
 #
 #    intput -- the input file or directory
-#    output -- (optional) if present saves the animation as a video to show to
-#              your mom.
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt

@@ -79,18 +79,17 @@ struct Model
   std::vector<double> walls, walls_dx, walls_dy, walls_laplace;
   /** Passive, contractile, friction, and total forces */
   std::vector<vec<double, 2>> force_p, force_c, force_f, force_tot;
-  /** Shape parameter: order */
-  std::vector<double> S_order;
-  /** Shape parameter: angle */
-  std::vector<double> S_angle;
   /** Structure tensor */
   std::vector<double> S00, S01;
   /** Q-tensor */
   std::vector<double> Q00, Q01;
   /** Polarisation */
   std::vector<vec<double, 2>> pol;
-  /** Direction of the polarisation/nematics */
-  std::vector<double> theta_pol, theta_pol_old, theta_nem, theta_nem_old;
+  /** Direction of the polarisation */
+  std::vector<double> theta_pol, theta_pol_old;
+  /** Direction of the nematics */
+  std::vector<double> theta_nem, theta_nem_old;
+  /** Polarisation total torque */
   std::vector<double> delta_theta_pol;
   /** Total nematic field */
   std::vector<double> sumQ00, sumQ01, sumQ00_cnt, sumQ01_cnt;
@@ -342,6 +341,9 @@ struct Model
 
   /** Initialize memory for field */
   void Initialize();
+
+  /** Allocate memory for individual cells */
+  void SetCellNumber(unsigned new_nphases);
 
   /** Initialize neighbors list (stencils) */
   void InitializeNeighbors();
@@ -604,11 +606,9 @@ struct Model
        & auto_name(nphases)
        & auto_name(init_config)
        & auto_name(kappa)
-       & auto_name(R)
        & auto_name(xi)
        & auto_name(omega)
        & auto_name(zeta)
-       & auto_name(alpha)
        & auto_name(Dpol)
        & auto_name(Dnem)
        & auto_name(Jpol)
@@ -629,25 +629,27 @@ struct Model
   template<class Archive>
   void SerializeFrame(Archive& ar)
   {
-      ar & auto_name(nphases)
-         & auto_name(phi)
-         & auto_name(offset)
-         & auto_name(area)
-         & auto_name(com)
-         & auto_name(velocity)
-         & auto_name(S00)
-         & auto_name(S01)
-         & auto_name(Q00)
-         & auto_name(Q01)
-         & auto_name(P0)
-         & auto_name(P1)
-         & auto_name(force_tot)
-         & auto_name(force_p)
-         & auto_name(force_f)
-         & auto_name(force_c)
-         & auto_name(pol)
-         & auto_name(patch_min)
-         & auto_name(patch_max);
+    ar & auto_name(nphases)
+       & auto_name(phi)
+       & auto_name(offset)
+       & auto_name(R)
+       & auto_name(alpha)
+       & auto_name(area)
+       & auto_name(com)
+       & auto_name(velocity)
+       & auto_name(S00)
+       & auto_name(S01)
+       & auto_name(Q00)
+       & auto_name(Q01)
+       & auto_name(P0)
+       & auto_name(P1)
+       & auto_name(force_tot)
+       & auto_name(force_p)
+       & auto_name(force_f)
+       & auto_name(force_c)
+       & auto_name(pol)
+       & auto_name(patch_min)
+       & auto_name(patch_max);
   }
 
   // ===========================================================================

@@ -96,11 +96,11 @@ void Model::Algorithm()
       if(runtime_stats and verbose>1) RuntimeStats();
       if(runtime_check) RuntimeChecks();
     }
-    catch(error_msg e)
+    catch(const error_msg& e)
     {
       throw;
     }
-    catch(warning_msg e)
+    catch(const warning_msg& e)
     {
       if(stop_at_warning) throw;
       else if(verbose and !no_warning) cerr << "warning: " << e.what() << "\n";

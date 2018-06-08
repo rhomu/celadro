@@ -30,14 +30,14 @@ void Model::Pre()
     vector<double> save_alpha(nphases, 0);
     swap(alpha, save_alpha);
 
-    double save_zeta = 0.; swap(zeta, save_zeta);
-    double save_Dnem  = 0; swap(Dnem, save_Dnem);
-    double save_Dpol  = 0; swap(Dpol, save_Dpol);
-    double save_Jnem  = 0; swap(Jnem, save_Jnem);
-    double save_Jpol  = 0; swap(Jpol, save_Jpol);
-    double save_Kpol  = 0; swap(Kpol, save_Kpol);
-    double save_Knem  = 0; swap(Knem, save_Knem);
-    double save_Wnem  = 0; swap(Wnem, save_Wnem);
+    double save_zeta  = 0; swap(zeta,  save_zeta);
+    double save_Dnem  = 0; swap(Dnem,  save_Dnem);
+    double save_Dpol  = 0; swap(Dpol,  save_Dpol);
+    double save_Jnem  = 0; swap(Jnem,  save_Jnem);
+    double save_Jpol  = 0; swap(Jpol,  save_Jpol);
+    double save_Kpol  = 0; swap(Kpol,  save_Kpol);
+    double save_Knem  = 0; swap(Knem,  save_Knem);
+    double save_Wnem  = 0; swap(Wnem,  save_Wnem);
 
     if(relax_nsubsteps) swap(nsubsteps, relax_nsubsteps);
 
@@ -145,20 +145,20 @@ void Model::UpdateFieldsAtNode(unsigned n, unsigned q)
         + kappa*p*(square[k]-p*p)
         + wall_kappa*p*walls[k]*walls[k]
         )
-      - C3*(
-        // adhesion term
-        + omega*(ls-ll)
-        + wall_omega*lw
-        )
+      //- C3*(
+      //  // adhesion term
+      //  + omega*(ls-ll)
+      //  + wall_omega*lw
+      //  )
       );
 
   // potential
   V[n][q]     = force;
   // passive force
-  force_p[n][0] += dx*force; // old force type
-  force_p[n][1] += dy*force; // old force type
-  //force_p[n][0] += C1*(kappa*square[k]+wall_kappa*walls[k]*walls[k])*dx;
-  //force_p[n][1] += C1*(kappa*square[k]+wall_kappa*walls[k]*walls[k])*dy;
+  force_p[n][0] += C1*(kappa*square[k]+wall_kappa*walls[k]*walls[k])*dx;
+  force_p[n][1] += C1*(kappa*square[k]+wall_kappa*walls[k]*walls[k])*dy;
+  //force_p[n][0] += -C3*omega*ls*dx;
+  //force_p[n][1] += -C3*omega*ls*dy;
   // contractility force
   force_c[n][0] += zeta*sumQ00[k]*dx + zeta*sumQ01[k]*dy;
   force_c[n][1] += zeta*sumQ01[k]*dx - zeta*sumQ00[k]*dy;

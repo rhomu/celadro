@@ -166,13 +166,13 @@ def charge_array(Q00, Q01):
             ax8 = [ nx[(i-1+LX)%LX,(j+1)%LY],    ny[(i-1+LX)%LX,(j+1)%LY]    ]
 
             w[i,j]  = wang(ax1, ax5)
-            w[i,j] += wang(ax5, ax3);
-            w[i,j] += wang(ax3, ax6);
-            w[i,j] += wang(ax6, ax2);
-            w[i,j] += wang(ax2, ax8);
-            w[i,j] += wang(ax8, ax4);
-            w[i,j] += wang(ax4, ax7);
-            w[i,j] += wang(ax7, ax1);
+            w[i,j] += wang(ax5, ax3)
+            w[i,j] += wang(ax3, ax6)
+            w[i,j] += wang(ax6, ax2)
+            w[i,j] += wang(ax2, ax8)
+            w[i,j] += wang(ax8, ax4)
+            w[i,j] += wang(ax4, ax7)
+            w[i,j] += wang(ax7, ax1)
             w[i,j] /= 2.*pi
 
     return w
@@ -237,7 +237,7 @@ def get_defects(w, Qxx, Qxy):
 
     return d
 
-def defects(Q00, Q01, engine=plt):
+def defects(Q00, Q01, engine=plt, arrow_len=0):
     """Plot single defects of the nematic field Q"""
     w = charge_array(Q00, Q01)
     defects = get_defects(w, Q00, Q01)
@@ -245,10 +245,10 @@ def defects(Q00, Q01, engine=plt):
         if d['charge']==0.5:
             engine.plot(d["pos"][0], d["pos"][1], 'go')
             # plot direction of pos defects
-            #a = 5 # arrow length
-            #engine.arrow(d['pos'][0], d['pos'][1],
-            #             a*cos(d['angle']),  a*sin(d['angle']),
-            #             color='k', head_width=2, head_length=3)
+            if not arrow_len==0:
+                engine.arrow(d['pos'][0], d['pos'][1],
+                             -arrow_len*cos(d['angle']), -arrow_len*sin(d['angle']),
+                             color='r', head_width=3, head_length=3)
         else:
             engine.plot(d["pos"][0], d["pos"][1], 'b^')
 
@@ -267,17 +267,6 @@ def cells(frame, engine=plt):
     """Plot all phase fields defining the cells contours"""
     for i in range(len(frame.phi)):
         cell(frame, i, engine)
-
-def solid_area(frame, engine=plt):
-    """Plot all phase fields with solid colours corresponding to individual areas"""
-    for i in range(len(frame.phi)):
-        engine.contourf(np.arange(0, frame.parameters['Size'][0]),
-                        np.arange(0, frame.parameters['Size'][1]),
-                        frame.phi[i].T,
-                        #levels = [1e-10, 1e-5, .5])
-                        levels = [.5, 10.],
-                        colors='mediumblue')
-                        #colors=str(frame.area[i]/(np.pi*frame.parameters['R']**2)))
 
 def interfaces(frame, engine=plt):
     """Plot the interfaces density"""
@@ -305,7 +294,6 @@ def interfaces2(frame, engine=plt):
     engine.imshow(totphi[0].T, interpolation='lanczos', cmap=cmap0, origin='lower')
     engine.imshow(totphi[1].T, interpolation='lanczos', cmap=cmap1, origin='lower')
 
-
 def solidarea(frame, engine=plt):
     """Plot all phase fields with solid colours corresponding to individual areas"""
     for i in range(len(frame.phi)):
@@ -313,7 +301,7 @@ def solidarea(frame, engine=plt):
                         np.arange(0, frame.parameters['Size'][1]),
                         frame.phi[i].T,
                         levels = [.5, 10.],
-                        colors=str(frame.area[i]/(np.pi*frame.parameters['R'][i]**2)))
+                        colors=str(min(1, frame.area[i]/(np.pi*frame.R[i]**2))))
 
 def com(frame, engine=plt):
     """Plot the center-of-mass of each cell as a red dot"""
@@ -322,7 +310,6 @@ def com(frame, engine=plt):
 
 def shape(frame, engine=plt):
     """Print shape tensor of each cell as a nematic vector"""
-
     for i in range(frame.nphases):
         Q00 = frame.S00[i]
         Q01 = frame.S01[i]
@@ -364,22 +351,20 @@ def director(Qxx, Qxy, avg=1, scale=False, engine=plt):
 
     engine.plot(x, y, color='k', linestyle='-', linewidth=1)
 
-def nematic_field(frame, size=1, avg=1, show_def=False, engine=plt):
+def nematic_field(frame, size=1, avg=1, show_def=False, arrow_len=0, engine=plt):
     """Plot nematic field associated with the internal degree of freedom"""
-
     # get field
     mode   = 'wrap' if frame.parameters['BC']==0 else 'constant'
     (Qxx, Qxy) = get_Qtensor(frame.phi, frame.Q00, frame.Q01, size=size, mode=mode)
     Qxx *= (1.-frame.parameters['walls'])
     Qxy *= (1.-frame.parameters['walls'])
+    # defects
+    if show_def: defects(Qxx, Qxy, engine=engine, arrow_len=arrow_len)
     # plot
     director(Qxx, Qxy, avg=avg, engine=engine)
-    # defects
-    if show_def: defects(Qxx, Qxy, engine)
 
 def shape_field(frame, size=1, avg=1, show_def=False, engine=plt):
     """Plot nematic field associated with the shape of each cell"""
-
     # get field
     mode   = 'wrap' if frame.parameters['BC']==0 else 'constant'
     (Qxx, Qxy) = get_Qtensor(frame.phi, frame.S00, frame.S01, size=size, mode=mode)
@@ -424,7 +409,7 @@ def traction(frame, engine=plt):
     for i in range(frame.nphases):
         force(frame, i,
               frame.parameters['ninfo']*frame.parameters['nsubsteps']*
-              frame.parameters['alpha']*frame.pol[i],
+              frame.alpha[i]*frame.pol[i],
               engine=engine,
               color='r')
 
@@ -432,7 +417,7 @@ def polarisation(frame, engine=plt):
     """Print direction of polarisation"""
     for i in range(frame.nphases):
         force(frame, i,
-              .5*frame.parameters['R'][i]*frame.pol[i]/np.linalg.norm(frame.pol[i]),
+              .5*frame.R[i]*frame.pol[i]/np.linalg.norm(frame.pol[i]),
               engine=engine,
               color='k')
 
@@ -445,7 +430,7 @@ def nematic(frame, engine=plt):
         nx = sqrt((1 + Q00/S)/2)
         ny = np.sign(Q01)*sqrt((1 - Q00/S)/2)
         c = frame.com[i]
-        a = frame.parameters['R'][i]/2.5*S
+        a = frame.R[i]/2.5*S
         #print S
         engine.arrow(c[0], c[1],  a*nx,  a*ny, color='k')
         engine.arrow(c[0], c[1], -a*nx, -a*ny, color='k')
@@ -457,7 +442,7 @@ def phase(frame, n, engine=plt):
                         )
     cbar = plt.colorbar(cax)
 
-def velocity_field(frame, size=15, engine=plt, magn=True, avg=1):
+def velocity_field(frame, size=15, engine=plt, magn=True, cbar=True, avg=1):
     """Plot the total veloctity field assiciated with the cells"""
     mode   = 'wrap' if frame.parameters['BC']==0 else 'constant'
     vx, vy = get_velocity_field(frame.phi, frame.velocity, size, mode=mode)
@@ -467,7 +452,7 @@ def velocity_field(frame, size=15, engine=plt, magn=True, avg=1):
     if magn:
         m = np.sqrt(vx**2 + vy**2)
         cax = engine.imshow(m.T, interpolation='lanczos', cmap='plasma', origin='lower')
-        plt.colorbar(cax)
+        if cbar: plt.colorbar(cax)
 
     vx = vx.reshape((vx.shape[0]//avg, avg, vx.shape[1]//avg, avg))
     vx = np.mean(vx, axis=(1,3))
@@ -481,7 +466,7 @@ def velocity_field(frame, size=15, engine=plt, magn=True, avg=1):
 
 def vorticity_field(frame, size=15, engine=plt, cbar=True):
     """Plot the total veloctity field assiciated with the cells"""
-    vx, vy = get_velocity_field(frame.phi, frame.velp + frame.velc + frame.velf, size)
+    vx, vy = get_velocity_field(frame.phi, frame.velocity, size)
     w = get_vorticity_field(vx, vy)
     cax = engine.imshow(w.T, interpolation='lanczos', cmap='viridis', origin='lower')
     if cbar: plt.colorbar(cax)

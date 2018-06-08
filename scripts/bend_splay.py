@@ -14,7 +14,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import sys
 import numpy as np
-from math import sqrt, atan2
+from math import sqrt, atan2, log
 
 # import local libs
 sys.path.insert(0, "../plot/")
@@ -35,7 +35,7 @@ ar = archive.loadarchive(sys.argv[1])
 ##################################################
 # plot simple animation of phases
 
-ll = 50#ar._nframes+1
+ll = ar._nframes+1
 ar = archive.loadarchive(sys.argv[1])
 
 bend  = np.zeros(ll)
@@ -52,9 +52,12 @@ for i in range(0, ll):
     nn = nx*nx + ny*ny
     bend[c]  = .5*np.sum(np.square(nn*plot.get_vorticity_field(nx, ny)))
     splay[c] = .5*np.sum(np.square(plot.get_gradient_field(nx, ny)))
+    #bend[c]  = log(bend[c])
+    #splay[c] = log(splay[c])
     print "bend={}, splay={}".format(bend[c], splay[c])
     c     += 1
 
-plt.plot(np.arange(0, c), bend)
-plt.plot(np.arange(0, c), splay)
+plt.plot(ar.ninfo*np.arange(0, c), bend, label='bend')
+plt.plot(ar.ninfo*np.arange(0, c), splay, label='splay')
+plt.legend()
 plt.show()
