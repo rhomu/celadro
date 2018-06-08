@@ -56,6 +56,16 @@ def get_Qtensor(phases, Qxx, Qxy, size=1, mode='wrap'):
 
     return QQxx, QQxy
 
+def get_pressure(phases, size=1, mode='wrap'):
+    """Compute the coarse grained tissue pressure defined as sum_i phi_i^2"""
+    P = np.zeros(phases[0].shape)
+    for n in range(len(phases)):
+        P += phases[n]*phases[n]
+    # coarse grain
+    P = ndimage.filters.uniform_filter(P, size=size, mode=mode)
+
+    return P
+
 def get_vorticity_field(ux, uy, mode='wrap'):
     """Compute vorticity from velocity field"""
     if mode=='wrap':
