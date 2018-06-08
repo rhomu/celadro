@@ -271,6 +271,9 @@ void Model::UpdatePolarization(unsigned n, bool store)
       + Wnem*vorticity[n];
   Q00[n] = Snem*cos(2*theta_nem[n]);
   Q01[n] = Snem*sin(2*theta_nem[n]);
+  // trick
+  Q00[n] = S00[n];
+  Q01[n] = S01[n];
 
   // polarisation
   theta_pol[n] = theta_pol_old[n] - time_step*(
