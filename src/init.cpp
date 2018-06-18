@@ -42,6 +42,8 @@ void Model::Initialize()
   walls_laplace.resize(N, 0.);
   sum.resize(N, 0.);
   sum_cnt.resize(N, 0.);
+  sumA.resize(N, 0.);
+  sumA_cnt.resize(N, 0.);
   square.resize(N, 0.);
   square_cnt.resize(N, 0.);
   sumQ00.resize(N, 0.);

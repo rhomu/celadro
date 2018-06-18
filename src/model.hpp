@@ -73,6 +73,8 @@ struct Model
   std::vector<double> area_cnt;
   /** Sum of phi at each node */
   std::vector<double> sum, sum_cnt;
+  /** Sum of areas */
+  std::vector<double> sumA, sumA_cnt;
   /** Sum of square phi at each node */
   std::vector<double> square, square_cnt;
   /** Phase-field for the walls */
@@ -235,10 +237,12 @@ struct Model
   std::vector<double> R, dR;
   /** Align to velocity rather than to total force */
   bool align_to_velocity = false;
+  /** Elastice coefficient pressure = -C*area/area0 */
+  double C = 0;
   /** Elasitc parameters */
   double Knem = 0, Kpol = 0;
   /** Strength of polarity / nematic */
-  double Spol = 0, Snem = 0; // olé!
+  double Spol = 0, Snem = 0;
   /** Flow alignment strenght */
   double Jpol = 0, Jnem = 0;
   /** Vorticity coupling */

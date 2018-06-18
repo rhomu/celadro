@@ -122,11 +122,12 @@ void Model::UpdateFieldsAtNode(unsigned n, unsigned q)
 
   // cell properties
   const auto& p  = phi[n][q];
-  const auto  ll = laplacian(phi[n], sq);
+  const auto  r  = R[n];
+  //const auto  ll = laplacian(phi[n], sq);
   const auto  dx = derivX(phi[n], sq);
   const auto  dy = derivY(phi[n], sq);
   // all-cells properties
-  const auto  ls   = laplacian(sum, s);
+  //const auto  ls   = laplacian(sum, s);
   const auto  dxs  = derivX(sum, s);
   const auto  dys  = derivY(sum, s);
   const auto  dxp0 = derivX(P0, s);
@@ -134,7 +135,7 @@ void Model::UpdateFieldsAtNode(unsigned n, unsigned q)
   const auto  dxp1 = derivX(P1, s);
   const auto  dyp1 = derivY(P1, s);
   // walls properties
-  const auto  lw = walls_laplace[k];
+  //const auto  lw = walls_laplace[k];
   const auto dxw = walls_dx[k];
   const auto dyw = walls_dy[k];
 
@@ -155,8 +156,12 @@ void Model::UpdateFieldsAtNode(unsigned n, unsigned q)
   // potential
   V[n][q]     = force;
   // passive force
-  force_p[n][0] += C1*(kappa*square[k]+wall_kappa*walls[k]*walls[k])*dx;
-  force_p[n][1] += C1*(kappa*square[k]+wall_kappa*walls[k]*walls[k])*dy;
+  force_p[n][0] += C1*C*sumA[k]*p*dx;
+  force_p[n][1] += C1*C*sumA[k]*p*dy;
+  //force_p[n][0] += C1*(kappa*sumA[k]+wall_kappa*walls[k]*walls[k])*p*dx;
+  //force_p[n][1] += C1*(kappa*sumA[k]+wall_kappa*walls[k]*walls[k])*p*dy;
+  //force_p[n][0] += C1*(kappa*square[k]+wall_kappa*walls[k]*walls[k])*p*dx;
+  //force_p[n][1] += C1*(kappa*square[k]+wall_kappa*walls[k]*walls[k])*p*dy;
   //force_p[n][0] += -C3*omega*ls*dx;
   //force_p[n][1] += -C3*omega*ls*dy;
   // contractility force
@@ -176,7 +181,7 @@ void Model::UpdateFieldsAtNode(unsigned n, unsigned q)
     // ... polarisation torque
     const vec<double, 2> P = {P0[k]-phi[n][k]*pol[n][0], P1[k]-phi[n][k]*pol[n][1]};
     delta_theta_pol[n] += ovlap*atan2(P[0]*pol[n][1]-P[1]*pol[n][0],
-                                       P[0]*pol[n][0]+P[1]*pol[n][1]);
+                                      P[0]*pol[n][0]+P[1]*pol[n][1]);
     // ... nematic torque
     //const vec<double, 2> Q = {sumQ00[k]-phi[n][k]*Q00[n], sumQ01[k]-phi[n][k]*Q01[n]};
     //delta_theta_nem[n] += ovlap*atan2(Q[0]*Q01[n]-Q[1]*Q00[n],
@@ -325,9 +330,12 @@ void Model::SquareAndSumAtNode(unsigned n, unsigned q)
 {
   const auto p = phi[n][q];
   const auto k = GetIndexFromPatch(n, q);
+  const auto a  = area[n];
+  const auto a0 = Pi*R[n]*R[n];
 
   // we swap counters and values afterwards
   sum_cnt[k]    += p;
+  sumA_cnt[k]   += p*p*(a0-a)/a0;
   square_cnt[k] += p*p;
   sumQ00_cnt[k] += p*Q00[n];
   sumQ01_cnt[k] += p*Q01[n];
@@ -340,6 +348,7 @@ void Model::SquareAndSumAtNode(unsigned n, unsigned q)
 inline void Model::ReinitSquareAndSumAtNode(unsigned k)
 {
   sum[k]    = 0;
+  sumA[k]   = 0;
   square[k] = 0;
   sumQ00[k] = 0;
   sumQ01[k] = 0;
@@ -353,7 +362,7 @@ inline void Model::ReinitSquareAndSumAtNode(unsigned k)
 
 void Model::Update(bool store, unsigned nstart)
 {
-  // 1) Compute induced force and passive velocity
+  // Compute induced force and passive velocity
   //
   // We need to loop over all nodes once before updating the phase fields
   // because the passive component of the velocity requires a integral
@@ -380,7 +389,7 @@ void Model::Update(bool store, unsigned nstart)
     velocity[n]  = (force_tot[n] + alpha[n]*pol[n])/xi;
   }
 
-  // 2) Predictor-corrector function for updating the phase fields
+  // Predictor-corrector function for updating the phase fields
   //
   // The predictor corrector is such that it can be used many time in a row in
   // order to give you better precision, effectively giving higher order
@@ -403,11 +412,9 @@ void Model::Update(bool store, unsigned nstart)
     ComputeCoM(n);
     // update patch boundaries
     UpdatePatch(n);
-
-    com_x[n] = com_y[n] = area[n] = 0.;
   }
 
-  // 3) Compute square and sum
+  // Compute square and sum
   //
   // We need yet another loop here for parallelization, because we can not send
   // each phi to a different core when computing the square and the sum of all
@@ -420,15 +427,18 @@ void Model::Update(bool store, unsigned nstart)
     PRAGMA_OMP(omp parallel for num_threads(nthreads) if(nthreads))
     for(unsigned q=0; q<patch_N; ++q)
       SquareAndSumAtNode(n, q);
+
+    com_x[n] = com_y[n] = area[n] = 0.;
   }
 
-  // 5) Reinit counters and swap to get correct values
+  // Reinit counters and swap to get correct values
   //
   // We use this construction because it is much faster with OpenMP: the single
   // threaded portion of the code consists only of these swaps!
 
   swap(area, area_cnt);
   swap(sum, sum_cnt);
+  swap(sumA, sumA_cnt);
   swap(square, square_cnt);
   swap(sumQ00, sumQ00_cnt);
   swap(sumQ01, sumQ01_cnt);

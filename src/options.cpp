@@ -107,6 +107,8 @@ void Model::ParseProgramOptions(int ac, char **av)
       "Cell-wall friction parameter")
     ("xi", opt::value<double>(&xi),
       "Substrate friction parameter")
+    ("C", opt::value<double>(&C),
+     "Spring constant for pressure")
     ("K-pol", opt::value<double>(&Kpol),
      "elastic constant for the polarisation")
     ("K-nem", opt::value<double>(&Knem),
