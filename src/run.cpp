@@ -156,8 +156,8 @@ void Model::UpdateFieldsAtNode(unsigned n, unsigned q)
   // potential
   V[n][q]     = force;
   // passive force
-  force_p[n][0] += C1*C*sumA[k]*p*dx;
-  force_p[n][1] += C1*C*sumA[k]*p*dy;
+  force_p[n][0] += 2*p*C*sumA[k]*dx;
+  force_p[n][1] += 2*p*C*sumA[k]*dy;
   //force_p[n][0] += C1*(kappa*sumA[k]+wall_kappa*walls[k]*walls[k])*p*dx;
   //force_p[n][1] += C1*(kappa*sumA[k]+wall_kappa*walls[k]*walls[k])*p*dy;
   //force_p[n][0] += C1*(kappa*square[k]+wall_kappa*walls[k]*walls[k])*p*dx;
@@ -165,8 +165,8 @@ void Model::UpdateFieldsAtNode(unsigned n, unsigned q)
   //force_p[n][0] += -C3*omega*ls*dx;
   //force_p[n][1] += -C3*omega*ls*dy;
   // contractility force
-  force_c[n][0] += zeta*sumQ00[k]*dx + zeta*sumQ01[k]*dy;
-  force_c[n][1] += zeta*sumQ01[k]*dx - zeta*sumQ00[k]*dy;
+  force_c[n][0] += 2*p*(zeta*sumQ00[k]*dx + zeta*sumQ01[k]*dy);
+  force_c[n][1] += 2*p*(zeta*sumQ01[k]*dx - zeta*sumQ00[k]*dy);
   // friction force
   force_f[n][0] += + f*alpha[n]*pol[n][0]*(dx*(dxs-dx)+dy*(dys-dy))
                    - f*alpha[n]*(dx*(dxp0-pol[n][0]*dx)+dy*(dyp0-pol[n][0]*dy))
@@ -335,7 +335,7 @@ void Model::SquareAndSumAtNode(unsigned n, unsigned q)
 
   // we swap counters and values afterwards
   sum_cnt[k]    += p;
-  sumA_cnt[k]   += p*p*(a0-a)/a0;
+  sumA_cnt[k]   += p*p*a0/a;
   square_cnt[k] += p*p;
   sumQ00_cnt[k] += p*Q00[n];
   sumQ01_cnt[k] += p*Q01[n];
