@@ -55,58 +55,32 @@ struct Model
   std::vector<field> phi;
   /** Predicted phi in a PC^n step */
   std::vector<field> phi_old;
+  /** Phi difference */
+  std::vector<field> dphi;
+  /** Predicted phi difference in a P(C)^n step */
+  std::vector<field> dphi_old;
   /** V = delta F / delta phi */
   std::vector<field> V;
-  /** Potential: -V/2 - adv. term */
-  std::vector<field> potential;
-  /** Predicted potential in a P(C)^n step */
-  std::vector<field> potential_old;
-  /** Total velocity */
-  std::vector<vec<double, 2>> velocity;
   /** Area associated with a phase field */
   std::vector<double> area;
-  /** Vorticity around each cell */
-  std::vector<double> vorticity;
-  /** Elastic torque for the nematic */
-  std::vector<double> tau;
   /** Counter for computing the area */
   std::vector<double> area_cnt;
   /** Sum of phi at each node */
   std::vector<double> sum, sum_cnt;
-  /** Sum of areas */
+  /** Sum_i S_i phi_i */
+  std::vector<double> sumS00, sumS00_cnt, sumS01, sumS01_cnt;
+  /** Sum_i Area_i phi_i */
   std::vector<double> sumA, sumA_cnt;
   /** Sum of square phi at each node */
   std::vector<double> square, square_cnt;
+  /** Sum of third power of phi at each node */
+  std::vector<double> thirdp, thirdp_cnt;
   /** Phase-field for the walls */
   std::vector<double> walls, walls_dx, walls_dy, walls_laplace;
-  /** Passive, contractile, friction, and total forces */
-  std::vector<vec<double, 2>> force_p, force_c, force_f, force_tot;
+  /** Velocity and forces */
+  std::vector<vec<double, 2>> velocity, force_p, force_c;
   /** Structure tensor */
   std::vector<double> S00, S01;
-  /** Q-tensor */
-  std::vector<double> Q00, Q01;
-  /** Polarisation */
-  std::vector<vec<double, 2>> pol;
-  /** Direction of the polarisation */
-  std::vector<double> theta_pol, theta_pol_old;
-  /** Direction of the nematics */
-  std::vector<double> theta_nem, theta_nem_old;
-  /** Polarisation total torque */
-  std::vector<double> delta_theta_pol;
-  /** Total nematic field */
-  std::vector<double> sumQ00, sumQ01, sumQ00_cnt, sumQ01_cnt;
-  /** Total polarization of the tissue */
-  std::vector<double> P0, P0_cnt, P1, P1_cnt;
-  /** Total velocity of the tissue */
-  std::vector<double> U0, U1, U0_cnt, U1_cnt;
-  /** Strengh of propulsion */
-  std::vector<double> alpha;
-  /** Elasticity */
-  std::vector<double> gam;
-  /** Energy penalty for area */
-  std::vector<double> mu;
-  /** Elongation parameter */
-  std::vector<double> delta;
 
   /** @} */
 
@@ -204,10 +178,6 @@ struct Model
   double angle_deg;
   /** Margin for the definition of patches */
   unsigned margin = 25;
-  /** Repuslion by the wall */
-  double wall_kappa = 2;
-  /** Adhesion on the wall */
-  double wall_omega = 0;
   /** Boudaries for cell generation
    *
    * These are the boundaries (min and max x and y components) of the domain in
@@ -219,10 +189,16 @@ struct Model
   /** Cell properties
    * @{ */
 
+  /** Elasticity */
+  double gam;
+  /** Energy penalty for area */
+  double mu;
   /** Interface thickness */
   double lambda = 8;
   /**  Interaction stength */
   double kappa = 0.4;
+  /** Adhesion */
+  double omega = 0.;
   /** Activity */
   double zeta = 0., sign_zeta = 0.;
   /** Cell-cell friction parameter */
@@ -231,26 +207,12 @@ struct Model
   double f_walls = 0;
   /** Substrate friction parameter */
   double xi = 1;
-  /** Adhesion parameter */
-  double omega = 0;
   /** Prefered radii (area = pi*R*R) and radius growth */
-  std::vector<double> R, dR;
-  /** Align to velocity rather than to total force */
-  bool align_to_velocity = false;
-  /** Elastice coefficient pressure = -C*area/area0 */
-  double C = 0;
-  /** Elasitc parameters */
-  double Knem = 0, Kpol = 0;
-  /** Strength of polarity / nematic */
-  double Spol = 0, Snem = 0;
-  /** Flow alignment strenght */
-  double Jpol = 0, Jnem = 0;
-  /** Vorticity coupling */
-  double Wnem = 0;
-  /** Noise strength */
-  double Dpol = 0, Dnem = 0;
-  /** Pre-computed coefficients */
-  double C1, C3;
+  double R;
+  /** Repuslion by the wall */
+  double wall_kappa = 2;
+  /** Adhesion on the wall */
+  double wall_omega = 0;
 
   /** @} */
   /** Multi-threading parameters
@@ -520,38 +482,13 @@ struct Model
   void UpdateStructureTensorAtNode(unsigned, unsigned);
 
   /** Subfunction for update */
-  void UpdateFrictionForceAtNode(unsigned, unsigned);
+  void UpdateSumsAtNode(unsigned, unsigned);
 
   /** Subfunction for update */
-  void SquareAndSumAtNode(unsigned, unsigned);
-
-  /** Subfunction for update */
-  void ReinitSquareAndSumAtNode(unsigned);
+  void ReinitSumsAtNode(unsigned);
 
   /** Compute center of mass of a given phase field */
   void ComputeCoM(unsigned);
-
-  /** Update polarisation of a given field
-   *
-   * This function updates the polarisation of the cell which give the direction
-   * of the active velocity of the cell. We follow reference 10.1101/095133 and
-   * define the dynamics as
-   *
-   *    d theta / dt = J_r torque + 2 D_r eta
-   *
-   * where eta is gaussian white noise with zero mean and unit variance, see
-   * paper for more details. Note that we use the euler-maruyama method, instead
-   * of a predictor-corrector method.
-   * */
-  void UpdatePolarization(unsigned, bool);
-
-  /** Update friction force
-   *
-   * This function updates the friction force and needs to be in a separate
-   * loop because it must be computed after the passive part of the velocity has
-   * been computed fully. See paper for more details.
-   * */
-  void UpdateFrictionForce();
 
   /** Compute shape parameters
    *
@@ -571,33 +508,6 @@ struct Model
   void Update(bool, unsigned=0);
 
   // ===========================================================================
-  // Division. Implemented in division.cpp
-
-  /** Division flag */
-  bool division = false;
-  /** Time scale of the division */
-  double division_time = 100;
-  /** Division rate */
-  double division_rate = 0.;
-  /** Growth facto before division */
-  double division_growth = 1.5;
-  /** Relaxation time for division */
-  int division_relax_time = 100;
-  /** Relaxation time after division */
-  int division_refract_time = 100;
-  /** Count the number of time steps before the next division */
-  std::vector<int> division_counter;
-
-  /** Reset division counter for single cell */
-  void ResetDivisionCounter(unsigned);
-
-  /** Make a cell divide
-   *
-   * TBD
-   * */
-  void Divide(unsigned i);
-
-  // ===========================================================================
   // Serialization
 
   /** Serialization of parameters (in and out) */
@@ -611,16 +521,9 @@ struct Model
        & auto_name(init_config)
        & auto_name(kappa)
        & auto_name(xi)
-       & auto_name(omega)
+       & auto_name(R)
        & auto_name(zeta)
-       & auto_name(Dpol)
-       & auto_name(Dnem)
-       & auto_name(Jpol)
-       & auto_name(Jnem)
-       & auto_name(Kpol)
-       & auto_name(Knem)
-       & auto_name(f)
-       & auto_name(f_walls)
+       & auto_name(omega)
        & auto_name(wall_thickness)
        & auto_name(wall_kappa)
        & auto_name(wall_omega)
@@ -637,21 +540,13 @@ struct Model
        & auto_name(phi)
        & auto_name(offset)
        & auto_name(R)
-       & auto_name(alpha)
        & auto_name(area)
        & auto_name(com)
-       & auto_name(velocity)
        & auto_name(S00)
        & auto_name(S01)
-       & auto_name(Q00)
-       & auto_name(Q01)
-       & auto_name(P0)
-       & auto_name(P1)
-       & auto_name(force_tot)
+       & auto_name(velocity)
        & auto_name(force_p)
-       & auto_name(force_f)
        & auto_name(force_c)
-       & auto_name(pol)
        & auto_name(patch_min)
        & auto_name(patch_max);
   }

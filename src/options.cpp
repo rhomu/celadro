@@ -83,16 +83,12 @@ void Model::ParseProgramOptions(int ac, char **av)
      "(effective time step is 1/nsubsteps)")
     ("ninfo", opt::value<unsigned>(&ninfo),
      "save frame every so many steps")
-    ("align-to-velocity", opt::value<bool>(&align_to_velocity),
-     "align to velocity rather than to total force")
     ("nphases", opt::value<unsigned>(&nphases),
       "Number of phases")
-    ("gamma", opt::value<vector<double>>(&gam),
+    ("gamma", opt::value<double>(&gam),
       "Elastic constant of each phase (array)")
-    ("mu", opt::value<vector<double>>(&mu),
+    ("mu", opt::value<double>(&mu),
       "Energy penalty for area of each phase (array)")
-    ("delta", opt::value<vector<double>>(&delta),
-      "Elongation parameter (stength of potential)")
     ("lambda", opt::value<double>(&lambda),
       "Interface thickness parameter")
     ("kappa", opt::value<double>(&kappa),
@@ -107,32 +103,8 @@ void Model::ParseProgramOptions(int ac, char **av)
       "Cell-wall friction parameter")
     ("xi", opt::value<double>(&xi),
       "Substrate friction parameter")
-    ("C", opt::value<double>(&C),
-     "Hooke's elastic constant for the cells")
-    ("K-pol", opt::value<double>(&Kpol),
-     "elastic constant for the polarisation")
-    ("K-nem", opt::value<double>(&Knem),
-     "elastic constant for the nematic")
-    //("C-pol", opt::value<double>(&Cpol),
-    // "Strength of LdG potential for the polarisation")
-    ("J-pol", opt::value<double>(&Jpol),
-     "Nematic flow alignment strength")
-    ("J-nem", opt::value<double>(&Jnem),
-     "Nematic flow alignment strength")
-    ("W-nem", opt::value<double>(&Wnem),
-     "Strength of vorticity torque")
-    ("D-nem", opt::value<double>(&Dnem),
-      "Nematic noise strength")
-    ("D-pol", opt::value<double>(&Dpol),
-      "Polarisation noise strength")
-    ("S-nem", opt::value<double>(&Snem),
-      "Order of the nematic tensors")
-    ("S-pol", opt::value<double>(&Spol),
-      "Norm of the polarisation vector")
     ("zeta", opt::value<double>(&zeta),
      "Activity")
-    ("alpha", opt::value<vector<double>>(&alpha),
-     "strength of polar propulsion")
     ("omega", opt::value<double>(&omega),
       "Adhesion parameter")
     ("wall-thickness", opt::value<double>(&wall_thickness),
@@ -141,17 +113,7 @@ void Model::ParseProgramOptions(int ac, char **av)
       "Wall repulsion")
     ("wall-omega", opt::value<double>(&wall_omega)->default_value(0.),
       "Wall adhesion")
-    ("division-rate",  opt::value<double>(&division_rate),
-      "Rate of division")
-    ("division-time",  opt::value<double>(&division_time),
-      "Time scale of division")
-    ("division-growth",  opt::value<double>(&division_growth),
-      "Growth factor before division")
-    ("division-relax-time",  opt::value<int>(&division_relax_time),
-      "Time spent relaxing the cells after division")
-    ("division-refract-time",  opt::value<int>(&division_refract_time),
-      "Refractory time before next division")
-    ("R", opt::value<std::vector<double>>(&R),
+    ("R", opt::value<double>(&R),
       "Preferred radius (defines area Pi*R*R)");
 
   // init config options

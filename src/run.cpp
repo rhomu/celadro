@@ -27,17 +27,7 @@ void Model::Pre()
   // we make the system relax (without activity)
   if(relax_time>0)
   {
-    vector<double> save_alpha(nphases, 0);
-    swap(alpha, save_alpha);
-
     double save_zeta  = 0; swap(zeta,  save_zeta);
-    double save_Dnem  = 0; swap(Dnem,  save_Dnem);
-    double save_Dpol  = 0; swap(Dpol,  save_Dpol);
-    double save_Jnem  = 0; swap(Jnem,  save_Jnem);
-    double save_Jpol  = 0; swap(Jpol,  save_Jpol);
-    double save_Kpol  = 0; swap(Kpol,  save_Kpol);
-    double save_Knem  = 0; swap(Knem,  save_Knem);
-    double save_Wnem  = 0; swap(Wnem,  save_Wnem);
 
     if(relax_nsubsteps) swap(nsubsteps, relax_nsubsteps);
 
@@ -46,15 +36,7 @@ void Model::Pre()
 
     if(relax_nsubsteps) swap(nsubsteps, relax_nsubsteps);
 
-    swap(alpha, save_alpha);
     swap(zeta, save_zeta);
-    swap(Jnem, save_Jnem);
-    swap(Jpol, save_Jpol);
-    swap(Dnem, save_Dnem);
-    swap(Dpol, save_Dpol);
-    swap(Kpol, save_Kpol);
-    swap(Knem, save_Knem);
-    swap(Wnem, save_Wnem);
   }
 
   if(BC==5) ConfigureWalls(1);
@@ -71,7 +53,7 @@ void Model::PreRunStats()
     // total cell area
     double packing = 0.;
     for(unsigned n=0; n<nphases; ++n)
-      packing += R[n]*R[n];
+      packing += R*R;
     packing *= Pi;
 
     // divide by available area
@@ -93,7 +75,7 @@ void Model::RuntimeChecks()
 {
   // check that the area is more or less conserved (20%)
   for(unsigned n=0; n<nphases; ++n)
-    if(abs(1.-area[n]/(Pi*R[n]*R[n]))>.2)
+    if(abs(1.-area[n]/(Pi*R*R))>.2)
       throw warning_msg("area is not conserved.");
 
   for(unsigned n=0; n<nphases; ++n)
@@ -121,121 +103,72 @@ void Model::UpdateFieldsAtNode(unsigned n, unsigned q)
   const auto& sq = neighbors_patch[q];
 
   // cell properties
-  const auto& p  = phi[n][q];
-  const auto  r  = R[n];
-  //const auto  ll = laplacian(phi[n], sq);
-  const auto  dx = derivX(phi[n], sq);
-  const auto  dy = derivY(phi[n], sq);
+  const auto p  = phi[n][q];
+  const auto dx = derivX(phi[n], sq);
+  const auto dy = derivY(phi[n], sq);
+  const auto a  = area[n];
+  const auto a0 = Pi*R*R;
   // all-cells properties
-  //const auto  ls   = laplacian(sum, s);
-  const auto  dxs  = derivX(sum, s);
-  const auto  dys  = derivY(sum, s);
-  const auto  dxp0 = derivX(P0, s);
-  const auto  dyp0 = derivY(P0, s);
-  const auto  dxp1 = derivX(P1, s);
-  const auto  dyp1 = derivY(P1, s);
-  // walls properties
-  //const auto  lw = walls_laplace[k];
-  const auto dxw = walls_dx[k];
-  const auto dyw = walls_dy[k];
+  const auto ll = laplacian(phi[n], sq);
+  const auto ls = laplacian(sum, s);
 
-  // delta F / delta phi
-  const double force = (
-      + C1*(
-        // repulsion term
-        + kappa*p*(square[k]-p*p)
-        + wall_kappa*p*walls[k]*walls[k]
-        )
-      //- C3*(
-      //  // adhesion term
-      //  + omega*(ls-ll)
-      //  + wall_omega*lw
-      //  )
-      );
+  // delta F / delta phi_i
+  V[n][q] = (
+      // CH term
+      + gam*(8*p*(1-p)*(1-2*p)/lambda - 2*lambda*ll)
+      // area conservation term
+      - 4*mu/a0*(1-a/a0)*p
+      // repulsion term
+      + 4*kappa/lambda*p*(square[k]-p*p)
+    );
 
-  // potential
-  V[n][q]     = force;
+  // isotropic part of the stress = sum_i delta F / delta phi_i
+  const double pressure = (
+      // CH term
+      + gam*(8*(sum[k]-3*square[k]+2*thirdp[k])/lambda - 2*lambda*ls)
+      // area conservation term
+      - 4*mu/a0*(sum[k]-sumA[k]/a0)
+      // repulsion term
+      - 4*kappa/lambda*(sum[k]*square[k]-thirdp[k])
+    );
+
   // passive force
-  force_p[n][0] += 2*p*C*sumA[k]*dx;
-  force_p[n][1] += 2*p*C*sumA[k]*dy;
-  //force_p[n][0] += C1*(kappa*sumA[k]+wall_kappa*walls[k]*walls[k])*p*dx;
-  //force_p[n][1] += C1*(kappa*sumA[k]+wall_kappa*walls[k]*walls[k])*p*dy;
-  //force_p[n][0] += C1*(kappa*square[k]+wall_kappa*walls[k]*walls[k])*p*dx;
-  //force_p[n][1] += C1*(kappa*square[k]+wall_kappa*walls[k]*walls[k])*p*dy;
-  //force_p[n][0] += -C3*omega*ls*dx;
-  //force_p[n][1] += -C3*omega*ls*dy;
+  force_p[n][0] += -pressure*dx;
+  force_p[n][1] += -pressure*dy;
   // contractility force
-  force_c[n][0] += 2*p*(zeta*sumQ00[k]*dx + zeta*sumQ01[k]*dy);
-  force_c[n][1] += 2*p*(zeta*sumQ01[k]*dx - zeta*sumQ00[k]*dy);
-  // friction force
-  force_f[n][0] += + f*alpha[n]*pol[n][0]*(dx*(dxs-dx)+dy*(dys-dy))
-                   - f*alpha[n]*(dx*(dxp0-pol[n][0]*dx)+dy*(dyp0-pol[n][0]*dy))
-                   - dyw*f_walls*(pol[n][1]*dxw-pol[n][0]*dyw)*(dx*dxw+dy*dyw);
-  force_f[n][1] += + f*alpha[n]*pol[n][1]*(dx*(dxs-dx)+dy*(dys-dy))
-                   - f*alpha[n]*(dx*(dxp1-pol[n][1]*dx)+dy*(dyp1-pol[n][1]*dy))
-                   + dxw*f_walls*(pol[n][1]*dxw-pol[n][0]*dyw)*(dx*dxw+dy*dyw);
-  // differential torques...
-  {
-    // ... overlap between cells
-    const double ovlap = -(dx*(dxs-dx)+dy*(dys-dy));
-    // ... polarisation torque
-    const vec<double, 2> P = {P0[k]-phi[n][k]*pol[n][0], P1[k]-phi[n][k]*pol[n][1]};
-    delta_theta_pol[n] += ovlap*atan2(P[0]*pol[n][1]-P[1]*pol[n][0],
-                                      P[0]*pol[n][0]+P[1]*pol[n][1]);
-    // ... nematic torque
-    //const vec<double, 2> Q = {sumQ00[k]-phi[n][k]*Q00[n], sumQ01[k]-phi[n][k]*Q01[n]};
-    //delta_theta_nem[n] += ovlap*atan2(Q[0]*Q01[n]-Q[1]*Q00[n],
-    //                                  Q[0]*Q00[n]+Q[1]*Q01[n]);
-  }
-  // nematic torques
-  tau[n]       += sumQ00[k]*Q01[n]-sumQ01[k]*Q00[n];
-  vorticity[n] += U0[k]*dy-U1[k]*dx;
+  force_c[n][0] += zeta*sumS00[k]*dx + zeta*sumS01[k]*dy;
+  force_c[n][1] += zeta*sumS01[k]*dx - zeta*sumS00[k]*dy;
 }
 
 void Model::UpdateAtNode(unsigned n, unsigned q, bool store)
 {
   const auto   k = GetIndexFromPatch(n, q);
-  const auto& sq = neighbors_patch[q];
 
-  // compute potential
+  // compute dphi
   {
-    const auto  p  = phi[n][q];
-    const auto  a  = area[n];
-    const auto  r  = R[n];
-    const auto  dx = derivX(phi[n], sq);
-    const auto  dy = derivY(phi[n], sq);
-    const auto  ll = laplacian(phi[n], sq);
-    // distance from the center of mass
-    const auto dc = diff(vec<double, 2>(GetPosition(k)), com[n]);
-    const auto el = pol[n].sq()<1e-6 ? 0. :
-      - 2./(Pi*r*r)*delta[n]*p*(dc - pol[n]*(pol[n]*dc)/pol[n].sq()).sq();
+    const auto& sq = neighbors_patch[q];
+    const auto dx  = derivX(phi[n], sq);
+    const auto dy  = derivY(phi[n], sq);
 
-    potential[n][q] = (
-      // free energy term
-      -.5*V[n][q]
-      -.5*(
-        + C1*gam[n]*p*(1.-p)*(1.-2.*p)
-        - 2.*mu[n]*(1.-a/(Pi*r*r))*2.*p
-        - 2.*gam[n]*ll
-      )
-      // elongation potential
-      + el
+    dphi[n][q] =
+      // free energy
+      - V[n][q]
       // advection term
-      - velocity[n][0]*dx - velocity[n][1]*dy
-      );
+      - velocity[n][0]*dx - velocity[n][1]*dy;
+      ;
   }
 
   // store values
   if(store)
   {
-    potential_old[n][q] = potential[n][q];
-    phi_old[n][q]       = phi[n][q];
+    dphi_old[n][q] = dphi[n][q];
+    phi_old[n][q]  = phi[n][q];
   }
 
   // predictor-corrector
   {
     double p = phi_old[n][q]
-               + time_step*.5*(potential[n][q] + potential_old[n][q]);
+               + time_step*.5*(dphi[n][q] + dphi_old[n][q]);
 
     // update for next call
     phi[n][q]    = p;
@@ -248,43 +181,7 @@ void Model::UpdateAtNode(unsigned n, unsigned q, bool store)
   // faster than having a supplementary loop afterwards. There is a race
   // condition in principle here but since we are setting evth back to 0 it
   // should be fine
-  ReinitSquareAndSumAtNode(k);
-}
-
-void Model::UpdatePolarization(unsigned n, bool store)
-{
-  // we align to v or T
-  const auto ff = align_to_velocity ? velocity[n] : force_tot[n];
-  const auto fn = ff.abs();
-  // force tensor
-  const double F00 =   ff[0]*ff[0]
-                     - ff[1]*ff[1];
-  const double F01 = 2*ff[0]*ff[1];
-
-  // update nematics and polarity
-  if(store)
-  {
-    // euler-marijuana update
-    theta_nem_old[n] = theta_nem[n] + sqrt_time_step*Dnem*random_normal();
-    theta_pol_old[n] = theta_pol[n] + sqrt_time_step*Dpol*random_normal();
-  }
-
-  // nematics
-  theta_nem[n] = theta_nem_old[n] - time_step*(
-      + Knem*tau[n]
-      + Jnem*fn*atan2(F00*Q01[n]-F01*Q00[n], F00*Q00[n]+F01*Q01[n]))
-      + Wnem*vorticity[n];
-  Q00[n] = Snem*cos(2*theta_nem[n]);
-  Q01[n] = Snem*sin(2*theta_nem[n]);
-  // trick
-  Q00[n] = S00[n];
-  Q01[n] = S01[n];
-
-  // polarisation
-  theta_pol[n] = theta_pol_old[n] - time_step*(
-      + Kpol*delta_theta_pol[n]
-      + Jpol*fn*atan2(ff[0]*pol[n][1]-ff[1]*pol[n][0], ff*pol[n]));
-  pol[n] = { Spol*cos(theta_pol[n]), Spol*sin(theta_pol[n]) };
+  ReinitSumsAtNode(k);
 }
 
 void Model::ComputeCoM(unsigned n)
@@ -303,7 +200,7 @@ void Model::UpdatePatch(unsigned n)
   const coord com_grd { unsigned(round(com[n][0])), unsigned(round(com[n][1])) };
   const coord new_min = ( com_grd + Size - patch_margin ) % Size;
   const coord new_max = ( com_grd + patch_margin - coord {1u, 1u} ) % Size;
-  coord displacement  = ( Size + new_min - patch_min[n]) % Size;
+  coord displacement  = ( Size + new_min - patch_min[n] ) % Size;
 
   // I guess there is somehthing better than this...
   if(displacement[0]==Size[0]-1u) displacement[0] = patch_size[0]-1u;
@@ -326,36 +223,27 @@ void Model::UpdateStructureTensorAtNode(unsigned n, unsigned q)
   S01[n] += -dx*dy;
 }
 
-void Model::SquareAndSumAtNode(unsigned n, unsigned q)
+void Model::UpdateSumsAtNode(unsigned n, unsigned q)
 {
   const auto p = phi[n][q];
   const auto k = GetIndexFromPatch(n, q);
-  const auto a  = area[n];
-  const auto a0 = Pi*R[n]*R[n];
 
-  // we swap counters and values afterwards
   sum_cnt[k]    += p;
-  sumA_cnt[k]   += p*p*a0/a;
   square_cnt[k] += p*p;
-  sumQ00_cnt[k] += p*Q00[n];
-  sumQ01_cnt[k] += p*Q01[n];
-  P0_cnt[k]     += p*pol[n][0];
-  P1_cnt[k]     += p*pol[n][1];
-  U0_cnt[k]     += p*velocity[n][0];
-  U1_cnt[k]     += p*velocity[n][1];
+  thirdp_cnt[k] += p*p*p;
+  sumA_cnt[k]   += p*area[n];
+  sumS00_cnt[k] += p*S00[n];
+  sumS01_cnt[k] += p*S01[n];
 }
 
-inline void Model::ReinitSquareAndSumAtNode(unsigned k)
+inline void Model::ReinitSumsAtNode(unsigned k)
 {
   sum[k]    = 0;
-  sumA[k]   = 0;
   square[k] = 0;
-  sumQ00[k] = 0;
-  sumQ01[k] = 0;
-  P0[k]     = 0;
-  P1[k]     = 0;
-  U0[k]     = 0;
-  U1[k]     = 0;
+  thirdp[k] = 0;
+  sumA[k]   = 0;
+  sumS00[k] = 0;
+  sumS01[k] = 0;
 }
 
 #ifndef _CUDA_ENABLED
@@ -374,19 +262,13 @@ void Model::Update(bool store, unsigned nstart)
   {
     force_p[n] = {0., 0.};
     force_c[n] = {0., 0.};
-    force_f[n] = {0., 0.};
-    delta_theta_pol[n] = 0;
-    tau[n] = 0;
-    vorticity[n] = 0;
 
     // update in restricted patch only
     for(unsigned q=0; q<patch_N; ++q)
       UpdateFieldsAtNode(n, q);
 
     // normalise and compute total forces and vel
-    tau[n]      /= lambda;
-    force_tot[n] = force_p[n] + force_c[n] + force_f[n];
-    velocity[n]  = (force_tot[n] + alpha[n]*pol[n])/xi;
+    velocity[n]  = (force_p[n] + force_c[n])/xi;
   }
 
   // Predictor-corrector function for updating the phase fields
@@ -406,12 +288,13 @@ void Model::Update(bool store, unsigned nstart)
       UpdateAtNode(n, q, store);
       UpdateStructureTensorAtNode(n, q);
     }
-    // Update Q-tensor and polarisation
-    UpdatePolarization(n, store);
+
     // update center of mass
     ComputeCoM(n);
     // update patch boundaries
     UpdatePatch(n);
+
+    com_x[n] = com_y[n] = area[n] = 0.;
   }
 
   // Compute square and sum
@@ -426,9 +309,7 @@ void Model::Update(bool store, unsigned nstart)
     // update only patch (in parallel, each node to a different core)
     PRAGMA_OMP(omp parallel for num_threads(nthreads) if(nthreads))
     for(unsigned q=0; q<patch_N; ++q)
-      SquareAndSumAtNode(n, q);
-
-    com_x[n] = com_y[n] = area[n] = 0.;
+      UpdateSumsAtNode(n, q);
   }
 
   // Reinit counters and swap to get correct values
@@ -438,14 +319,11 @@ void Model::Update(bool store, unsigned nstart)
 
   swap(area, area_cnt);
   swap(sum, sum_cnt);
-  swap(sumA, sumA_cnt);
   swap(square, square_cnt);
-  swap(sumQ00, sumQ00_cnt);
-  swap(sumQ01, sumQ01_cnt);
-  swap(P0, P0_cnt);
-  swap(P1, P1_cnt);
-  swap(U0, U0_cnt);
-  swap(U1, U1_cnt);
+  swap(thirdp, thirdp_cnt);
+  swap(sumA, sumA_cnt);
+  swap(sumS00, sumS00_cnt);
+  swap(sumS01, sumS01_cnt);
 }
 
 #endif
