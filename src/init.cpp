@@ -41,17 +41,14 @@ void Model::Initialize()
   walls_dy.resize(N, 0.);
   walls_laplace.resize(N, 0.);
   sum.resize(N, 0.);
-  sum_cnt.resize(N, 0.);
+  stress_xx.resize(N, 0.);
+  stress_xy.resize(N, 0.);
+  stress_yy.resize(N, 0.);
   sumA.resize(N, 0.);
-  sumA_cnt.resize(N, 0.);
   sumS00.resize(N, 0.);
-  sumS00_cnt.resize(N, 0.);
   sumS01.resize(N, 0.);
-  sumS01_cnt.resize(N, 0.);
   square.resize(N, 0.);
-  square_cnt.resize(N, 0.);
   thirdp.resize(N, 0.);
-  thirdp_cnt.resize(N, 0.);
 
   // allocate memory for individual cells
   SetCellNumber(nphases);
@@ -88,6 +85,8 @@ void Model::SetCellNumber(unsigned new_nphases)
 
   // allocate memory for qties defined on the patches
   phi.resize(nphases, vector<double>(patch_N, 0.));
+  phi_dx.resize(nphases, vector<double>(patch_N, 0.));
+  phi_dy.resize(nphases, vector<double>(patch_N, 0.));
   phi_old.resize(nphases, vector<double>(patch_N, 0.));
   V.resize(nphases, vector<double>(patch_N, 0.));
   dphi.resize(nphases, vector<double>(patch_N, 0.));
@@ -101,8 +100,6 @@ void Model::SetCellNumber(unsigned new_nphases)
   com.resize(nphases, {0., 0.});
   com_prev.resize(nphases, {0., 0.});
   velocity.resize(nphases, {0., 0.});
-  force_p.resize(nphases, {0., 0.});
-  force_c.resize(nphases, {0., 0.});
   com_x.resize(nphases, 0.);
   com_y.resize(nphases, 0.);
   S00.resize(nphases, 0.);

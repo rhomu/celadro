@@ -56,16 +56,6 @@ def get_Qtensor(phases, Qxx, Qxy, size=1, mode='wrap'):
 
     return QQxx, QQxy
 
-def get_pressure(phases, size=1, mode='wrap'):
-    """Compute the coarse grained tissue pressure defined as sum_i phi_i^2"""
-    P = np.zeros(phases[0].shape)
-    for n in range(len(phases)):
-        P += phases[n]*phases[n]
-    # coarse grain
-    P = ndimage.filters.uniform_filter(P, size=size, mode=mode)
-
-    return P
-
 def get_vorticity_field(ux, uy, mode='wrap'):
     """Compute vorticity from velocity field"""
     if mode=='wrap':
@@ -301,7 +291,7 @@ def solidarea(frame, engine=plt):
                         np.arange(0, frame.parameters['Size'][1]),
                         frame.phi[i].T,
                         levels = [.5, 10.],
-                        colors=str(min(1, frame.area[i]/(np.pi*frame.R[i]**2))))
+                        colors=str(min(1, frame.area[i]/(frame.parameters['R']**2))))
 
 def com(frame, engine=plt):
     """Plot the center-of-mass of each cell as a red dot"""
@@ -380,46 +370,13 @@ def force(frame, i, v, engine=plt, **kwargs):
     c = frame.com[i]
     engine.arrow(c[0], c[1], v[0], v[1], **kwargs)
 
-def force_c(frame, engine=plt):
+def velocity(frame, engine=plt):
     """Print contractile part of the velocity"""
     for i in range(frame.nphases):
         force(frame, i,
-              frame.parameters['ninfo']*frame.parameters['nsubsteps']*frame.force_c[i],
-              engine=engine,
-              color='g')
-
-def force_p(frame, engine=plt):
-    """Print passive force"""
-    for i in range(frame.nphases):
-        force(frame, i,
-              frame.parameters['ninfo']*frame.parameters['nsubsteps']*frame.force_p[i],
-              engine=engine,
-              color='b')
-
-def force_f(frame, engine=plt):
-    """Print friction force"""
-    for i in range(frame.nphases):
-        force(frame, i,
-              frame.parameters['ninfo']*frame.parameters['nsubsteps']*frame.force_f[i],
-              engine=engine,
-              color='brown')
-
-def traction(frame, engine=plt):
-    """Print contractile part of the velocity"""
-    for i in range(frame.nphases):
-        force(frame, i,
-              frame.parameters['ninfo']*frame.parameters['nsubsteps']*
-              frame.alpha[i]*frame.pol[i],
+              frame.parameters['ninfo']*frame.parameters['nsubsteps']*frame.velocity[i],
               engine=engine,
               color='r')
-
-def polarisation(frame, engine=plt):
-    """Print direction of polarisation"""
-    for i in range(frame.nphases):
-        force(frame, i,
-              .5*frame.R[i]*frame.pol[i]/np.linalg.norm(frame.pol[i]),
-              engine=engine,
-              color='k')
 
 def nematic(frame, engine=plt):
     """Print director of each cell"""
@@ -431,7 +388,6 @@ def nematic(frame, engine=plt):
         ny = np.sign(Q01)*sqrt((1 - Q00/S)/2)
         c = frame.com[i]
         a = frame.R[i]/2.5*S
-        #print S
         engine.arrow(c[0], c[1],  a*nx,  a*ny, color='k')
         engine.arrow(c[0], c[1], -a*nx, -a*ny, color='k')
 

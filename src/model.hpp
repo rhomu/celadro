@@ -51,8 +51,8 @@ struct Model
    * */
   std::vector<stencil> neighbors, neighbors_patch;
 
-  /** Phase fields */
-  std::vector<field> phi;
+  /** Phase fields and derivatives */
+  std::vector<field> phi, phi_dx, phi_dy;
   /** Predicted phi in a PC^n step */
   std::vector<field> phi_old;
   /** Phi difference */
@@ -61,26 +61,28 @@ struct Model
   std::vector<field> dphi_old;
   /** V = delta F / delta phi */
   std::vector<field> V;
+  /** Sum of phi at each node */
+  field sum;
+  /** Sum_i S_i phi_i */
+  field sumS00, sumS01;
+  /** Sum_i Area_i phi_i */
+  field sumA;
+  /** Sum of square phi at each node */
+  field square;
+  /** Sum of third power of phi at each node */
+  field thirdp;
+  /** Phase-field for the walls */
+  field walls, walls_dx, walls_dy, walls_laplace;
   /** Area associated with a phase field */
   std::vector<double> area;
   /** Counter for computing the area */
   std::vector<double> area_cnt;
-  /** Sum of phi at each node */
-  std::vector<double> sum, sum_cnt;
-  /** Sum_i S_i phi_i */
-  std::vector<double> sumS00, sumS00_cnt, sumS01, sumS01_cnt;
-  /** Sum_i Area_i phi_i */
-  std::vector<double> sumA, sumA_cnt;
-  /** Sum of square phi at each node */
-  std::vector<double> square, square_cnt;
-  /** Sum of third power of phi at each node */
-  std::vector<double> thirdp, thirdp_cnt;
-  /** Phase-field for the walls */
-  std::vector<double> walls, walls_dx, walls_dy, walls_laplace;
-  /** Velocity and forces */
-  std::vector<vec<double, 2>> velocity, force_p, force_c;
+  /** Velocity */
+  std::vector<vec<double, 2>> velocity;
   /** Structure tensor */
   std::vector<double> S00, S01;
+  /** Stress tensor */
+  field stress_xx, stress_xy , stress_yy;
 
   /** @} */
 
@@ -473,10 +475,13 @@ struct Model
   void Post();
 
   /** Subfunction for update */
-  void UpdateAtNode(unsigned, unsigned, bool);
+  void UpdateStressAtNode(unsigned, unsigned);
 
   /** Subfunction for update */
-  void UpdateFieldsAtNode(unsigned, unsigned);
+  void UpdatePhaseFieldAtNode(unsigned, unsigned, bool);
+
+  /** Subfunction for update */
+  void UpdateForcesAtNode(unsigned, unsigned);
 
   /** Subfunction for update */
   void UpdateStructureTensorAtNode(unsigned, unsigned);
@@ -544,9 +549,10 @@ struct Model
        & auto_name(com)
        & auto_name(S00)
        & auto_name(S01)
+       & auto_name(stress_xx)
+       & auto_name(stress_xy)
+       & auto_name(stress_yy)
        & auto_name(velocity)
-       & auto_name(force_p)
-       & auto_name(force_c)
        & auto_name(patch_min)
        & auto_name(patch_max);
   }

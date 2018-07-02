@@ -96,10 +96,30 @@ void Model::RuntimeChecks()
   }
 }
 
-void Model::UpdateFieldsAtNode(unsigned n, unsigned q)
+void Model::UpdateStressAtNode(unsigned n, unsigned q)
+{
+  const auto  k = GetIndexFromPatch(n, q);
+  const auto& s = neighbors[k];
+  const auto ls = laplacian(sum, s);
+  const auto a0 = Pi*R*R;
+
+  const double pressure = (0
+      // CH term
+      + gam*(8*(sum[k]-3*square[k]+2*thirdp[k])/lambda - 2*lambda*ls)
+      // area conservation term
+      - 4*mu/a0*(sum[k]-sumA[k]/a0)
+      // repulsion term
+      - 4*kappa/lambda*(sum[k]*square[k]-thirdp[k])
+    );
+
+  stress_xx[k] = -pressure + zeta*sumS00[k];
+  stress_yy[k] = -pressure - zeta*sumS00[k];
+  stress_xy[k] = zeta*sumS01[k];
+}
+
+void Model::UpdateForcesAtNode(unsigned n, unsigned q)
 {
   const auto   k = GetIndexFromPatch(n, q);
-  const auto&  s = neighbors[k];
   const auto& sq = neighbors_patch[q];
 
   // cell properties
@@ -110,7 +130,10 @@ void Model::UpdateFieldsAtNode(unsigned n, unsigned q)
   const auto a0 = Pi*R*R;
   // all-cells properties
   const auto ll = laplacian(phi[n], sq);
-  const auto ls = laplacian(sum, s);
+
+  // store derivatives
+  phi_dx[n][q] = dx;
+  phi_dy[n][q] = dy;
 
   // delta F / delta phi_i
   V[n][q] = (
@@ -122,41 +145,22 @@ void Model::UpdateFieldsAtNode(unsigned n, unsigned q)
       + 4*kappa/lambda*p*(square[k]-p*p)
     );
 
-  // isotropic part of the stress = sum_i delta F / delta phi_i
-  const double pressure = (
-      // CH term
-      + gam*(8*(sum[k]-3*square[k]+2*thirdp[k])/lambda - 2*lambda*ls)
-      // area conservation term
-      - 4*mu/a0*(sum[k]-sumA[k]/a0)
-      // repulsion term
-      - 4*kappa/lambda*(sum[k]*square[k]-thirdp[k])
-    );
-
-  // passive force
-  force_p[n][0] += -pressure*dx;
-  force_p[n][1] += -pressure*dy;
-  // contractility force
-  force_c[n][0] += zeta*sumS00[k]*dx + zeta*sumS01[k]*dy;
-  force_c[n][1] += zeta*sumS01[k]*dx - zeta*sumS00[k]*dy;
+  // velocity
+  velocity[n][0] += stress_xx[k]*dx + stress_xy[k]*dy;
+  velocity[n][1] += stress_xy[k]*dx + stress_yy[k]*dy;
 }
 
-void Model::UpdateAtNode(unsigned n, unsigned q, bool store)
+void Model::UpdatePhaseFieldAtNode(unsigned n, unsigned q, bool store)
 {
-  const auto   k = GetIndexFromPatch(n, q);
+  const auto k = GetIndexFromPatch(n, q);
 
   // compute dphi
-  {
-    const auto& sq = neighbors_patch[q];
-    const auto dx  = derivX(phi[n], sq);
-    const auto dy  = derivY(phi[n], sq);
-
-    dphi[n][q] =
-      // free energy
-      - V[n][q]
-      // advection term
-      - velocity[n][0]*dx - velocity[n][1]*dy;
-      ;
-  }
+  dphi[n][q] =
+    // free energy
+    - V[n][q]
+    // advection term
+    - velocity[n][0]*phi_dx[n][q] - velocity[n][1]*phi_dy[n][q];
+    ;
 
   // store values
   if(store)
@@ -172,6 +176,7 @@ void Model::UpdateAtNode(unsigned n, unsigned q, bool store)
 
     // update for next call
     phi[n][q]    = p;
+
     com_x[n]    += com_x_table[GetXPosition(k)]*p;
     com_y[n]    += com_y_table[GetYPosition(k)]*p;
     area_cnt[n] += p*p;
@@ -180,7 +185,7 @@ void Model::UpdateAtNode(unsigned n, unsigned q, bool store)
   // reinit values: we do reinit values here for the simple reason that it is
   // faster than having a supplementary loop afterwards. There is a race
   // condition in principle here but since we are setting evth back to 0 it
-  // should be fine
+  // should be fine. Note that this should be done before the patches are updated
   ReinitSumsAtNode(k);
 }
 
@@ -214,10 +219,8 @@ void Model::UpdatePatch(unsigned n)
 
 void Model::UpdateStructureTensorAtNode(unsigned n, unsigned q)
 {
-  // to be reintroduced correctly
-  const auto& sq = neighbors_patch[q];
-  const auto  dx = derivX(phi[n], sq);
-  const auto  dy = derivY(phi[n], sq);
+  const auto  dx = phi_dx[n][q];
+  const auto  dy = phi_dy[n][q];
 
   S00[n] += -0.5*(dx*dx-dy*dy);
   S01[n] += -dx*dy;
@@ -228,12 +231,12 @@ void Model::UpdateSumsAtNode(unsigned n, unsigned q)
   const auto p = phi[n][q];
   const auto k = GetIndexFromPatch(n, q);
 
-  sum_cnt[k]    += p;
-  square_cnt[k] += p*p;
-  thirdp_cnt[k] += p*p*p;
-  sumA_cnt[k]   += p*area[n];
-  sumS00_cnt[k] += p*S00[n];
-  sumS01_cnt[k] += p*S01[n];
+  sum[k]    += p;
+  square[k] += p*p;
+  thirdp[k] += p*p*p;
+  sumA[k]   += p*area[n];
+  sumS00[k] += p*S00[n];
+  sumS01[k] += p*S01[n];
 }
 
 inline void Model::ReinitSumsAtNode(unsigned k)
@@ -250,33 +253,40 @@ inline void Model::ReinitSumsAtNode(unsigned k)
 
 void Model::Update(bool store, unsigned nstart)
 {
-  // Compute induced force and passive velocity
-  //
-  // We need to loop over all nodes once before updating the phase fields
-  // because the passive component of the velocity requires a integral
-  // involving a derivative. This means that the field phi must be fully
-  // updated first.
+  // Compute all global sums
+  for(unsigned n=nstart; n<nphases; ++n)
+  {
+    // update only patch (in parallel, each node to a different core)
+    PRAGMA_OMP(omp parallel for num_threads(nthreads) if(nthreads))
+    for(unsigned q=0; q<patch_N; ++q)
+      UpdateSumsAtNode(n, q);
+  }
 
+  // Compute stresses
+  //
+  // We need another loop because the pressure involves a double sum over all
+  // the cells.
+  for(unsigned n=nstart; n<nphases; ++n)
+  {
+    // update only patch (in parallel, each node to a different core)
+    PRAGMA_OMP(omp parallel for num_threads(nthreads) if(nthreads))
+    for(unsigned q=0; q<patch_N; ++q)
+      UpdateStressAtNode(n, q);
+  }
+
+  // Compute induced force and passive velocity
   PRAGMA_OMP(omp parallel for num_threads(nthreads) if(nthreads))
   for(unsigned n=nstart; n<nphases; ++n)
   {
-    force_p[n] = {0., 0.};
-    force_c[n] = {0., 0.};
-
     // update in restricted patch only
     for(unsigned q=0; q<patch_N; ++q)
-      UpdateFieldsAtNode(n, q);
+      UpdateForcesAtNode(n, q);
 
     // normalise and compute total forces and vel
-    velocity[n]  = (force_p[n] + force_c[n])/xi;
+    velocity[n]  /= xi;
   }
 
   // Predictor-corrector function for updating the phase fields
-  //
-  // The predictor corrector is such that it can be used many time in a row in
-  // order to give you better precision, effectively giving higher order
-  // approximations.
-
   PRAGMA_OMP(omp parallel for num_threads(nthreads) if(nthreads))
   for(unsigned n=nstart; n<nphases; ++n)
   {
@@ -285,7 +295,7 @@ void Model::Update(bool store, unsigned nstart)
     // only update fields in the restricted patch of field n
     for(unsigned q=0; q<patch_N; ++q)
     {
-      UpdateAtNode(n, q, store);
+      UpdatePhaseFieldAtNode(n, q, store);
       UpdateStructureTensorAtNode(n, q);
     }
 
@@ -297,33 +307,7 @@ void Model::Update(bool store, unsigned nstart)
     com_x[n] = com_y[n] = area[n] = 0.;
   }
 
-  // Compute square and sum
-  //
-  // We need yet another loop here for parallelization, because we can not send
-  // each phi to a different core when computing the square and the sum of all
-  // phase fields. This is much faster than using an atomic portion in the
-  // previous loop.
-
-  for(unsigned n=nstart; n<nphases; ++n)
-  {
-    // update only patch (in parallel, each node to a different core)
-    PRAGMA_OMP(omp parallel for num_threads(nthreads) if(nthreads))
-    for(unsigned q=0; q<patch_N; ++q)
-      UpdateSumsAtNode(n, q);
-  }
-
-  // Reinit counters and swap to get correct values
-  //
-  // We use this construction because it is much faster with OpenMP: the single
-  // threaded portion of the code consists only of these swaps!
-
   swap(area, area_cnt);
-  swap(sum, sum_cnt);
-  swap(square, square_cnt);
-  swap(thirdp, thirdp_cnt);
-  swap(sumA, sumA_cnt);
-  swap(sumS00, sumS00_cnt);
-  swap(sumS01, sumS01_cnt);
 }
 
 #endif
