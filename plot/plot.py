@@ -345,7 +345,7 @@ def nematic_field(frame, size=1, avg=1, show_def=False, arrow_len=0, engine=plt)
     """Plot nematic field associated with the internal degree of freedom"""
     # get field
     mode   = 'wrap' if frame.parameters['BC']==0 else 'constant'
-    (Qxx, Qxy) = get_Qtensor(frame.phi, frame.Q00, frame.Q01, size=size, mode=mode)
+    (Qxx, Qxy) = get_Qtensor(frame.phi, frame.S00, frame.S01, size=size, mode=mode)
     Qxx *= (1.-frame.parameters['walls'])
     Qxy *= (1.-frame.parameters['walls'])
     # defects

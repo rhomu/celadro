@@ -20,7 +20,7 @@
 #
 
 import os
-import subprocess
+import zipfile
 import json
 import numpy as np
 
@@ -84,15 +84,13 @@ class archive(object):
         """Extract json file from archive."""
         # extract
         if self._compress_full:
-            # get output from stdin (directly pipe from unzip)
-            output = subprocess.check_output(['unzip', '-pj', self._path, fname + self._ext]).decode()
-            # load json
-            return json.loads(output)['data']
+            with zipfile.ZipFile(self._path, "r") as f:
+                data = f.read(fname+self._ext)
+            return json.loads(data)['data']
         elif self._compress:
-            # get output from stdin (directly pipe from unzip)
-            output = subprocess.check_output(['unzip', '-pj', os.path.join(self._path, fname + self._ext), fname + '.json']).decode()
-            # load json
-            return json.loads(output)['data']
+            with zipfile.ZipFile(os.path.join(self._path, fname + self._ext), "r") as f:
+                data = f.read(fname+'.json')
+            return json.loads(data)['data']
         else:
             # read content of file
             output = open(os.path.join(self._path, fname + self._ext))
