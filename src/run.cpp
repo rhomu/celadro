@@ -112,9 +112,9 @@ void Model::UpdateStressAtNode(unsigned n, unsigned q)
       + 4*kappa/lambda*(sum[k]*square[k]-thirdp[k])
     );
 
-  stress_xx[k] = - pressure + zeta*sumS00[k];
-  stress_yy[k] = - pressure - zeta*sumS00[k];
-  stress_xy[k] = zeta*sumS01[k];
+  stress_xx[k] = - pressure - zeta*sumS00[k];
+  stress_yy[k] = - pressure + zeta*sumS00[k];
+  stress_xy[k] = - zeta*sumS01[k];
 }
 
 void Model::UpdateForcesAtNode(unsigned n, unsigned q)
@@ -222,8 +222,8 @@ void Model::UpdateStructureTensorAtNode(unsigned n, unsigned q)
   const auto  dx = phi_dx[n][q];
   const auto  dy = phi_dy[n][q];
 
-  S00[n] += 0.5*(dx*dx-dy*dy);
-  S01[n] += dx*dy;
+  S00[n] += -0.5*(dx*dx-dy*dy);
+  S01[n] += -dx*dy;
 }
 
 void Model::UpdateSumsAtNode(unsigned n, unsigned q)
