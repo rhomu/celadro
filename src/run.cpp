@@ -103,17 +103,17 @@ void Model::UpdateStressAtNode(unsigned n, unsigned q)
   const auto ls = laplacian(sum, s);
   const auto a0 = Pi*R*R;
 
-  const double pressure = (0
+  const double pressure = (
       // CH term
-      + gam*(8*(sum[k]-3*square[k]+2*thirdp[k])/lambda - 2*lambda*ls)
+      - gam*(8*(sum[k]-3*square[k]+2*thirdp[k])/lambda - 2*lambda*ls)
       // area conservation term
-      - 4*mu/a0*(sum[k]-sumA[k]/a0)
+      + 4*mu/a0*(sum[k]-sumA[k]/a0)
       // repulsion term
-      - 4*kappa/lambda*(sum[k]*square[k]-thirdp[k])
+      + 4*kappa/lambda*(sum[k]*square[k]-thirdp[k])
     );
 
-  stress_xx[k] = -pressure + zeta*sumS00[k];
-  stress_yy[k] = -pressure - zeta*sumS00[k];
+  stress_xx[k] = - pressure + zeta*sumS00[k];
+  stress_yy[k] = - pressure - zeta*sumS00[k];
   stress_xy[k] = zeta*sumS01[k];
 }
 
@@ -146,8 +146,8 @@ void Model::UpdateForcesAtNode(unsigned n, unsigned q)
     );
 
   // velocity
-  velocity[n][0] += stress_xx[k]*dx + stress_xy[k]*dy;
-  velocity[n][1] += stress_xy[k]*dx + stress_yy[k]*dy;
+  velocity[n][0] += - stress_xx[k]*dx - stress_xy[k]*dy;
+  velocity[n][1] += - stress_xy[k]*dx - stress_yy[k]*dy;
 }
 
 void Model::UpdatePhaseFieldAtNode(unsigned n, unsigned q, bool store)
@@ -222,8 +222,8 @@ void Model::UpdateStructureTensorAtNode(unsigned n, unsigned q)
   const auto  dx = phi_dx[n][q];
   const auto  dy = phi_dy[n][q];
 
-  S00[n] += -0.5*(dx*dx-dy*dy);
-  S01[n] += -dx*dy;
+  S00[n] += 0.5*(dx*dx-dy*dy);
+  S01[n] += dx*dy;
 }
 
 void Model::UpdateSumsAtNode(unsigned n, unsigned q)
