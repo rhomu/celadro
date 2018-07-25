@@ -304,8 +304,9 @@ def shape(frame, engine=plt):
         Q00 = frame.S00[i]
         Q01 = frame.S01[i]
         S = sqrt(Q00**2 + Q01**2)
-        nx = sqrt((1 + Q00/S)/2)
-        ny = np.sign(Q01)*sqrt((1 - Q00/S)/2)
+        w = atan2(Q01, Q00)/2
+        nx = cos(w)
+        ny = sin(w)
         c = frame.com[i]
         a = S
         engine.arrow(c[0], c[1],  a*nx,  a*ny, color='k')
@@ -381,13 +382,13 @@ def velocity(frame, engine=plt):
 def nematic(frame, engine=plt):
     """Print director of each cell"""
     for i in range(frame.nphases):
-        Q00 = frame.Q00[i]
-        Q01 = frame.Q01[i]
+        Q00 = frame.S00[i]
+        Q01 = frame.S01[i]
         S = sqrt(Q00**2 + Q01**2)
         nx = sqrt((1 + Q00/S)/2)
         ny = np.sign(Q01)*sqrt((1 - Q00/S)/2)
         c = frame.com[i]
-        a = frame.R[i]/2.5*S
+        a = frame.R/2.5*S
         engine.arrow(c[0], c[1],  a*nx,  a*ny, color='k')
         engine.arrow(c[0], c[1], -a*nx, -a*ny, color='k')
 
