@@ -67,10 +67,8 @@ struct Model
   field sumS00, sumS01;
   /** Sum_i Area_i phi_i */
   field sumA;
-  /** Sum of square phi at each node */
-  field square;
-  /** Sum of third power of phi at each node */
-  field thirdp;
+  /** Sum of square, third, and fourth powers of phi at each node */
+  field square, thirdp, fourthp;
   /** Phase-field for the walls */
   field walls, walls_dx, walls_dy, walls_laplace;
   /** Area associated with a phase field */
@@ -82,7 +80,7 @@ struct Model
   /** Structure tensor */
   std::vector<double> S00, S01;
   /** Stress tensor */
-  field stress_xx, stress_xy , stress_yy;
+  field stress_xx, stress_xy , stress_yy, pressure;
 
   /** @} */
 
@@ -475,7 +473,7 @@ struct Model
   void Post();
 
   /** Subfunction for update */
-  void UpdateStressAtNode(unsigned, unsigned);
+  void UpdatePotAtNode(unsigned, unsigned);
 
   /** Subfunction for update */
   void UpdatePhaseFieldAtNode(unsigned, unsigned, bool);

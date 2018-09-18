@@ -41,6 +41,7 @@ void Model::Initialize()
   walls_dy.resize(N, 0.);
   walls_laplace.resize(N, 0.);
   sum.resize(N, 0.);
+  pressure.resize(N, 0.);
   stress_xx.resize(N, 0.);
   stress_xy.resize(N, 0.);
   stress_yy.resize(N, 0.);
@@ -49,6 +50,7 @@ void Model::Initialize()
   sumS01.resize(N, 0.);
   square.resize(N, 0.);
   thirdp.resize(N, 0.);
+  fourthp.resize(N, 0.);
 
   // allocate memory for individual cells
   SetCellNumber(nphases);
@@ -75,8 +77,8 @@ void Model::Initialize()
   else if(birth_bdries.size()!=4)
     throw error_msg("Birth boundaries have wrong format, see help.");
 
-  if(omega!=0 or wall_omega!=0)
-    throw error_msg("Adhesion is not working for the moment.");
+  if(wall_omega!=0)
+    throw error_msg("Wall adhesion is not working for the moment.");
 }
 
 void Model::SetCellNumber(unsigned new_nphases)

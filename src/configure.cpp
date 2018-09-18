@@ -45,6 +45,7 @@ void Model::AddCellAtNode(unsigned n, unsigned q, const coord& center)
     area[n]      += 1.;
     square[k]    += 1.;
     thirdp[k]    += 1.;
+    fourthp[k]   += 1.;
     sum[k]       += 1.;
   }
   else

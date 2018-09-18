@@ -96,44 +96,30 @@ void Model::RuntimeChecks()
   }
 }
 
-void Model::UpdateStressAtNode(unsigned n, unsigned q)
+void Model::UpdateSumsAtNode(unsigned n, unsigned q)
 {
+  const auto k = GetIndexFromPatch(n, q);
+  const auto p = phi[n][q];
+
+  sum[k]     += p;
+  square[k]  += p*p;
+  thirdp[k]  += p*p*p;
+  fourthp[k] += p*p*p*p;
+  sumA[k]    += p*p*area[n];
+  sumS00[k]  += p*S00[n];
+  sumS01[k]  += p*S01[n];
+}
+
+void Model::UpdatePotAtNode(unsigned n, unsigned q)
+{
+  const auto p  = phi[n][q];
+  const auto a  = area[n];
+  const auto a0 = Pi*R*R;
+  const auto& sq = neighbors_patch[q];
+  const auto  ll = laplacian(phi[n], sq);
   const auto  k = GetIndexFromPatch(n, q);
   const auto& s = neighbors[k];
   const auto ls = laplacian(sum, s);
-  const auto a0 = Pi*R*R;
-
-  const double pressure = (
-      // CH term
-      - gam*(8*(sum[k]-3*square[k]+2*thirdp[k])/lambda - 2*lambda*ls)
-      // area conservation term
-      + 4*mu/a0*(sum[k]-sumA[k]/a0)
-      // repulsion term
-      + 4*kappa/lambda*(sum[k]*square[k]-thirdp[k])
-    );
-
-  stress_xx[k] = - pressure - zeta*sumS00[k];
-  stress_yy[k] = - pressure + zeta*sumS00[k];
-  stress_xy[k] = - zeta*sumS01[k];
-}
-
-void Model::UpdateForcesAtNode(unsigned n, unsigned q)
-{
-  const auto   k = GetIndexFromPatch(n, q);
-  const auto& sq = neighbors_patch[q];
-
-  // cell properties
-  const auto p  = phi[n][q];
-  const auto dx = derivX(phi[n], sq);
-  const auto dy = derivY(phi[n], sq);
-  const auto a  = area[n];
-  const auto a0 = Pi*R*R;
-  // all-cells properties
-  const auto ll = laplacian(phi[n], sq);
-
-  // store derivatives
-  phi_dx[n][q] = dx;
-  phi_dy[n][q] = dy;
 
   // delta F / delta phi_i
   V[n][q] = (
@@ -142,8 +128,37 @@ void Model::UpdateForcesAtNode(unsigned n, unsigned q)
       // area conservation term
       - 4*mu/a0*(1-a/a0)*p
       // repulsion term
-      + 4*kappa/lambda*p*(square[k]-p*p)
+      + 2*kappa/lambda*p*(square[k]-p*p)
+      // adhesion term
+      - 2*omega*lambda*(ls-ll)
     );
+
+  pressure[k] += -0*p*(
+      // CH term
+      + gam*(8*p*(1-p)*(1-2*p)/lambda - 2*lambda*ll)
+      // area conservation term
+      - 4*mu/a0*(1-a/a0)*p
+      // repulsion term
+      - 2*kappa/lambda*p*(square[k]-p*p)
+      // adhesion term
+      + 2*omega*lambda*(ls-ll)
+    );
+}
+
+void Model::UpdateForcesAtNode(unsigned n, unsigned q)
+{
+  const auto k = GetIndexFromPatch(n, q);
+  const auto& sq = neighbors_patch[q];
+  const auto dx = derivX(phi[n], sq);
+  const auto dy = derivY(phi[n], sq);
+
+  stress_xx[k] = - pressure[k] - zeta*sumS00[k];
+  stress_yy[k] = - pressure[k] + zeta*sumS00[k];
+  stress_xy[k] = - zeta*sumS01[k];
+
+  // store derivatives
+  phi_dx[n][q] = dx;
+  phi_dy[n][q] = dy;
 
   // velocity
   velocity[n][0] += - stress_xx[k]*dx - stress_xy[k]*dy;
@@ -226,27 +241,16 @@ void Model::UpdateStructureTensorAtNode(unsigned n, unsigned q)
   S01[n] += -dx*dy;
 }
 
-void Model::UpdateSumsAtNode(unsigned n, unsigned q)
+void Model::ReinitSumsAtNode(unsigned k)
 {
-  const auto p = phi[n][q];
-  const auto k = GetIndexFromPatch(n, q);
-
-  sum[k]    += p;
-  square[k] += p*p;
-  thirdp[k] += p*p*p;
-  sumA[k]   += p*area[n];
-  sumS00[k] += p*S00[n];
-  sumS01[k] += p*S01[n];
-}
-
-inline void Model::ReinitSumsAtNode(unsigned k)
-{
-  sum[k]    = 0;
-  square[k] = 0;
-  thirdp[k] = 0;
-  sumA[k]   = 0;
-  sumS00[k] = 0;
-  sumS01[k] = 0;
+  sum[k]     = 0;
+  square[k]  = 0;
+  thirdp[k]  = 0;
+  fourthp[k] = 0;
+  sumA[k]    = 0;
+  sumS00[k]  = 0;
+  sumS01[k]  = 0;
+  pressure[k] = 0;
 }
 
 #ifndef _CUDA_ENABLED
@@ -271,7 +275,7 @@ void Model::Update(bool store, unsigned nstart)
     // update only patch (in parallel, each node to a different core)
     PRAGMA_OMP(omp parallel for num_threads(nthreads) if(nthreads))
     for(unsigned q=0; q<patch_N; ++q)
-      UpdateStressAtNode(n, q);
+      UpdatePotAtNode(n, q);
   }
 
   // Compute induced force and passive velocity
