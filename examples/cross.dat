@@ -1,50 +1,38 @@
-#
-# This is an example runcard.
-#
+config    = random
+nsteps    = 5000
+ninfo     = 10
+LX        = 134
+LY        = 134
+nsubsteps = 5
+margin    = 25
 
-# initial configuration
-config     = random
-nsteps     = 2000
-ninfo      = 10
-LX         = 134
-LY         = 134
-nsubsteps  = 5
-margin     = 25
-relax-time = 50
+# initial config options...
+bc          = 4
+cross-ratio = 0.333333
+relax-time  = 50
 
 # model parameters...
 # ...number of phases
 nphases = 56
 # ...elastic constants for each phase
-gamma   = .05
+gamma   = .01
 # ...area energy penalty for each phase
-mu      = .03
+mu      = 3
 # ...interface thickness parameter
-lambda  = 8
+lambda  = 2.5
 # ...interaction strength
-kappa = 0.4
+kappa = .2
 # ...preferred radius (in units of lattice spacing)
 R     = 8
 # ...cell-substrate friction
-xi    = 1
+xi    = 1.6
 # ...adhesion
 omega = 0
-# ...cell-cell friction
-friction = 0.2
-# ...cell-wall friction
-friction-walls = 0
+# ...activity
+zeta = 0.00
 
-# initial configuration
-bc          = 4
-cross-ratio = 0.333333
 
-# wall options
-wall-thickness = .5
+# wall options...
+wall-thickness = .8
 wall-kappa     = .2
 wall-omega     = 0
-
-# dynamics of the polarisation
-alpha = .1
-D-pol = .08
-J-pol = .08
-S-pol = 1
