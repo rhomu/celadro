@@ -133,7 +133,7 @@ void Model::UpdatePotAtNode(unsigned n, unsigned q)
       - 2*omega*lambda*(ls-ll)
     );
 
-  pressure[k] += -0*p*(
+  pressure[k] += -p*(
       // CH term
       + gam*(8*p*(1-p)*(1-2*p)/lambda - 2*lambda*ll)
       // area conservation term
