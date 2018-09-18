@@ -121,28 +121,27 @@ void Model::UpdatePotAtNode(unsigned n, unsigned q)
   const auto& s = neighbors[k];
   const auto ls = laplacian(sum, s);
 
-  // delta F / delta phi_i
-  V[n][q] = (
+  const double same_sign = (
       // CH term
       + gam*(8*p*(1-p)*(1-2*p)/lambda - 2*lambda*ll)
       // area conservation term
       - 4*mu/a0*(1-a/a0)*p
+    );
+
+  const double other_sign = (
       // repulsion term
       + 2*kappa/lambda*p*(square[k]-p*p)
       // adhesion term
       - 2*omega*lambda*(ls-ll)
+      // repulsion with walls
+      + 2*wall_kappa/lambda*p*walls[k]*walls[k]
     );
 
-  pressure[k] += -p*(
-      // CH term
-      + gam*(8*p*(1-p)*(1-2*p)/lambda - 2*lambda*ll)
-      // area conservation term
-      - 4*mu/a0*(1-a/a0)*p
-      // repulsion term
-      - 2*kappa/lambda*p*(square[k]-p*p)
-      // adhesion term
-      + 2*omega*lambda*(ls-ll)
-    );
+  // delta F / delta phi_i
+  V[n][q] = same_sign+other_sign;
+
+  // pressure
+  pressure[k] += -p*(same_sign-other_sign);
 }
 
 void Model::UpdateForcesAtNode(unsigned n, unsigned q)
