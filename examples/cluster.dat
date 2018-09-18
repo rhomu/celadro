@@ -23,7 +23,7 @@ R     = 8
 # ...cell-substrate friction
 xi    = 1.6
 # ...adhesion
-omega = .006
+omega = .0025
 # ...activity
 zeta = 0.00
 
