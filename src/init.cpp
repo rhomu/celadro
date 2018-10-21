@@ -48,16 +48,23 @@ void Model::Initialize()
   sumA.resize(N, 0.);
   sumS00.resize(N, 0.);
   sumS01.resize(N, 0.);
+  sumQ00.resize(N, 0.);
+  sumQ01.resize(N, 0.);
   square.resize(N, 0.);
   thirdp.resize(N, 0.);
   fourthp.resize(N, 0.);
+  P0.resize(N, 0.);
+  P1.resize(N, 0.);
+  U0.resize(N, 0.);
+  U1.resize(N, 0.);
 
   // allocate memory for individual cells
   SetCellNumber(nphases);
 
   // ---------------------------------------------------------------------------
 
-  if(zeta!=0.) sign_zeta = zeta>0. ? 1 : -1;
+  if(zetaQ!=0.) sign_zetaQ = zetaQ>0. ? 1 : -1;
+  if(zetaS!=0.) sign_zetaS = zetaS>0. ? 1 : -1;
 
   // compute tables
   for(unsigned i=0; i<Size[0]; ++i)
@@ -101,12 +108,22 @@ void Model::SetCellNumber(unsigned new_nphases)
   patch_max.resize(nphases, Size);
   com.resize(nphases, {0., 0.});
   com_prev.resize(nphases, {0., 0.});
+  polarization.resize(nphases, {0., 0.});
   velocity.resize(nphases, {0., 0.});
   com_x.resize(nphases, 0.);
   com_y.resize(nphases, 0.);
   S00.resize(nphases, 0.);
   S01.resize(nphases, 0.);
+  Q00.resize(nphases, 0.);
+  Q01.resize(nphases, 0.);
   offset.resize(nphases, {0u, 0u});
+  theta_pol.resize(nphases, 0.);
+  theta_pol_old.resize(nphases, 0.);
+  delta_theta_pol.resize(nphases, 0.);
+  theta_nem.resize(nphases, 0.);
+  theta_nem_old.resize(nphases, 0.);
+  vorticity.resize(nphases, 0.);
+  tau.resize(nphases, 0.);
 }
 
 void Model::InitializeNeighbors()

@@ -27,7 +27,15 @@ void Model::Pre()
   // we make the system relax (without activity)
   if(relax_time>0)
   {
-    double save_zeta  = 0; swap(zeta,  save_zeta);
+    double save_zetaS  = 0; swap(zetaS,  save_zetaS);
+    double save_zetaQ  = 0; swap(zetaQ,  save_zetaQ);
+    double save_Dnem  = 0; swap(Dnem,  save_Dnem);
+    double save_Dpol  = 0; swap(Dpol,  save_Dpol);
+    double save_Jnem  = 0; swap(Jnem,  save_Jnem);
+    double save_Jpol  = 0; swap(Jpol,  save_Jpol);
+    double save_Kpol  = 0; swap(Kpol,  save_Kpol);
+    double save_Knem  = 0; swap(Knem,  save_Knem);
+    double save_Wnem  = 0; swap(Wnem,  save_Wnem);
 
     if(relax_nsubsteps) swap(nsubsteps, relax_nsubsteps);
 
@@ -36,7 +44,15 @@ void Model::Pre()
 
     if(relax_nsubsteps) swap(nsubsteps, relax_nsubsteps);
 
-    swap(zeta, save_zeta);
+    swap(zetaS, save_zetaS);
+    swap(zetaQ, save_zetaQ);
+    swap(Jnem, save_Jnem);
+    swap(Jpol, save_Jpol);
+    swap(Dnem, save_Dnem);
+    swap(Dpol, save_Dpol);
+    swap(Kpol, save_Kpol);
+    swap(Knem, save_Knem);
+    swap(Wnem, save_Wnem);
   }
 
   if(BC==5) ConfigureWalls(1);
@@ -108,6 +124,12 @@ void Model::UpdateSumsAtNode(unsigned n, unsigned q)
   sumA[k]    += p*p*area[n];
   sumS00[k]  += p*S00[n];
   sumS01[k]  += p*S01[n];
+  sumQ00[k]  += p*Q00[n];
+  sumQ01[k]  += p*Q01[n];
+  P0[k]      += p*polarization[n][0];
+  P1[k]      += p*polarization[n][1];
+  U0[k]      += p*velocity[n][0];
+  U1[k]      += p*velocity[n][1];
 }
 
 void Model::UpdatePotAtNode(unsigned n, unsigned q)
@@ -147,13 +169,16 @@ void Model::UpdatePotAtNode(unsigned n, unsigned q)
 void Model::UpdateForcesAtNode(unsigned n, unsigned q)
 {
   const auto k = GetIndexFromPatch(n, q);
+  const auto& s = neighbors[k];
   const auto& sq = neighbors_patch[q];
   const auto dx = derivX(phi[n], sq);
   const auto dy = derivY(phi[n], sq);
+  const auto dxs = derivX(sum, s);
+  const auto dys = derivY(sum, s);
 
-  stress_xx[k] = - pressure[k] - zeta*sumS00[k];
-  stress_yy[k] = - pressure[k] + zeta*sumS00[k];
-  stress_xy[k] = - zeta*sumS01[k];
+  stress_xx[k] = - pressure[k] - zetaS*sumS00[k] - zetaQ*sumQ00[k];
+  stress_yy[k] = - pressure[k] + zetaS*sumS00[k] + zetaQ*sumQ00[k];
+  stress_xy[k] = - zetaS*sumS01[k] - zetaQ*sumQ01[k];
 
   // store derivatives
   phi_dx[n][q] = dx;
@@ -162,6 +187,16 @@ void Model::UpdateForcesAtNode(unsigned n, unsigned q)
   // velocity
   velocity[n][0] += - stress_xx[k]*dx - stress_xy[k]*dy;
   velocity[n][1] += - stress_xy[k]*dx - stress_yy[k]*dy;
+
+  // nematic torques
+  tau[n]       += sumQ00[k]*Q01[n]-sumQ01[k]*Q00[n];
+  vorticity[n] += U0[k]*dy-U1[k]*dx;
+
+  // polarisation torques (not super nice)
+  const double ovlap = -(dx*(dxs-dx)+dy*(dys-dy));
+  const vec<double, 2> P = {P0[k]-phi[n][k]*polarization[n][0], P1[k]-phi[n][k]*polarization[n][1]};
+  delta_theta_pol[n] += ovlap*atan2(P[0]*polarization[n][1]-P[1]*polarization[n][0],
+                                    P[0]*polarization[n][0]+P[1]*polarization[n][1]);
 }
 
 void Model::UpdatePhaseFieldAtNode(unsigned n, unsigned q, bool store)
@@ -203,6 +238,39 @@ void Model::UpdatePhaseFieldAtNode(unsigned n, unsigned q, bool store)
   ReinitSumsAtNode(k);
 }
 
+void Model::UpdatePolarization(unsigned n, bool store)
+{
+  // align to velocity
+  const auto ff = velocity[n];
+  const auto fn = ff.abs();
+  // force tensor
+  const double F00 =   ff[0]*ff[0]
+                     - ff[1]*ff[1];
+  const double F01 = 2*ff[0]*ff[1];
+
+  // update nematics and polarity
+  if(store)
+  {
+    // euler-marijuana update
+    theta_nem_old[n] = theta_nem[n] + sqrt_time_step*Dnem*random_normal();
+    theta_pol_old[n] = theta_pol[n] + sqrt_time_step*Dpol*random_normal();
+  }
+
+  // nematics
+  theta_nem[n] = theta_nem_old[n] - time_step*(
+      + Knem*tau[n]
+      + Jnem*fn*atan2(F00*Q01[n]-F01*Q00[n], F00*Q00[n]+F01*Q01[n]))
+      + Wnem*vorticity[n];
+  Q00[n] = Snem*cos(2*theta_nem[n]);
+  Q01[n] = Snem*sin(2*theta_nem[n]);
+
+  // polarisation
+  theta_pol[n] = theta_pol_old[n] - time_step*(
+      + Kpol*delta_theta_pol[n]
+      + Jpol*fn*atan2(ff[0]*polarization[n][1]-ff[1]*polarization[n][0], ff*polarization[n]));
+  polarization[n] = { Spol*cos(theta_pol[n]), Spol*sin(theta_pol[n]) };
+}
+
 void Model::ComputeCoM(unsigned n)
 {
   // the strategy to deal with the periodic boundary conditions is to compute
@@ -229,6 +297,9 @@ void Model::UpdatePatch(unsigned n)
   offset[n]    = ( offset[n] + patch_size - displacement ) % patch_size;
   patch_min[n] = new_min;
   patch_max[n] = new_max;
+
+  // reset variables
+  com_x[n] = com_y[n] = area[n] = 0.;
 }
 
 void Model::UpdateStructureTensorAtNode(unsigned n, unsigned q)
@@ -242,14 +313,18 @@ void Model::UpdateStructureTensorAtNode(unsigned n, unsigned q)
 
 void Model::ReinitSumsAtNode(unsigned k)
 {
-  sum[k]     = 0;
-  square[k]  = 0;
-  thirdp[k]  = 0;
+  sum[k] = 0;
+  square[k] = 0;
+  thirdp[k] = 0;
   fourthp[k] = 0;
-  sumA[k]    = 0;
-  sumS00[k]  = 0;
-  sumS01[k]  = 0;
+  sumA[k] = 0;
+  sumS00[k] = 0;
+  sumS01[k] = 0;
+  sumQ00[k] = 0;
+  sumQ01[k] = 0;
   pressure[k] = 0;
+  U0[k] = 0;
+  U1[k] = 0;
 }
 
 #ifndef _CUDA_ENABLED
@@ -287,6 +362,7 @@ void Model::Update(bool store, unsigned nstart)
 
     // normalise and compute total forces and vel
     velocity[n]  /= xi;
+    tau[n]       /= lambda;
   }
 
   // Predictor-corrector function for updating the phase fields
@@ -302,12 +378,12 @@ void Model::Update(bool store, unsigned nstart)
       UpdateStructureTensorAtNode(n, q);
     }
 
+    // update Q-tensor and polarisation
+    UpdatePolarization(n, store);
     // update center of mass
     ComputeCoM(n);
     // update patch boundaries
     UpdatePatch(n);
-
-    com_x[n] = com_y[n] = area[n] = 0.;
   }
 
   swap(area, area_cnt);

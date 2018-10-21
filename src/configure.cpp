@@ -47,6 +47,8 @@ void Model::AddCellAtNode(unsigned n, unsigned q, const coord& center)
     thirdp[k]    += 1.;
     fourthp[k]   += 1.;
     sum[k]       += 1.;
+    sumQ00[k]    += Q00[n];
+    sumQ01[k]    += Q01[n];
   }
   else
   {
@@ -60,6 +62,13 @@ void Model::AddCell(unsigned n, const coord& center)
   // update patch coordinates
   patch_min[n] = (center+Size-patch_margin)%Size;
   patch_max[n] = (center+patch_margin-1u)%Size;
+
+  // init polarisation and nematic
+  theta_pol[n] = noise*Pi*(1-2*random_real());
+  polarization[n] = { Spol*cos(theta_pol[n]), Spol*sin(theta_pol[n]) };
+  theta_nem[n] = noise*Pi*(1-2*random_real());
+  Q00[n] = Snem*cos(2*theta_nem[n]);
+  Q01[n] = Snem*sin(2*theta_nem[n]);
 
   // create the cells at the centers we just computed
   for(unsigned q=0; q<patch_N; ++q)

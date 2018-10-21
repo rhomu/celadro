@@ -97,14 +97,36 @@ void Model::ParseProgramOptions(int ac, char **av)
       "Number of predictor-corrector steps")
     ("margin", opt::value<unsigned>(&margin)->default_value(0u),
       "Margin for the definition of restricted domains (if 0: update full box)")
-    ("friction", opt::value<double>(&f),
-      "Cell-cell friction parameter")
-    ("friction-walls", opt::value<double>(&f_walls),
-      "Cell-wall friction parameter")
+    //("friction", opt::value<double>(&f),
+    //  "Cell-cell friction parameter")
+    //("friction-walls", opt::value<double>(&f_walls),
+    //  "Cell-wall friction parameter")
     ("xi", opt::value<double>(&xi),
       "Substrate friction parameter")
-    ("zeta", opt::value<double>(&zeta),
-     "Activity")
+    ("K-pol", opt::value<double>(&Kpol),
+     "elastic constant for the polarisation")
+    ("K-nem", opt::value<double>(&Knem),
+     "elastic constant for the nematic")
+    //("C-pol", opt::value<double>(&Cpol),
+    // "Strength of LdG potential for the polarisation")
+    ("J-pol", opt::value<double>(&Jpol),
+     "Nematic flow alignment strength")
+    ("J-nem", opt::value<double>(&Jnem),
+     "Nematic flow alignment strength")
+    ("W-nem", opt::value<double>(&Wnem),
+     "Strength of vorticity torque")
+    ("D-nem", opt::value<double>(&Dnem),
+      "Nematic noise strength")
+    ("D-pol", opt::value<double>(&Dpol),
+      "Polarisation noise strength")
+    ("S-nem", opt::value<double>(&Snem),
+      "Order of the nematic tensors")
+    ("S-pol", opt::value<double>(&Spol),
+      "Norm of the polarisation vector")
+    ("zetaQ", opt::value<double>(&zetaQ),
+     "Activity from internal nematic tensor")
+    ("zetaS", opt::value<double>(&zetaS),
+     "Activity from shape")
     ("omega", opt::value<double>(&omega),
       "Adhesion parameter")
     ("wall-thickness", opt::value<double>(&wall_thickness),

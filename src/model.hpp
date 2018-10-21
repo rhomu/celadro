@@ -65,12 +65,18 @@ struct Model
   field sum;
   /** Sum_i S_i phi_i */
   field sumS00, sumS01;
+  /** Sum_i Q_i phi_i */
+  field sumQ00, sumQ01;
   /** Sum_i Area_i phi_i */
   field sumA;
   /** Sum of square, third, and fourth powers of phi at each node */
   field square, thirdp, fourthp;
   /** Phase-field for the walls */
   field walls, walls_dx, walls_dy, walls_laplace;
+  /** Total polarization of the tissue */
+  std::vector<double> P0, P1;
+  /** Total velocity of the tissue */
+  std::vector<double> U0, U1;
   /** Area associated with a phase field */
   std::vector<double> area;
   /** Counter for computing the area */
@@ -79,8 +85,22 @@ struct Model
   std::vector<vec<double, 2>> velocity;
   /** Structure tensor */
   std::vector<double> S00, S01;
+  /** Q-tensor */
+  std::vector<double> Q00, Q01;
+  /** Polarisation */
+  std::vector<vec<double, 2>> polarization;
+  /** Direction of the polarisation */
+  std::vector<double> theta_pol, theta_pol_old;
+  /** Direction of the nematics */
+  std::vector<double> theta_nem, theta_nem_old;
+  /** Polarisation total torque */
+  std::vector<double> delta_theta_pol;
   /** Stress tensor */
   field stress_xx, stress_xy , stress_yy, pressure;
+  /** Elastic torque for the nematic */
+  std::vector<double> tau;
+  /** Vorticity around each cell */
+  std::vector<double> vorticity;
 
   /** @} */
 
@@ -199,8 +219,10 @@ struct Model
   double kappa = 0.4;
   /** Adhesion */
   double omega = 0.;
-  /** Activity */
-  double zeta = 0., sign_zeta = 0.;
+  /** Activity from shape */
+  double zetaS = 0., sign_zetaS = 0.;
+  /** Activity from internal Q tensor */
+  double zetaQ = 0., sign_zetaQ = 0.;
   /** Cell-cell friction parameter */
   double f = 0;
   /** Cell-wall friction parameter */
@@ -213,6 +235,16 @@ struct Model
   double wall_kappa = 2;
   /** Adhesion on the wall */
   double wall_omega = 0;
+  /** Elasitc parameters */
+  double Knem = 0, Kpol = 0;
+  /** Strength of polarity / nematic */
+  double Spol = 0, Snem = 0; // olé!
+  /** Flow alignment strenght */
+  double Jpol = 0, Jnem = 0;
+  /** Vorticity coupling */
+  double Wnem = 0;
+  /** Noise strength */
+  double Dpol = 0, Dnem = 0;
 
   /** @} */
   /** Multi-threading parameters
@@ -493,6 +525,9 @@ struct Model
   /** Compute center of mass of a given phase field */
   void ComputeCoM(unsigned);
 
+  /** Update polarisation of a given field */
+  void UpdatePolarization(unsigned, bool);
+
   /** Compute shape parameters
    *
    * This function effectively computes the second moment of area, which ca n be used to
@@ -525,7 +560,8 @@ struct Model
        & auto_name(kappa)
        & auto_name(xi)
        & auto_name(R)
-       & auto_name(zeta)
+       & auto_name(zetaS)
+       & auto_name(zetaQ)
        & auto_name(omega)
        & auto_name(wall_thickness)
        & auto_name(wall_kappa)
