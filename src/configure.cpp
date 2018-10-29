@@ -190,6 +190,17 @@ void Model::Configure()
 
           if(fabs(d)<0.9*R) continue;
         }
+        // ... wound on one side
+        if(BC==7)
+        {
+          // wall boundary condition
+          if(center[0]<0.9*R or Size[0]-center[0]<0.9*R) continue;
+          if(center[1]<0.9*R or Size[1]-center[1]<0.9*R) continue;
+
+          double xl = Size[0]*(1.-wound_ratio);
+
+          if(xl-center[0]<0.9*R) continue;
+        }
 
         // overlapp between cells
         bool is_overlapping = false;
@@ -412,6 +423,24 @@ void Model::ConfigureWalls(int BC_)
                     -rad(Size[0]/2.-x, Size[1]/2.-y);
       // set the wall
       walls[k] = exp(-fabs(d)/wall_thickness);
+    }
+    break;
+  case 7:
+    for(unsigned k=0; k<N; ++k)
+    {
+      const double x  = GetXPosition(k);
+      const double y  = GetYPosition(k);
+      const double xl = Size[0]*(1.-wound_ratio);
+
+      // this is the easiest way: each wall contributes as an exponentially
+      // falling potential and we do not care about overalps
+      walls[k] =   exp(-y/wall_thickness)
+                 + exp(-x/wall_thickness)
+                 + exp(-(Size[0]-1-x)/wall_thickness)
+                 + exp(-(Size[1]-1-y)/wall_thickness);
+
+      if(x <= xl) walls[k] += exp(-(xl - x)/wall_thickness);
+      else        walls[k] =  1.;
     }
     break;
   // Same as above but channel.
