@@ -39,7 +39,7 @@ void Model::Pre()
     swap(zeta, save_zeta);
   }
 
-  if(BC==5) ConfigureWalls(1);
+  if(BC==5 || BC==7) ConfigureWalls(1);
   if(BC==6) ConfigureWalls(0);
 }
 
