@@ -86,6 +86,10 @@ void Model::Initialize()
 
   if(wall_omega!=0)
     throw error_msg("Wall adhesion is not working for the moment.");
+
+  // ---------------------------------------------------------------------------
+
+  a0 = Pi*R*R;
 }
 
 void Model::SetCellNumber(unsigned new_nphases)
@@ -103,13 +107,16 @@ void Model::SetCellNumber(unsigned new_nphases)
 
   // allocate memory for cell properties
   area.resize(nphases, 0.);
-  area_cnt.resize(nphases, 0.);
   patch_min.resize(nphases, {0, 0});
   patch_max.resize(nphases, Size);
   com.resize(nphases, {0., 0.});
   com_prev.resize(nphases, {0., 0.});
   polarization.resize(nphases, {0., 0.});
   velocity.resize(nphases, {0., 0.});
+  Fpressure.resize(nphases, {0., 0.});
+  Fshape.resize(nphases, {0., 0.});
+  Fnem.resize(nphases, {0., 0.});
+  Fpol.resize(nphases, {0., 0.});
   com_x.resize(nphases, 0.);
   com_y.resize(nphases, 0.);
   S00.resize(nphases, 0.);

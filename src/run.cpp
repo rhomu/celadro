@@ -27,6 +27,7 @@ void Model::Pre()
   // we make the system relax (without activity)
   if(relax_time>0)
   {
+    double save_alpha  = 0; swap(alpha,  save_alpha);
     double save_zetaS  = 0; swap(zetaS,  save_zetaS);
     double save_zetaQ  = 0; swap(zetaQ,  save_zetaQ);
     double save_Dnem  = 0; swap(Dnem,  save_Dnem);
@@ -44,6 +45,7 @@ void Model::Pre()
 
     if(relax_nsubsteps) swap(nsubsteps, relax_nsubsteps);
 
+    swap(alpha, save_alpha);
     swap(zetaS, save_zetaS);
     swap(zetaQ, save_zetaQ);
     swap(Jnem, save_Jnem);
@@ -134,13 +136,13 @@ void Model::UpdateSumsAtNode(unsigned n, unsigned q)
 
 void Model::UpdatePotAtNode(unsigned n, unsigned q)
 {
+  const auto  k  = GetIndexFromPatch(n, q);
+  const auto& s  = neighbors[k];
+  const auto& sq = neighbors_patch[q];
+
   const auto p  = phi[n][q];
   const auto a  = area[n];
-  const auto a0 = Pi*R*R;
-  const auto& sq = neighbors_patch[q];
-  const auto  ll = laplacian(phi[n], sq);
-  const auto  k = GetIndexFromPatch(n, q);
-  const auto& s = neighbors[k];
+  const auto ll = laplacian(phi[n], sq);
   const auto ls = laplacian(sum, s);
 
   const double same_sign = (
@@ -168,11 +170,12 @@ void Model::UpdatePotAtNode(unsigned n, unsigned q)
 
 void Model::UpdateForcesAtNode(unsigned n, unsigned q)
 {
-  const auto k = GetIndexFromPatch(n, q);
-  const auto& s = neighbors[k];
+  const auto  k  = GetIndexFromPatch(n, q);
+  const auto& s  = neighbors[k];
   const auto& sq = neighbors_patch[q];
-  const auto dx = derivX(phi[n], sq);
-  const auto dy = derivY(phi[n], sq);
+
+  const auto dx  = derivX(phi[n], sq);
+  const auto dy  = derivY(phi[n], sq);
   const auto dxs = derivX(sum, s);
   const auto dys = derivY(sum, s);
 
@@ -180,17 +183,19 @@ void Model::UpdateForcesAtNode(unsigned n, unsigned q)
   stress_yy[k] = - pressure[k] + zetaS*sumS00[k] + zetaQ*sumQ00[k];
   stress_xy[k] = - zetaS*sumS01[k] - zetaQ*sumQ01[k];
 
+  Fpressure[n] += { pressure[k]*dx, pressure[k]*dy };
+  Fshape[n]    += { zetaS*sumS00[k]*dx + zetaS*sumS01[k]*dy,
+                    zetaS*sumS01[k]*dx - zetaS*sumS00[k]*dy };
+  Fnem[n]      += { zetaQ*sumQ00[k]*dx + zetaQ*sumQ01[k]*dy,
+                    zetaQ*sumQ01[k]*dx - zetaQ*sumQ00[k]*dy };
+
   // store derivatives
   phi_dx[n][q] = dx;
   phi_dy[n][q] = dy;
 
-  // velocity
-  velocity[n][0] += - stress_xx[k]*dx - stress_xy[k]*dy;
-  velocity[n][1] += - stress_xy[k]*dx - stress_yy[k]*dy;
-
   // nematic torques
-  tau[n]       += sumQ00[k]*Q01[n]-sumQ01[k]*Q00[n];
-  vorticity[n] += U0[k]*dy-U1[k]*dx;
+  tau[n]       += sumQ00[k]*Q01[n] - sumQ01[k]*Q00[n];
+  vorticity[n] += U0[k]*dy - U1[k]*dx;
 
   // polarisation torques (not super nice)
   const double ovlap = -(dx*(dxs-dx)+dy*(dys-dy));
@@ -226,9 +231,9 @@ void Model::UpdatePhaseFieldAtNode(unsigned n, unsigned q, bool store)
     // update for next call
     phi[n][q]    = p;
 
-    com_x[n]    += com_x_table[GetXPosition(k)]*p;
-    com_y[n]    += com_y_table[GetYPosition(k)]*p;
-    area_cnt[n] += p*p;
+    com_x[n] += com_x_table[GetXPosition(k)]*p;
+    com_y[n] += com_y_table[GetYPosition(k)]*p;
+    area[n]  += p*p;
   }
 
   // reinit values: we do reinit values here for the simple reason that it is
@@ -238,36 +243,66 @@ void Model::UpdatePhaseFieldAtNode(unsigned n, unsigned q, bool store)
   ReinitSumsAtNode(k);
 }
 
-void Model::UpdatePolarization(unsigned n, bool store)
+void Model::UpdateNematic(unsigned n, bool store)
 {
-  // align to velocity
-  const auto ff = velocity[n];
-  const auto fn = ff.abs();
-  // force tensor
-  const double F00 =   ff[0]*ff[0]
-                     - ff[1]*ff[1];
-  const double F01 = 2*ff[0]*ff[1];
-
-  // update nematics and polarity
+  // euler-marijuana update
   if(store)
-  {
-    // euler-marijuana update
     theta_nem_old[n] = theta_nem[n] + sqrt_time_step*Dnem*random_normal();
-    theta_pol_old[n] = theta_pol[n] + sqrt_time_step*Dpol*random_normal();
-  }
 
-  // nematics
+  double F00 = 0, F01 = 0;
+  switch(align_nematic_to)
+  {
+    case 0:
+    {
+      const auto ff = velocity[n];
+      F00 =   ff[0]*ff[0]
+            - ff[1]*ff[1];
+      F01 = 2*ff[0]*ff[1];
+      break;
+    }
+    case 1:
+    {
+      const auto ff = Fpressure[n];
+      F00 =   ff[0]*ff[0]
+            - ff[1]*ff[1];
+      F01 = 2*ff[0]*ff[1];
+      break;
+    }
+    case 2:
+      F00 = S00[n];
+      F01 = S01[n];
+      break;
+  }
+  const auto strength = sqrt(F01*F01 + F00*F00);
+
   theta_nem[n] = theta_nem_old[n] - time_step*(
       + Knem*tau[n]
-      + Jnem*fn*atan2(F00*Q01[n]-F01*Q00[n], F00*Q00[n]+F01*Q01[n]))
+      + Jnem*strength*atan2(F00*Q01[n]-F01*Q00[n], F00*Q00[n]+F01*Q01[n]))
       + Wnem*vorticity[n];
   Q00[n] = Snem*cos(2*theta_nem[n]);
   Q01[n] = Snem*sin(2*theta_nem[n]);
+}
 
-  // polarisation
+void Model::UpdatePolarization(unsigned n, bool store)
+{
+  // euler-marijuana update
+  if(store)
+    theta_pol_old[n] = theta_pol[n] + sqrt_time_step*Dpol*random_normal();
+
+  vec<double, 2> ff = {0, 0};
+  switch(align_polarization_to)
+  {
+    case 0:
+      ff = velocity[n];
+      break;
+    case 1:
+      ff = Fpressure[n];
+      break;
+  }
+
   theta_pol[n] = theta_pol_old[n] - time_step*(
       + Kpol*delta_theta_pol[n]
-      + Jpol*fn*atan2(ff[0]*polarization[n][1]-ff[1]*polarization[n][0], ff*polarization[n]));
+      + Jpol*ff.abs()*atan2(ff[0]*polarization[n][1]-ff[1]*polarization[n][0], ff*polarization[n]));
   polarization[n] = { Spol*cos(theta_pol[n]), Spol*sin(theta_pol[n]) };
 }
 
@@ -299,7 +334,7 @@ void Model::UpdatePatch(unsigned n)
   patch_max[n] = new_max;
 
   // reset variables
-  com_x[n] = com_y[n] = area[n] = 0.;
+  com_x[n] = com_y[n] = 0;
 }
 
 void Model::UpdateStructureTensorAtNode(unsigned n, unsigned q)
@@ -356,20 +391,24 @@ void Model::Update(bool store, unsigned nstart)
   PRAGMA_OMP(omp parallel for num_threads(nthreads) if(nthreads))
   for(unsigned n=nstart; n<nphases; ++n)
   {
+    Fpol[n] = Fshape[n] = Fpressure[n] = {0, 0};
+    delta_theta_pol[n] = tau[n] = vorticity[n] = 0;
+
     // update in restricted patch only
     for(unsigned q=0; q<patch_N; ++q)
       UpdateForcesAtNode(n, q);
 
     // normalise and compute total forces and vel
-    velocity[n]  /= xi;
-    tau[n]       /= lambda;
+    tau[n]     /= lambda;
+    Fpol[n]     = alpha*polarization[n];
+    velocity[n] = (Fpressure[n] + Fnem[n] + Fshape[n] + Fpol[n])/xi;
   }
 
   // Predictor-corrector function for updating the phase fields
   PRAGMA_OMP(omp parallel for num_threads(nthreads) if(nthreads))
   for(unsigned n=nstart; n<nphases; ++n)
   {
-    S00[n] = S01[n] = 0.;
+    S00[n] = S01[n] = area[n] = 0;
 
     // only update fields in the restricted patch of field n
     for(unsigned q=0; q<patch_N; ++q)
@@ -378,15 +417,15 @@ void Model::Update(bool store, unsigned nstart)
       UpdateStructureTensorAtNode(n, q);
     }
 
-    // update Q-tensor and polarisation
+    // update polarisation
     UpdatePolarization(n, store);
+    // update Q-tensor
+    UpdateNematic(n, store);
     // update center of mass
     ComputeCoM(n);
     // update patch boundaries
     UpdatePatch(n);
   }
-
-  swap(area, area_cnt);
 }
 
 #endif

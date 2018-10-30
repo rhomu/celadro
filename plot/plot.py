@@ -342,25 +342,25 @@ def cell(frame, i, engine=plt, color='k'):
     engine.contour(np.arange(0, frame.parameters['Size'][0]),
                    np.arange(0, frame.parameters['Size'][1]),
                    p.T,
-                   level=[.5],
+                   levels=[.5],
                    colors=color)
 
 
-def cells(frame, engine=plt, color='k'):
+def cells(frame, engine=plt, colors='k'):
     """
     Plot all cells as contours.
 
     Args:
         frame: Frame to plot, from archive module.
         engine: Plotting engine or axis.
-        color: Color to use for the contour. Can also be a list of colors, one
-            for each cell.
+        colors: Colors to use for the contour. Can also be a list of colors,
+            one for each cell.
     """
-    if not isinstance(color, list):
-        color = len(frame.phi)*[color]
+    if not isinstance(colors, list):
+        colors = len(frame.phi)*[colors]
 
     for i in range(len(frame.phi)):
-        cell(frame, i, engine, color=color[i])
+        cell(frame, i, engine, color=colors[i])
 
 
 def interfaces(frame, engine=plt):

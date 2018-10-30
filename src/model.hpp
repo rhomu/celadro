@@ -71,16 +71,16 @@ struct Model
   field sumA;
   /** Sum of square, third, and fourth powers of phi at each node */
   field square, thirdp, fourthp;
-  /** Phase-field for the walls */
+  /** Phase-field for the walls and their derivatives */
   field walls, walls_dx, walls_dy, walls_laplace;
   /** Total polarization of the tissue */
-  std::vector<double> P0, P1;
+  field P0, P1;
   /** Total velocity of the tissue */
-  std::vector<double> U0, U1;
+  field U0, U1;
   /** Area associated with a phase field */
   std::vector<double> area;
-  /** Counter for computing the area */
-  std::vector<double> area_cnt;
+  /** Forces */
+  std::vector<vec<double, 2>> Fpol, Fnem, Fshape, Fpressure;
   /** Velocity */
   std::vector<vec<double, 2>> velocity;
   /** Structure tensor */
@@ -101,6 +101,8 @@ struct Model
   std::vector<double> tau;
   /** Vorticity around each cell */
   std::vector<double> vorticity;
+  /** Alignement options (see options.cpp) */
+  int align_nematic_to = 0, align_polarization_to = 0;
 
   /** @} */
 
@@ -223,22 +225,22 @@ struct Model
   double zetaS = 0., sign_zetaS = 0.;
   /** Activity from internal Q tensor */
   double zetaQ = 0., sign_zetaQ = 0.;
-  /** Cell-cell friction parameter */
-  double f = 0;
-  /** Cell-wall friction parameter */
-  double f_walls = 0;
+  /** Propulsion strength */
+  double alpha = 0.;
   /** Substrate friction parameter */
   double xi = 1;
   /** Prefered radii (area = pi*R*R) and radius growth */
   double R;
+  /** Base area: a0 = Pi*R*R */
+  double a0;
   /** Repuslion by the wall */
   double wall_kappa = 2;
   /** Adhesion on the wall */
   double wall_omega = 0;
   /** Elasitc parameters */
   double Knem = 0, Kpol = 0;
-  /** Strength of polarity / nematic */
-  double Spol = 0, Snem = 0; // olé!
+  /** Strength of polarity / nematic tensor */
+  double Spol = 0, Snem = 0;
   /** Flow alignment strenght */
   double Jpol = 0, Jnem = 0;
   /** Vorticity coupling */
@@ -528,6 +530,9 @@ struct Model
   /** Update polarisation of a given field */
   void UpdatePolarization(unsigned, bool);
 
+  /** Update nematic tensor of a given field */
+  void UpdateNematic(unsigned, bool);
+
   /** Compute shape parameters
    *
    * This function effectively computes the second moment of area, which ca n be used to
@@ -560,6 +565,7 @@ struct Model
        & auto_name(kappa)
        & auto_name(xi)
        & auto_name(R)
+       & auto_name(alpha)
        & auto_name(zetaS)
        & auto_name(zetaQ)
        & auto_name(omega)
@@ -568,6 +574,20 @@ struct Model
        & auto_name(wall_omega)
        & auto_name(walls)
        & auto_name(patch_margin)
+       & auto_name(relax_time)
+       & auto_name(relax_nsubsteps)
+       & auto_name(npc)
+       & auto_name(seed)
+       & auto_name(Knem)
+       & auto_name(Kpol)
+       & auto_name(Snem)
+       & auto_name(Spol)
+       & auto_name(Jnem)
+       & auto_name(Jpol)
+       & auto_name(Wnem)
+       & auto_name(Dpol)
+       & auto_name(Dnem)
+       & auto_name(margin)
        & auto_name(patch_size);
   }
 
@@ -578,15 +598,18 @@ struct Model
     ar & auto_name(nphases)
        & auto_name(phi)
        & auto_name(offset)
-       & auto_name(R)
-       & auto_name(area)
        & auto_name(com)
+       & auto_name(area)
        & auto_name(S00)
        & auto_name(S01)
+       & auto_name(Q00)
+       & auto_name(Q01)
        & auto_name(stress_xx)
        & auto_name(stress_xy)
        & auto_name(stress_yy)
        & auto_name(velocity)
+       & auto_name(theta_pol)
+       & auto_name(theta_nem)
        & auto_name(patch_min)
        & auto_name(patch_max);
   }

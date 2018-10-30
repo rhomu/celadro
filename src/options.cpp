@@ -123,6 +123,8 @@ void Model::ParseProgramOptions(int ac, char **av)
       "Order of the nematic tensors")
     ("S-pol", opt::value<double>(&Spol),
       "Norm of the polarisation vector")
+    ("alpha", opt::value<double>(&alpha),
+     "Strength of propulsion")
     ("zetaQ", opt::value<double>(&zetaQ),
      "Activity from internal nematic tensor")
     ("zetaS", opt::value<double>(&zetaS),
@@ -136,7 +138,11 @@ void Model::ParseProgramOptions(int ac, char **av)
     ("wall-omega", opt::value<double>(&wall_omega)->default_value(0.),
       "Wall adhesion")
     ("R", opt::value<double>(&R),
-      "Preferred radius (defines area Pi*R*R)");
+      "Preferred radius (defines area Pi*R*R)")
+    ("align-polarization-to", opt::value<int>(&align_polarization_to),
+     "Align polarization to velocity (=0) or pressure force (=1)")
+    ("align-nematic-to", opt::value<int>(&align_nematic_to),
+     "Align nematic tensor to velocity (=0), pressure force (=1), or shape (=2)");
 
   // init config options
   opt::options_description init("Initial configuration options");
