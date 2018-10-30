@@ -16,7 +16,7 @@ relax-time = 0
 # ...number of phases
 nphases = 15
 # ...elastic constants for each phase
-gamma   = .01
+gamma   = .02
 # ...area energy penalty for each phase
 mu      = 3
 # ...interface thickness parameter
