@@ -416,7 +416,7 @@ def solidarea(frame, engine=plt):
         engine: Plotting engine or axis.
     """
     for i in range(len(frame.phi)):
-        color = str(min(1, frame.area[i]/(frame.parameters['R']**2)))
+        color = str(min(1, frame.area[i]/(pi*frame.parameters['R']**2)))
         engine.contourf(np.arange(0, frame.parameters['Size'][0]),
                         np.arange(0, frame.parameters['Size'][1]),
                         frame.phi[i].T,
@@ -680,16 +680,19 @@ def phase(frame, n, engine=plt, cbar=False):
         plt.colorbar(cax)
 
 
-def walls(frame, engine=plt):
+def walls(frame, engine=plt, cbar=False):
     """
     Plot walls.
 
     Args:
         frame: Frame to plot, from archive module.
         engine: Plotting engine or axis.
+        cbar: Display cbar?
     """
-    engine.imshow(frame.parameters['walls'].T, cmap='Greys', origin='lower',
-                  clim=(0., 1.))
+    cax = engine.imshow(frame.parameters['walls'].T, cmap='Greys',
+                        origin='lower', clim=(0., 1.))
+    if cbar:
+        plt.colorbar(cax)
 
 
 def patch(frame, n, engine=plt):

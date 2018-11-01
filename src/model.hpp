@@ -102,7 +102,7 @@ struct Model
   /** Vorticity around each cell */
   std::vector<double> vorticity;
   /** Alignement options (see options.cpp) */
-  int align_nematic_to = 0, align_polarization_to = 0;
+  int align_nematic_to = 0, align_polarization_to = 1;
 
   /** @} */
 
@@ -170,9 +170,9 @@ struct Model
   /** Number of predictor-corrector steps */
   unsigned npc = 1;
   /** Relaxation time at initialization */
-  unsigned relax_time;
+  unsigned relax_time = 0;
   /** Value of nsubstep to use for initialization */
-  unsigned relax_nsubsteps;
+  unsigned relax_nsubsteps = 0;
   /** Total time spent writing output */
   std::chrono::duration<double> write_duration;
   /** @} */
@@ -212,29 +212,29 @@ struct Model
    * @{ */
 
   /** Elasticity */
-  double gam;
+  double gam = 0.1;
   /** Energy penalty for area */
-  double mu;
+  double mu = 3;
   /** Interface thickness */
-  double lambda = 8;
+  double lambda = 3;
   /**  Interaction stength */
-  double kappa = 0.4;
+  double kappa = 0.2;
   /** Adhesion */
-  double omega = 0.;
+  double omega = 0;
   /** Activity from shape */
-  double zetaS = 0., sign_zetaS = 0.;
+  double zetaS = 0, sign_zetaS = 0;
   /** Activity from internal Q tensor */
-  double zetaQ = 0., sign_zetaQ = 0.;
+  double zetaQ = 0, sign_zetaQ = 0;
   /** Propulsion strength */
-  double alpha = 0.;
+  double alpha = 0;
   /** Substrate friction parameter */
   double xi = 1;
   /** Prefered radii (area = pi*R*R) and radius growth */
-  double R;
+  double R = 8;
   /** Base area: a0 = Pi*R*R */
   double a0;
   /** Repuslion by the wall */
-  double wall_kappa = 2;
+  double wall_kappa = 0.5;
   /** Adhesion on the wall */
   double wall_omega = 0;
   /** Elasitc parameters */
@@ -608,6 +608,10 @@ struct Model
        & auto_name(stress_xy)
        & auto_name(stress_yy)
        & auto_name(velocity)
+       & auto_name(Fpol)
+       & auto_name(Fnem)
+       & auto_name(Fshape)
+       & auto_name(Fpressure)
        & auto_name(theta_pol)
        & auto_name(theta_nem)
        & auto_name(patch_min)

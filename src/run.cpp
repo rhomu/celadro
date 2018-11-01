@@ -145,27 +145,29 @@ void Model::UpdatePotAtNode(unsigned n, unsigned q)
   const auto ll = laplacian(phi[n], sq);
   const auto ls = laplacian(sum, s);
 
-  const double same_sign = (
+  const double internal = (
       // CH term
       + gam*(8*p*(1-p)*(1-2*p)/lambda - 2*lambda*ll)
       // area conservation term
       - 4*mu/a0*(1-a/a0)*p
     );
 
-  const double other_sign = (
+  const double interactions = (
       // repulsion term
       + 2*kappa/lambda*p*(square[k]-p*p)
       // adhesion term
       - 2*omega*lambda*(ls-ll)
       // repulsion with walls
       + 2*wall_kappa/lambda*p*walls[k]*walls[k]
+      // adhesion with walls
+      - 2*wall_omega*lambda*walls_laplace[k]
     );
 
   // delta F / delta phi_i
-  V[n][q] = same_sign+other_sign;
+  V[n][q] = internal + interactions;
 
   // pressure
-  pressure[k] += -p*(same_sign-other_sign);
+  pressure[k] += p*interactions;
 }
 
 void Model::UpdateForcesAtNode(unsigned n, unsigned q)
@@ -332,9 +334,6 @@ void Model::UpdatePatch(unsigned n)
   offset[n]    = ( offset[n] + patch_size - displacement ) % patch_size;
   patch_min[n] = new_min;
   patch_max[n] = new_max;
-
-  // reset variables
-  com_x[n] = com_y[n] = 0;
 }
 
 void Model::UpdateStructureTensorAtNode(unsigned n, unsigned q)
@@ -408,13 +407,13 @@ void Model::Update(bool store, unsigned nstart)
   PRAGMA_OMP(omp parallel for num_threads(nthreads) if(nthreads))
   for(unsigned n=nstart; n<nphases; ++n)
   {
-    S00[n] = S01[n] = area[n] = 0;
+    com_x[n] = com_y[n] = S00[n] = S01[n] = area[n] = 0;
 
     // only update fields in the restricted patch of field n
     for(unsigned q=0; q<patch_N; ++q)
     {
       UpdatePhaseFieldAtNode(n, q, store);
-      UpdateStructureTensorAtNode(n, q);
+      //UpdateStructureTensorAtNode(n, q);
     }
 
     // update polarisation
