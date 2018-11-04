@@ -4,9 +4,9 @@
 
 Phase-field modelling of epithelial cells using finite-difference integrator.
 
-## Description
+## Publications
 
-TBD in an upcoming publication.
+TBD
 
 ## Building
 
@@ -37,19 +37,14 @@ A complete list of available options can be obtained by typing `./celadro -h`.
 By default the program writes output files in the current directory. This can be
 changed using `--output=dir/` or `-o dir/`, where `dir/` is the target
 directory. The program also supports compressed (using zip) output with the option
-flag `--compression` or `-c`.
+flag `--compression` or `-c`. Typical usage is `./celadro runcard.dat -fco output/`
 
 Type `./celadro -h` for a list of available options.
 
 ## Examples
 
 Examples runs and ploting scripts can be found in the `example` directory. Try
-to run the following:
-
-```
-./celadro box.dat -fco output_dir/
-python2 plot-cells.py output_dir/
-```
+to run `bash make_all_movies.sh` and have a look at the results.
 
 ## Multi-threading and CUDA
 
