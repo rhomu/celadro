@@ -653,8 +653,8 @@ def nematic(frame, engine=plt):
         engine: Plotting engine or axis.
     """
     for i in range(frame.nphases):
-        Q00 = frame.S00[i]
-        Q01 = frame.S01[i]
+        Q00 = frame.Q00[i]
+        Q01 = frame.Q01[i]
         S = sqrt(Q00**2 + Q01**2)
         nx = sqrt((1 + Q00/S)/2)
         ny = np.sign(Q01)*sqrt((1 - Q00/S)/2)

@@ -13,10 +13,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-#
-# Plotting routines and tools
-#
-
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as ani
@@ -27,13 +23,14 @@ import matplotlib.animation as ani
 
 
 def animate(oa, fn, rng=[], inter=200, show=True):
-    """Show a frame-by-frame animation.
+    """
+    Show a frame-by-frame animation.
 
-    Parameters:
-    oa -- the output archive
-    fn -- the plot function (argument: frame, plot engine)
-    rng -- range of the frames to be ploted
-    interval -- time between frames (ms)
+    Args:
+        oa -- the output archive
+        fn -- the plot function (argument: frame, plot engine)
+        rng -- range of the frames to be ploted
+        interval -- time between frames (ms)
     """
     # set range
     if len(rng) == 0:
@@ -56,10 +53,9 @@ def animate(oa, fn, rng=[], inter=200, show=True):
                              interval=inter, blit=False)
 
     if show:
-        plt.show()
-        return
-
-    return anim
+        return plt.show()
+    else:
+        return anim
 
 
 def save(an, fname, fps, tt='ffmpeg', bitrate=-1):
