@@ -13,21 +13,18 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-#
-# Import/export routines for the serialization library.
-#
-# (c) Romain Mueller, 2016, name dot surname at gmail dot com
-#
-
 import os
-import subprocess
+from zipfile import ZipFile
 import json
 import numpy as np
 
-class archive(object):
-    """Import archive.
 
-    Automatically import the parameters and allows to extract the individual frame files as well.
+class archive:
+    """
+    Import archive.
+
+    Automatically import the parameters and allows to extract the individual
+    frame files as well.
     """
     def __init__(self, path):
         """Reads parameters from archive."""
@@ -53,7 +50,8 @@ class archive(object):
 
         # load the parameters as a dictionary
         dat = self.extract_and_read('parameters')
-        self.parameters = { entry : self.get_value(dat[entry]['value'], dat[entry]['type']) for entry in dat }
+        self.parameters = {entry: self.get_value(dat[entry]['value'],
+                           dat[entry]['type']) for entry in dat}
         # add the variables to the object (i luv python)
         self.__dict__.update(self.parameters)
         # total number of frames
@@ -61,22 +59,22 @@ class archive(object):
 
     def get_value(self, v, t):
         """Convert string to value with correct type handling."""
-        if v=="nan" or v=="-nan":
-          raise ValueError('Nan found while converting to ' + t)
+        if v == "nan" or v == "-nan":
+            raise ValueError('Nan found while converting to ' + t)
 
-        if   t=='double' or t=='float':
+        if t == 'double' or t == 'float':
             return float(v)
-        elif t=='int' or t=='unsigned':
+        elif t == 'int' or t == 'unsigned':
             return int(v)
-        elif t=='long' or t=='unsigned long':
-            return long(v)
-        elif t=='bool':
+        elif t == 'long' or t == 'unsigned long':
+            return int(v)
+        elif t == 'bool':
             return bool(v)
-        elif t=='string':
+        elif t == 'string':
             # quotes are already erased for string types
             return v
-        elif t[:5]=='array':
-            return np.array([ self.get_value(i, t[6:-1]) for i in v ])
+        elif t[:5] == 'array':
+            return np.array([self.get_value(i, t[6:-1]) for i in v])
         else:
             raise ValueError('Unrecognized type ' + t)
 
@@ -84,15 +82,13 @@ class archive(object):
         """Extract json file from archive."""
         # extract
         if self._compress_full:
-            # get output from stdin (directly pipe from unzip)
-            output = subprocess.check_output(['unzip', '-pj', self._path, fname + self._ext]).decode()
-            # load json
-            return json.loads(output)['data']
+            with ZipFile(self._path, "r") as f:
+                data = f.read(fname+self._ext)
+            return json.loads(data)['data']
         elif self._compress:
-            # get output from stdin (directly pipe from unzip)
-            output = subprocess.check_output(['unzip', '-pj', os.path.join(self._path, fname + self._ext), fname + '.json']).decode()
-            # load json
-            return json.loads(output)['data']
+            with ZipFile(os.path.join(self._path, fname + self._ext)) as f:
+                data = f.read(fname+'.json')
+            return json.loads(data)['data']
         else:
             # read content of file
             output = open(os.path.join(self._path, fname + self._ext))
@@ -105,17 +101,20 @@ class archive(object):
         Parameters:
         frame -- the frame number to be read (0,1,2...)
         """
-        if frame>self._nframes:
+        if frame > self._nframes:
             raise ValueError('Frame does not exist.')
         # get the json
         dat = self.extract_and_read('frame' + str(self.nstart+frame*self.ninfo))
         # convert to dict
-        dat = { entry : self.get_value(dat[entry]['value'], dat[entry]['type']) for entry in dat }
+        dat = {entry: self.get_value(dat[entry]['value'], dat[entry]['type']) for entry in dat}
+
         # return a dummy class that holds the data
         class frame_holder:
-            """Dummy frame holder.
+            """
+            Dummy frame holder.
 
-            Automatically define all the variables defined in the corresponding json file.
+            Automatically define all the variables defined in the corresponding
+            json file.
             """
             def __init__(self, parameters):
                 self.parameters = parameters
@@ -131,6 +130,7 @@ class archive(object):
         """Generates all frames successively"""
         for n in range(self._nframes+1):
             yield self.read_frame(n)
+
 
 def loadarchive(path):
     return archive(path)

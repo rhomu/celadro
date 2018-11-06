@@ -51,60 +51,58 @@ struct Model
    * */
   std::vector<stencil> neighbors, neighbors_patch;
 
-  /** Phase fields */
-  std::vector<field> phi;
+  /** Phase fields and derivatives */
+  std::vector<field> phi, phi_dx, phi_dy;
   /** Predicted phi in a PC^n step */
   std::vector<field> phi_old;
+  /** Phi difference */
+  std::vector<field> dphi;
+  /** Predicted phi difference in a P(C)^n step */
+  std::vector<field> dphi_old;
   /** V = delta F / delta phi */
   std::vector<field> V;
-  /** Potential: -V/2 - adv. term */
-  std::vector<field> potential;
-  /** Predicted potential in a P(C)^n step */
-  std::vector<field> potential_old;
-  /** Total velocity */
-  std::vector<vec<double, 2>> velocity;
+  /** Sum of phi at each node */
+  field sum;
+  /** Sum_i S_i phi_i */
+  field sumS00, sumS01;
+  /** Sum_i Q_i phi_i */
+  field sumQ00, sumQ01;
+  /** Sum_i Area_i phi_i */
+  field sumA;
+  /** Sum of square, third, and fourth powers of phi at each node */
+  field square, thirdp, fourthp;
+  /** Phase-field for the walls and their derivatives */
+  field walls, walls_dx, walls_dy, walls_laplace;
+  /** Total polarization of the tissue */
+  field P0, P1;
+  /** Total velocity of the tissue */
+  field U0, U1;
   /** Area associated with a phase field */
   std::vector<double> area;
-  /** Vorticity around each cell */
-  std::vector<double> vorticity;
-  /** Elastic torque for the nematic */
-  std::vector<double> tau;
-  /** Counter for computing the area */
-  std::vector<double> area_cnt;
-  /** Sum of phi at each node */
-  std::vector<double> sum, sum_cnt;
-  /** Sum of square phi at each node */
-  std::vector<double> square, square_cnt;
-  /** Phase-field for the walls */
-  std::vector<double> walls, walls_dx, walls_dy, walls_laplace;
-  /** Passive, contractile, friction, and total forces */
-  std::vector<vec<double, 2>> force_p, force_c, force_f, force_tot;
+  /** Forces */
+  std::vector<vec<double, 2>> Fpol, Fnem, Fshape, Fpressure;
+  /** Velocity */
+  std::vector<vec<double, 2>> velocity;
   /** Structure tensor */
   std::vector<double> S00, S01;
   /** Q-tensor */
   std::vector<double> Q00, Q01;
   /** Polarisation */
-  std::vector<vec<double, 2>> pol;
+  std::vector<vec<double, 2>> polarization;
   /** Direction of the polarisation */
   std::vector<double> theta_pol, theta_pol_old;
   /** Direction of the nematics */
   std::vector<double> theta_nem, theta_nem_old;
   /** Polarisation total torque */
   std::vector<double> delta_theta_pol;
-  /** Total nematic field */
-  std::vector<double> sumQ00, sumQ01, sumQ00_cnt, sumQ01_cnt;
-  /** Total polarization of the tissue */
-  std::vector<double> P0, P0_cnt, P1, P1_cnt;
-  /** Total velocity of the tissue */
-  std::vector<double> U0, U1, U0_cnt, U1_cnt;
-  /** Strengh of propulsion */
-  std::vector<double> alpha;
-  /** Elasticity */
-  std::vector<double> gam;
-  /** Energy penalty for area */
-  std::vector<double> mu;
-  /** Elongation parameter */
-  std::vector<double> delta;
+  /** Stress tensor */
+  field stress_xx, stress_xy , stress_yy, pressure;
+  /** Elastic torque for the nematic */
+  std::vector<double> tau;
+  /** Vorticity around each cell */
+  std::vector<double> vorticity;
+  /** Alignement options (see options.cpp) */
+  int align_nematic_to = 0, align_polarization_to = 1;
 
   /** @} */
 
@@ -172,9 +170,9 @@ struct Model
   /** Number of predictor-corrector steps */
   unsigned npc = 1;
   /** Relaxation time at initialization */
-  unsigned relax_time;
+  unsigned relax_time = 0;
   /** Value of nsubstep to use for initialization */
-  unsigned relax_nsubsteps;
+  unsigned relax_nsubsteps = 0;
   /** Total time spent writing output */
   std::chrono::duration<double> write_duration;
   /** @} */
@@ -202,10 +200,6 @@ struct Model
   double angle_deg;
   /** Margin for the definition of patches */
   unsigned margin = 25;
-  /** Repuslion by the wall */
-  double wall_kappa = 2;
-  /** Adhesion on the wall */
-  double wall_omega = 0;
   /** Boudaries for cell generation
    *
    * These are the boundaries (min and max x and y components) of the domain in
@@ -217,36 +211,42 @@ struct Model
   /** Cell properties
    * @{ */
 
+  /** Elasticity */
+  double gam = 0.1;
+  /** Energy penalty for area */
+  double mu = 3;
   /** Interface thickness */
-  double lambda = 8;
+  double lambda = 3;
   /**  Interaction stength */
-  double kappa = 0.4;
-  /** Activity */
-  double zeta = 0., sign_zeta = 0.;
-  /** Cell-cell friction parameter */
-  double f = 0;
-  /** Cell-wall friction parameter */
-  double f_walls = 0;
+  double kappa = 0.2;
+  /** Adhesion */
+  double omega = 0;
+  /** Activity from shape */
+  double zetaS = 0, sign_zetaS = 0;
+  /** Activity from internal Q tensor */
+  double zetaQ = 0, sign_zetaQ = 0;
+  /** Propulsion strength */
+  double alpha = 0;
   /** Substrate friction parameter */
   double xi = 1;
-  /** Adhesion parameter */
-  double omega = 0;
   /** Prefered radii (area = pi*R*R) and radius growth */
-  std::vector<double> R, dR;
-  /** Align to velocity rather than to total force */
-  bool align_to_velocity = false;
+  double R = 8;
+  /** Base area: a0 = Pi*R*R */
+  double a0;
+  /** Repuslion by the wall */
+  double wall_kappa = 0.5;
+  /** Adhesion on the wall */
+  double wall_omega = 0;
   /** Elasitc parameters */
   double Knem = 0, Kpol = 0;
-  /** Strength of polarity / nematic */
-  double Spol = 0, Snem = 0; // olé!
+  /** Strength of polarity / nematic tensor */
+  double Spol = 0, Snem = 0;
   /** Flow alignment strenght */
   double Jpol = 0, Jnem = 0;
   /** Vorticity coupling */
   double Wnem = 0;
   /** Noise strength */
   double Dpol = 0, Dnem = 0;
-  /** Pre-computed coefficients */
-  double C1, C3;
 
   /** @} */
   /** Multi-threading parameters
@@ -296,8 +296,8 @@ struct Model
   std::string init_config;
   /** Boundary conditions flag */
   unsigned BC = 0;
-  /** Noise level for initial configurations */
-  double noise = 0;
+  /** Noise level for the nematic tensor initial configuration */
+  double noise = 1;
   /** Wall thickness */
   double wall_thickness = 1.;
   /** Ratio of the cross vs size of the domain (BC=4) */
@@ -507,47 +507,31 @@ struct Model
   void Post();
 
   /** Subfunction for update */
-  void UpdateAtNode(unsigned, unsigned, bool);
+  void UpdatePotAtNode(unsigned, unsigned);
 
   /** Subfunction for update */
-  void UpdateFieldsAtNode(unsigned, unsigned);
+  void UpdatePhaseFieldAtNode(unsigned, unsigned, bool);
+
+  /** Subfunction for update */
+  void UpdateForcesAtNode(unsigned, unsigned);
 
   /** Subfunction for update */
   void UpdateStructureTensorAtNode(unsigned, unsigned);
 
   /** Subfunction for update */
-  void UpdateFrictionForceAtNode(unsigned, unsigned);
+  void UpdateSumsAtNode(unsigned, unsigned);
 
   /** Subfunction for update */
-  void SquareAndSumAtNode(unsigned, unsigned);
-
-  /** Subfunction for update */
-  void ReinitSquareAndSumAtNode(unsigned);
+  void ReinitSumsAtNode(unsigned);
 
   /** Compute center of mass of a given phase field */
   void ComputeCoM(unsigned);
 
-  /** Update polarisation of a given field
-   *
-   * This function updates the polarisation of the cell which give the direction
-   * of the active velocity of the cell. We follow reference 10.1101/095133 and
-   * define the dynamics as
-   *
-   *    d theta / dt = J_r torque + 2 D_r eta
-   *
-   * where eta is gaussian white noise with zero mean and unit variance, see
-   * paper for more details. Note that we use the euler-maruyama method, instead
-   * of a predictor-corrector method.
-   * */
+  /** Update polarisation of a given field */
   void UpdatePolarization(unsigned, bool);
 
-  /** Update friction force
-   *
-   * This function updates the friction force and needs to be in a separate
-   * loop because it must be computed after the passive part of the velocity has
-   * been computed fully. See paper for more details.
-   * */
-  void UpdateFrictionForce();
+  /** Update nematic tensor of a given field */
+  void UpdateNematic(unsigned, bool);
 
   /** Compute shape parameters
    *
@@ -567,33 +551,6 @@ struct Model
   void Update(bool, unsigned=0);
 
   // ===========================================================================
-  // Division. Implemented in division.cpp
-
-  /** Division flag */
-  bool division = false;
-  /** Time scale of the division */
-  double division_time = 100;
-  /** Division rate */
-  double division_rate = 0.;
-  /** Growth facto before division */
-  double division_growth = 1.5;
-  /** Relaxation time for division */
-  int division_relax_time = 100;
-  /** Relaxation time after division */
-  int division_refract_time = 100;
-  /** Count the number of time steps before the next division */
-  std::vector<int> division_counter;
-
-  /** Reset division counter for single cell */
-  void ResetDivisionCounter(unsigned);
-
-  /** Make a cell divide
-   *
-   * TBD
-   * */
-  void Divide(unsigned i);
-
-  // ===========================================================================
   // Serialization
 
   /** Serialization of parameters (in and out) */
@@ -607,21 +564,30 @@ struct Model
        & auto_name(init_config)
        & auto_name(kappa)
        & auto_name(xi)
+       & auto_name(R)
+       & auto_name(alpha)
+       & auto_name(zetaS)
+       & auto_name(zetaQ)
        & auto_name(omega)
-       & auto_name(zeta)
-       & auto_name(Dpol)
-       & auto_name(Dnem)
-       & auto_name(Jpol)
-       & auto_name(Jnem)
-       & auto_name(Kpol)
-       & auto_name(Knem)
-       & auto_name(f)
-       & auto_name(f_walls)
        & auto_name(wall_thickness)
        & auto_name(wall_kappa)
        & auto_name(wall_omega)
        & auto_name(walls)
        & auto_name(patch_margin)
+       & auto_name(relax_time)
+       & auto_name(relax_nsubsteps)
+       & auto_name(npc)
+       & auto_name(seed)
+       & auto_name(Knem)
+       & auto_name(Kpol)
+       & auto_name(Snem)
+       & auto_name(Spol)
+       & auto_name(Jnem)
+       & auto_name(Jpol)
+       & auto_name(Wnem)
+       & auto_name(Dpol)
+       & auto_name(Dnem)
+       & auto_name(margin)
        & auto_name(patch_size);
   }
 
@@ -632,22 +598,22 @@ struct Model
     ar & auto_name(nphases)
        & auto_name(phi)
        & auto_name(offset)
-       & auto_name(R)
-       & auto_name(alpha)
-       & auto_name(area)
        & auto_name(com)
-       & auto_name(velocity)
+       & auto_name(area)
        & auto_name(S00)
        & auto_name(S01)
        & auto_name(Q00)
        & auto_name(Q01)
-       & auto_name(P0)
-       & auto_name(P1)
-       & auto_name(force_tot)
-       & auto_name(force_p)
-       & auto_name(force_f)
-       & auto_name(force_c)
-       & auto_name(pol)
+       & auto_name(stress_xx)
+       & auto_name(stress_xy)
+       & auto_name(stress_yy)
+       & auto_name(velocity)
+       & auto_name(Fpol)
+       & auto_name(Fnem)
+       & auto_name(Fshape)
+       & auto_name(Fpressure)
+       & auto_name(theta_pol)
+       & auto_name(theta_nem)
        & auto_name(patch_min)
        & auto_name(patch_max);
   }

@@ -41,36 +41,30 @@ void Model::Initialize()
   walls_dy.resize(N, 0.);
   walls_laplace.resize(N, 0.);
   sum.resize(N, 0.);
-  sum_cnt.resize(N, 0.);
-  square.resize(N, 0.);
-  square_cnt.resize(N, 0.);
+  pressure.resize(N, 0.);
+  stress_xx.resize(N, 0.);
+  stress_xy.resize(N, 0.);
+  stress_yy.resize(N, 0.);
+  sumA.resize(N, 0.);
+  sumS00.resize(N, 0.);
+  sumS01.resize(N, 0.);
   sumQ00.resize(N, 0.);
   sumQ01.resize(N, 0.);
-  sumQ00_cnt.resize(N, 0.);
-  sumQ01_cnt.resize(N, 0.);
+  square.resize(N, 0.);
+  thirdp.resize(N, 0.);
+  fourthp.resize(N, 0.);
   P0.resize(N, 0.);
-  P0_cnt.resize(N, 0.);
   P1.resize(N, 0.);
-  P1_cnt.resize(N, 0.);
   U0.resize(N, 0.);
-  U0_cnt.resize(N, 0.);
   U1.resize(N, 0.);
-  U1_cnt.resize(N, 0.);
 
   // allocate memory for individual cells
-  if(gam.empty()) throw error_msg("please specify gamma parameter");
-  if(mu.empty()) throw error_msg("please specify mu parameter");
-  if(R.empty()) throw error_msg("please specify R parameter");
-  if(alpha.empty()) alpha.push_back(0.);
   SetCellNumber(nphases);
 
   // ---------------------------------------------------------------------------
 
-  if(zeta!=0.) sign_zeta = zeta>0. ? 1 : -1;
-
-  // pre-compute coefficients
-  C1 = 60./lambda/lambda;
-  C3 = C1/lambda/lambda;
+  if(zetaQ!=0.) sign_zetaQ = zetaQ>0. ? 1 : -1;
+  if(zetaS!=0.) sign_zetaS = zetaS>0. ? 1 : -1;
 
   // compute tables
   for(unsigned i=0; i<Size[0]; ++i)
@@ -82,7 +76,7 @@ void Model::Initialize()
 
   // check parameters
   for(unsigned n=0; n<nphases; ++n)
-    if(margin<R[n]) throw error_msg("Margin is too small, make it bigger than R.");
+    if(margin<R) throw error_msg("Margin is too small, make it bigger than R.");
 
   // check birth boundaries
   if(birth_bdries.size()==0)
@@ -90,69 +84,53 @@ void Model::Initialize()
   else if(birth_bdries.size()!=4)
     throw error_msg("Birth boundaries have wrong format, see help.");
 
-  if(omega!=0 or wall_omega!=0)
-    throw error_msg("Adhesion is not working for the moment.");
+  if(wall_omega!=0)
+    throw error_msg("Wall adhesion is not working for the moment.");
 
   // ---------------------------------------------------------------------------
 
-  // setup division
-  division = (division_rate!=0.);
-
-  if(division_time==0)
-    throw error_msg("Division time can not be zero.");
-
-  if(division)
-    for(unsigned n=0; n<nphases; ++n)
-      ResetDivisionCounter(n);
+  a0 = Pi*R*R;
 }
 
 void Model::SetCellNumber(unsigned new_nphases)
 {
   nphases = new_nphases;
 
-  // extend the parameters with the last given value
-  gam.resize(nphases, gam.back());
-  mu.resize(nphases, mu.back());
-  alpha.resize(nphases, alpha.back());
-  R.resize(nphases, R.back());
-  delta.resize(nphases, delta.empty() ? 0. : delta.back());
-
   // allocate memory for qties defined on the patches
   phi.resize(nphases, vector<double>(patch_N, 0.));
+  phi_dx.resize(nphases, vector<double>(patch_N, 0.));
+  phi_dy.resize(nphases, vector<double>(patch_N, 0.));
   phi_old.resize(nphases, vector<double>(patch_N, 0.));
   V.resize(nphases, vector<double>(patch_N, 0.));
-  potential.resize(nphases, vector<double>(patch_N, 0.));
-  potential_old.resize(nphases, vector<double>(patch_N, 0.));
-  division_counter.resize(nphases, 0.);
+  dphi.resize(nphases, vector<double>(patch_N, 0.));
+  dphi_old.resize(nphases, vector<double>(patch_N, 0.));
 
   // allocate memory for cell properties
-  dR.resize(nphases, 0);
   area.resize(nphases, 0.);
-  area_cnt.resize(nphases, 0.);
   patch_min.resize(nphases, {0, 0});
   patch_max.resize(nphases, Size);
   com.resize(nphases, {0., 0.});
   com_prev.resize(nphases, {0., 0.});
+  polarization.resize(nphases, {0., 0.});
+  velocity.resize(nphases, {0., 0.});
+  Fpressure.resize(nphases, {0., 0.});
+  Fshape.resize(nphases, {0., 0.});
+  Fnem.resize(nphases, {0., 0.});
+  Fpol.resize(nphases, {0., 0.});
+  com_x.resize(nphases, 0.);
+  com_y.resize(nphases, 0.);
+  S00.resize(nphases, 0.);
+  S01.resize(nphases, 0.);
   Q00.resize(nphases, 0.);
   Q01.resize(nphases, 0.);
-  pol.resize(nphases, {0., 0.});
-  velocity.resize(nphases, {0., 0.});
+  offset.resize(nphases, {0u, 0u});
   theta_pol.resize(nphases, 0.);
   theta_pol_old.resize(nphases, 0.);
   delta_theta_pol.resize(nphases, 0.);
   theta_nem.resize(nphases, 0.);
   theta_nem_old.resize(nphases, 0.);
-  force_tot.resize(nphases, {0., 0.});
-  force_p.resize(nphases, {0., 0.});
-  force_c.resize(nphases, {0., 0.});
-  force_f.resize(nphases, {0., 0.});
   vorticity.resize(nphases, 0.);
   tau.resize(nphases, 0.);
-  com_x.resize(nphases, 0.);
-  com_y.resize(nphases, 0.);
-  S00.resize(nphases, 0.);
-  S01.resize(nphases, 0.);
-  offset.resize(nphases, {0u, 0u});
 }
 
 void Model::InitializeNeighbors()
@@ -187,38 +165,4 @@ void Model::InitializeNeighbors()
       }
     }
   }
-}
-
-void Model::SwapCells(unsigned n, unsigned m)
-{
-  swap(gam[n], gam[m]);
-  swap(mu[n], mu[m]);
-  swap(alpha[n], alpha[m]);
-  swap(delta[n], delta[m]);
-  swap(R[n], R[m]);
-  swap(Q00[n], Q00[m]);
-  swap(Q01[n], Q01[m]);
-  swap(dR[n], dR[m]);
-  swap(phi[n], phi[m]);
-  swap(phi_old[n], phi_old[m]);
-  swap(V[n], V[m]);
-  swap(potential[n], potential[m]);
-  swap(potential_old[n], potential_old[m]);
-  swap(division_counter[n], division_counter[m]);
-  swap(area[n], area[m]);
-  swap(area_cnt[n], area_cnt[m]);
-  swap(patch_min[n], patch_min[m]);
-  swap(patch_max[n], patch_max[m]);
-  swap(com[n], com[m]);
-  swap(com_prev[n], com_prev[m]);
-  swap(force_p[n], force_p[m]);
-  swap(force_c[n], force_c[m]);
-  swap(force_f[n], force_f[m]);
-  swap(com_x[n], com_x[m]);
-  swap(com_y[n], com_y[m]);
-  swap(S00[n], S00[m]);
-  swap(S01[n], S01[m]);
-  swap(theta_pol[n], theta_pol[m]);
-  swap(theta_nem[n], theta_nem[m]);
-  swap(offset[n], offset[m]);
 }

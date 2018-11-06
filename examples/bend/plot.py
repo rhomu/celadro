@@ -11,14 +11,10 @@
 #    intput -- the input file or directory
 #    output -- (optional) if present saves the animation as a video to show to
 #              your mom.
-
-import matplotlib as mpl
-import matplotlib.pyplot as plt
 import sys
-import numpy as np
 
-# import local libs
 sys.path.insert(0, "../plot/")
+
 import plot
 import archive
 import animation
@@ -26,32 +22,42 @@ import animation
 ##################################################
 # Init
 
-if len(sys.argv)==1:
-    print "Please provide an input file."
+if len(sys.argv) == 1:
+    print("Please provide an input file.")
     exit(1)
 
 # load archive from file
 ar = archive.loadarchive(sys.argv[1])
 
 oname = ""
-if len(sys.argv)==3:
-    oname = "movie_"+sys.argv[2]+"_corr"
-    print "Output name is", sys.argv[2]
+if len(sys.argv) == 3:
+    oname = "movie_"+sys.argv[2]
+    print("Output name is", sys.argv[2])
+
 
 ##################################################
 # plot simple animation of phases
 
-def myplot(frame, engine):
-    vx, vy = plot.get_velocity_field(frame.phi, frame.velocity, size=24)
-    w      = plot.get_vorticity_field(vx, vy)
-    corr1  = plot.get_corr2(vx, vy)
-    corr2  = plot.get_corr(w)
-    engine.plot(range(len(corr1)), corr1, label='Velocity correlation')
-    engine.plot(range(len(corr2)), corr2, label='Vorticity correlation')
-    engine.legend()
 
-if len(oname)==0:
-    animation.animate(ar, myplot, show=True);
+def myplot(frame, fig):
+
+    ax1 = fig.add_subplot(121)
+    ax2 = fig.add_subplot(122)
+
+    plot.cells(frame, ax1)
+    plot.nematic(frame, ax1)
+
+    plot.nematic_field(frame, engine=ax2, avg=2, show_def=True)
+
+    for ax in [ax1, ax2]:
+        ax.axes.set_aspect('equal', adjustable='box')
+        ax.set_xlim([0, frame.parameters['Size'][0]-1])
+        ax.set_ylim([0, frame.parameters['Size'][1]-1])
+        ax.axis('off')
+
+
+if len(oname) == 0:
+    animation.animate(ar, myplot, show=True)
 else:
     an = animation.animate(ar, myplot, show=False)
     animation.save(an, oname+'.mp4', 5)

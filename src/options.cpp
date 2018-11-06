@@ -83,16 +83,12 @@ void Model::ParseProgramOptions(int ac, char **av)
      "(effective time step is 1/nsubsteps)")
     ("ninfo", opt::value<unsigned>(&ninfo),
      "save frame every so many steps")
-    ("align-to-velocity", opt::value<bool>(&align_to_velocity),
-     "align to velocity rather than to total force")
     ("nphases", opt::value<unsigned>(&nphases),
       "Number of phases")
-    ("gamma", opt::value<vector<double>>(&gam),
+    ("gamma", opt::value<double>(&gam),
       "Elastic constant of each phase (array)")
-    ("mu", opt::value<vector<double>>(&mu),
+    ("mu", opt::value<double>(&mu),
       "Energy penalty for area of each phase (array)")
-    ("delta", opt::value<vector<double>>(&delta),
-      "Elongation parameter (stength of potential)")
     ("lambda", opt::value<double>(&lambda),
       "Interface thickness parameter")
     ("kappa", opt::value<double>(&kappa),
@@ -101,10 +97,10 @@ void Model::ParseProgramOptions(int ac, char **av)
       "Number of predictor-corrector steps")
     ("margin", opt::value<unsigned>(&margin)->default_value(0u),
       "Margin for the definition of restricted domains (if 0: update full box)")
-    ("friction", opt::value<double>(&f),
-      "Cell-cell friction parameter")
-    ("friction-walls", opt::value<double>(&f_walls),
-      "Cell-wall friction parameter")
+    //("friction", opt::value<double>(&f),
+    //  "Cell-cell friction parameter")
+    //("friction-walls", opt::value<double>(&f_walls),
+    //  "Cell-wall friction parameter")
     ("xi", opt::value<double>(&xi),
       "Substrate friction parameter")
     ("K-pol", opt::value<double>(&Kpol),
@@ -127,10 +123,12 @@ void Model::ParseProgramOptions(int ac, char **av)
       "Order of the nematic tensors")
     ("S-pol", opt::value<double>(&Spol),
       "Norm of the polarisation vector")
-    ("zeta", opt::value<double>(&zeta),
-     "Activity")
-    ("alpha", opt::value<vector<double>>(&alpha),
-     "strength of polar propulsion")
+    ("alpha", opt::value<double>(&alpha),
+     "Strength of propulsion")
+    ("zetaQ", opt::value<double>(&zetaQ),
+     "Activity from internal nematic tensor")
+    ("zetaS", opt::value<double>(&zetaS),
+     "Activity from shape")
     ("omega", opt::value<double>(&omega),
       "Adhesion parameter")
     ("wall-thickness", opt::value<double>(&wall_thickness),
@@ -139,18 +137,12 @@ void Model::ParseProgramOptions(int ac, char **av)
       "Wall repulsion")
     ("wall-omega", opt::value<double>(&wall_omega)->default_value(0.),
       "Wall adhesion")
-    ("division-rate",  opt::value<double>(&division_rate),
-      "Rate of division")
-    ("division-time",  opt::value<double>(&division_time),
-      "Time scale of division")
-    ("division-growth",  opt::value<double>(&division_growth),
-      "Growth factor before division")
-    ("division-relax-time",  opt::value<int>(&division_relax_time),
-      "Time spent relaxing the cells after division")
-    ("division-refract-time",  opt::value<int>(&division_refract_time),
-      "Refractory time before next division")
-    ("R", opt::value<std::vector<double>>(&R),
-      "Preferred radius (defines area Pi*R*R)");
+    ("R", opt::value<double>(&R),
+      "Preferred radius (defines area Pi*R*R)")
+    ("align-polarization-to", opt::value<int>(&align_polarization_to),
+     "Align polarization to velocity (=0) or pressure force (=1)")
+    ("align-nematic-to", opt::value<int>(&align_nematic_to),
+     "Align nematic tensor to velocity (=0), pressure force (=1), or shape (=2)");
 
   // init config options
   opt::options_description init("Initial configuration options");
@@ -160,7 +152,7 @@ void Model::ParseProgramOptions(int ac, char **av)
     ("relax-time", opt::value<unsigned>(&relax_time)->default_value(0u),
       "Relaxation time steps at initialization.")
     ("noise", opt::value<double>(&noise),
-      "Noise level")
+      "Noise level for initial nematic angle, in (0,1).")
     ("cross-ratio", opt::value<double>(&cross_ratio),
       "Ratio of the size of the cross compared to the domain size (for BC=4)")
     ("wound-ratio", opt::value<double>(&wound_ratio),
