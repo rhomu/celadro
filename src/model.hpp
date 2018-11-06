@@ -296,8 +296,8 @@ struct Model
   std::string init_config;
   /** Boundary conditions flag */
   unsigned BC = 0;
-  /** Noise level for initial configurations */
-  double noise = 0;
+  /** Noise level for the nematic tensor initial configuration */
+  double noise = 1;
   /** Wall thickness */
   double wall_thickness = 1.;
   /** Ratio of the cross vs size of the domain (BC=4) */

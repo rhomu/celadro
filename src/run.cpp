@@ -275,7 +275,7 @@ void Model::UpdateNematic(unsigned n, bool store)
       F01 = S01[n];
       break;
   }
-  const auto strength = sqrt(F01*F01 + F00*F00);
+  const auto strength = pow(F01*F01 + F00*F00, 0.25);
 
   theta_nem[n] = theta_nem_old[n] - time_step*(
       + Knem*tau[n]
@@ -413,7 +413,7 @@ void Model::Update(bool store, unsigned nstart)
     for(unsigned q=0; q<patch_N; ++q)
     {
       UpdatePhaseFieldAtNode(n, q, store);
-      //UpdateStructureTensorAtNode(n, q);
+      UpdateStructureTensorAtNode(n, q);
     }
 
     // update polarisation

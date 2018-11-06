@@ -152,7 +152,7 @@ void Model::ParseProgramOptions(int ac, char **av)
     ("relax-time", opt::value<unsigned>(&relax_time)->default_value(0u),
       "Relaxation time steps at initialization.")
     ("noise", opt::value<double>(&noise),
-      "Noise level")
+      "Noise level for initial nematic angle, in (0,1).")
     ("cross-ratio", opt::value<double>(&cross_ratio),
       "Ratio of the size of the cross compared to the domain size (for BC=4)")
     ("wound-ratio", opt::value<double>(&wound_ratio),
