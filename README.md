@@ -1,4 +1,4 @@
-![screenshot](examples/cells.png)
+![screenshot](cells.png)
 
 # Celadro: Cells as active droplets
 
