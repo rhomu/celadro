@@ -48,7 +48,7 @@ def _get_field(phases, vals, size=1, mode='wrap'):
     return ret
 
 
-def get_velocity_field(phases, vel, qxy, size=1, mode='wrap'):
+def get_velocity_field(phases, vel, size=1, mode='wrap'):
     """
     Compute coarse-grained nematic field.
 

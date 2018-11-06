@@ -3,7 +3,7 @@
 #
 # Usage:
 #
-#   python2 track_defects.py input output
+#   python2 track_defects.py shape/nematic input output
 #
 #  where
 #
@@ -15,21 +15,27 @@ import sys
 sys.path.insert(0, "../plot/")
 import plot
 import archive
-import animation
 from itertools import product
 
 ##################################################
 # Init
 
-if len(sys.argv)<3:
-    print "Please provide both input and output files."
+if len(sys.argv) < 4:
+    print("Please provide q-tensor type, input, and output files.")
+    exit(1)
+
+qtype = sys.argv[1]
+if qtype not in ['shape', 'nematic']:
+    print("Q-tensor type should be either 'shape' or 'nematic'.")
     exit(1)
 
 ##################################################
 # Track defects
 
 class defect_tracker:
-    """Defect tracker
+    """
+    Defect tracker.
+
     Honestly this is not good code... if you are reading this I feel for you!
     """
 
@@ -99,16 +105,19 @@ class defect_tracker:
                             marker=r"$ {} $".format(ind),
                             markersize=15)
 
-ar = archive.loadarchive(sys.argv[1])
+ar = archive.loadarchive(sys.argv[2])
 tracker = defect_tracker(max_dst=15)
 
 for i in range(0, ar._nframes+1):
     frame = ar.read_frame(i)
-    print "{}/{}".format(i, ar._nframes)
-    (Q00, Q01) = plot.get_Qtensor(frame.phi, frame.Q00, frame.Q01, size=24)
+    print("{}/{}".format(i, ar._nframes))
+    if qtype == 'shape':
+        (Q00, Q01) = plot.get_nematic_field(frame.phi, frame.S00, frame.S01, size=24)
+    else:
+        (Q00, Q01) = plot.get_nematic_field(frame.phi, frame.Q00, frame.Q01, size=24)
     tracker.add_frame(Q00, Q01, i)
 
 # convert format to pure np array (ok this is not great)
 result = np.array([ [ i['charge'], i['birth'], np.array(i['pos']) ] for i in tracker.defects ],
                   dtype=object)
-np.save(sys.argv[2], result)
+np.save(sys.argv[3], result)

@@ -10,7 +10,6 @@
 #
 #    intput -- the input file or directory
 
-import matplotlib as mpl
 import matplotlib.pyplot as plt
 import sys
 import numpy as np
@@ -20,13 +19,12 @@ from math import sqrt
 sys.path.insert(0, "../plot/")
 import plot
 import archive
-import animation
 
 ##################################################
 # Init
 
-if len(sys.argv)==1:
-    print "Please provide an input file."
+if len(sys.argv) == 1:
+    print("Please provide an input file.")
     exit(1)
 
 # load archive from file
@@ -44,13 +42,13 @@ toy = np.zeros(ar._nframes+1)
 c = 0
 for i in range(0, ar._nframes+1):
     frame = ar.read_frame(i)
-    print "{}/{}".format(i, ar._nframes),
+    print("{}/{}".format(i, ar._nframes),)
     vx, vy = plot.get_velocity_field(frame.phi, frame.velocity, size=24)
     rms[c] = sqrt(np.mean(vx**2+vy**2))
     tox[c] = np.mean(vx)
     toy[c] = np.mean(vy)
-    print "vx={}, vy={}, rms={}".format(tox[c], toy[c], rms[c])
-    c     += 1
+    print("vx={}, vy={}, rms={}".format(tox[c], toy[c], rms[c]))
+    c += 1
 
 plt.plot(np.arange(0, len(rms)), rms)
 plt.plot(np.arange(0, len(rms)), tox)

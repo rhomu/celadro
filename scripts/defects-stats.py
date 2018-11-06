@@ -26,7 +26,7 @@ import archive
 # Init
 
 if len(sys.argv)<3:
-    print "Please provide both input and defects files."
+    print("Please provide both input and defects files.")
     exit(1)
 
 # load archive from file
@@ -75,9 +75,9 @@ for i in range(len(defects)):
             velm[i] = vel
 
 # mean defect density
-print "Mean defect density:", np.mean(dens)
-print "Mean velcotiy of plus defects:", np.mean(velp)
-print "Mean velcotiy of minus defects:", np.mean(velm)
+print("Mean defect density:", np.mean(dens))
+print("Mean velcotiy of plus defects:", np.mean(velp))
+print("Mean velcotiy of minus defects:", np.mean(velm))
 
 plt.figure()
 plt.subplot(211)

@@ -9,5 +9,5 @@ set -e  # stop on any error
 for runcard in $(find */*.dat); do
   directory=${runcard%/*}
   $CELADRO $runcard -fco $directory/output -t$THREADS
-  python2 $directory/plot.py $directory/output $directory
+  python3 $directory/plot.py $directory/output $directory
 done
