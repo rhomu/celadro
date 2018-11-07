@@ -84,11 +84,11 @@ class archive:
         if self._compress_full:
             with ZipFile(self._path, "r") as f:
                 data = f.read(fname+self._ext)
-            return json.loads(data)['data']
+            return json.loads(data.decode("utf-8", "strict"))['data']
         elif self._compress:
             with ZipFile(os.path.join(self._path, fname + self._ext)) as f:
                 data = f.read(fname+'.json')
-            return json.loads(data)['data']
+            return json.loads(data.decode("utf-8", "strict"))['data']
         else:
             # read content of file
             output = open(os.path.join(self._path, fname + self._ext))

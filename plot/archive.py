@@ -37,12 +37,14 @@ class archive(archive_base.archive):
         for i in range(len(frame.phi)):
             p = np.reshape(frame.phi[i], (px, py))
             # compensate for offset
-            p = np.roll(p, frame.offset[i], axis=(0, 1))
+            p = np.roll(p, frame.offset[i][0], axis=0)
+            p = np.roll(p, frame.offset[i][1], axis=1)
             # extend to full size
             p = np.concatenate((p, np.zeros((px, ly-py))), axis=1)
             p = np.concatenate((p, np.zeros((lx-px, ly))), axis=0)
             # put in right postition
-            p = np.roll(p, frame.patch_min[i], axis=(0, 1))
+            p = np.roll(p, frame.patch_min[i][0], axis=0)
+            p = np.roll(p, frame.patch_min[i][1], axis=1)
             # save
             phi.append(p)
         frame.phi = phi
