@@ -58,7 +58,6 @@ def myplot(frame, fig):
 
 if len(oname) == 0:
     animation.animate(ar, myplot, show=True)
-    exit(0)
 else:
     an = animation.animate(ar, myplot, show=False)
     animation.save(an, oname+'.mp4', 5)
