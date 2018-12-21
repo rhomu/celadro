@@ -201,7 +201,7 @@ void Model::UpdateForcesAtNode(unsigned n, unsigned q)
 
   // polarisation torques (not super nice)
   const double ovlap = -(dx*(dxs-dx)+dy*(dys-dy));
-  const vec<double, 2> P = {P0[k]-phi[n][k]*polarization[n][0], P1[k]-phi[n][k]*polarization[n][1]};
+  const vec<double, 2> P = {P0[k]-phi[n][q]*polarization[n][0], P1[k]-phi[n][q]*polarization[n][1]};
   delta_theta_pol[n] += ovlap*atan2(P[0]*polarization[n][1]-P[1]*polarization[n][0],
                                     P[0]*polarization[n][0]+P[1]*polarization[n][1]);
 }
