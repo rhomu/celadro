@@ -437,7 +437,7 @@ def com(frame, engine=plt):
         engine.plot(c[0], c[1], 'ro')
 
 
-def shape(frame, engine=plt):
+def shape(frame, engine=plt, color='k'):
     """
     Print shape tensor of each cell as the director of a nematic tensor.
 
@@ -454,8 +454,8 @@ def shape(frame, engine=plt):
         ny = sin(w)
         c = frame.com[i]
         a = S
-        engine.arrow(c[0], c[1],  a*nx,  a*ny, color='k')
-        engine.arrow(c[0], c[1], -a*nx, -a*ny, color='k')
+        engine.arrow(c[0], c[1],  a*nx,  a*ny, color=color)
+        engine.arrow(c[0], c[1], -a*nx, -a*ny, color=color)
 
 
 def director(Qxx, Qxy, avg=1, scale=False, engine=plt):
