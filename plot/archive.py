@@ -21,13 +21,13 @@ class archive(archive_base.archive):
     """Simply reshape 2d fields after importing"""
 
     def __init__(self, path):
-        super(archive, self).__init__(path)
+        archive_base.archive.__init__(self, path)
         self.parameters['walls'] = np.reshape(self.parameters['walls'],
                                               self.Size)
         self.__dict__.update(self.parameters)
 
     def read_frame(self, frame):
-        frame = super(archive, self).read_frame(frame)
+        frame = archive_base.archive.read_frame(self, frame)
 
         # array sizes
         lx, ly = self.Size
