@@ -1,0 +1,23 @@
+#
+# Description of the cell type
+#
+
+nphases = 60
+
+# Elastic constants for each phase
+gamma = .02
+# Area energy penalty for each phase
+mu      = 5
+# Preferred radius (in units of lattice spacing)
+R     = 8
+# Cell-substrate friction
+xi    = 1.5
+
+# Strength of propulsion
+alpha = .04
+# Strength of polarization
+S-pol = 1
+# Noise applied to polarization
+D-pol = 0.03
+# Alignment parameters for polarization
+J-pol = 0.1

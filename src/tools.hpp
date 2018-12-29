@@ -165,4 +165,14 @@ inline std::vector<std::string> split(const std::string& s, char sep=' ')
   return words;
 }
 
+/** Simple yes/no interface */
+inline bool ask(const std::string& question)
+{
+  std::cout << question << " (y/n) ";
+  char answ = 0;
+  std::cin >> answ;
+
+  return answ == 'y' or answ == 'Y';
+}
+
 #endif//TOOLS_HPP_

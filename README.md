@@ -19,31 +19,35 @@ make
 ```
 
 We rely on the `boost::program_options` which must be installed prior to
-building the program. We also use modern C++ features, such that you will
-require a modern compiler (tested with g++-4.9).
+building the program. We use modern C++17 features, such that you will
+require a modern compiler.
 
-## Running
+## Input and running
 
-The code is run from the command line and a runcard must always be given as the
-first argument:
+The input of a simulation is a directory with the following structure:
 
-`./celadro runcard.dat [options]`
+```
+./config.dat    <- configuration of the simulation
+./cells/cell_type1.dat    <- configuration of the different cell types
+./cells/cell_type2.dat
+...
+```
 
-A runcard is a simple file providing the parameters for the run. Example
-runcards can be found in the `example/` directory. Every option can also be
-given to the program using the command line as `./celadro runcard.dat --option=arg`.
-A complete list of available options can be obtained by typing `./celadro -h`.
+The names of the cell types files are arbitrary, they just need to have the
+`.dat` extension and be located in the `cells/` subdirectory. See examples
+that can be found in `examples/`.
 
-By default the program writes output files in the current directory. This can be
-changed using `--output=dir/` or `-o dir/`, where `dir/` is the target
-directory. The program also supports compressed (using zip) output with the option
-flag `--compression` or `-c`. Typical usage is `./celadro runcard.dat -fco output/`
+The code is run from the command line as follows:
 
-Type `./celadro -h` for a list of available options.
+`./celadro input_dir [options]`
+
+and produces output in `input_dir/data/`. Type `./celadro -h` for a list of
+available options. The program supports compressed (using zip) output with the
+option flag `--compression` or `-c`.
 
 ## Examples
 
-Examples runs and ploting scripts can be found in the `example` directory. Try
+Examples runs and ploting scripts can be found in the `examples/` directory. Try
 to run `bash make_all_movies.sh` and have a look at the results.
 
 ## Multi-threading and CUDA

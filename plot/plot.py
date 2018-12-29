@@ -16,7 +16,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from math import sqrt, pi, atan2, cos, sin
-from matplotlib.colors import LinearSegmentedColormap
+from matplotlib.colors import LinearSegmentedColormap, to_rgba
 from scipy import ndimage
 from itertools import product
 
@@ -407,21 +407,27 @@ def interfaces2(frame, engine=plt):
                   cmap=cmap1, origin='lower')
 
 
-def solidarea(frame, engine=plt):
+def solidarea(frame, engine=plt, colors='gray'):
     """
     Plot all phase fields with solid colours corresponding to individual areas.
 
     Args:
         frame: Frame to plot, from archive module.
         engine: Plotting engine or axis.
+        colors: Colors to use for the contour. Can also be a list of colors,
+            one for each cell.
     """
+    if not isinstance(colors, list):
+        colors = len(frame.phi)*[colors]
+
     for i in range(len(frame.phi)):
-        color = str(min(1, frame.area[i]/(pi*frame.parameters['R']**2)))
+        alpha = 1-min(1, frame.area[i]/(pi*frame.parameters['R'][i]**2))
         engine.contourf(np.arange(0, frame.parameters['Size'][0]),
                         np.arange(0, frame.parameters['Size'][1]),
                         frame.phi[i].T,
                         levels=[.5, 10.],
-                        colors=color)
+                        colors=colors[i],
+                        alpha=alpha)
 
 
 def com(frame, engine=plt):
@@ -659,7 +665,7 @@ def nematic(frame, engine=plt):
         nx = sqrt((1 + Q00/S)/2)
         ny = np.sign(Q01)*sqrt((1 - Q00/S)/2)
         c = frame.com[i]
-        a = frame.parameters['R']/2.5*S
+        a = frame.parameters['R'][i]/2.5*S
         engine.arrow(c[0], c[1],  a*nx,  a*ny, color='k')
         engine.arrow(c[0], c[1], -a*nx, -a*ny, color='k')
 

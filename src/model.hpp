@@ -142,9 +142,7 @@ struct Model
    * */
   unsigned verbose = 2;
   /** compress output? (we use zip) */
-  bool compress, compress_full;
-  /** name of the run */
-  std::string runname;
+  bool compress;
   /** Output dir (or tmp dir before moving files to the archive) */
   std::string output_dir;
   /** write any output? */
@@ -159,7 +157,7 @@ struct Model
   bool runtime_stats = false;
   /** padding for onscreen output */
   unsigned pad;
-  /** name of the inpute file */
+  /** name of the input directory */
   std::string inputname = "";
   /** Delete output? */
   bool force_delete;
@@ -212,9 +210,11 @@ struct Model
    * @{ */
 
   /** Elasticity */
-  double gam = 0.1;
+  std::vector<double> gam;
   /** Energy penalty for area */
-  double mu = 3;
+  std::vector<double> mu;
+  /** Cell types */
+  std::vector<std::string> types;
   /** Interface thickness */
   double lambda = 3;
   /**  Interaction stength */
@@ -222,31 +222,31 @@ struct Model
   /** Adhesion */
   double omega = 0;
   /** Activity from shape */
-  double zetaS = 0, sign_zetaS = 0;
+  std::vector<double> zetaS, sign_zetaS;
   /** Activity from internal Q tensor */
-  double zetaQ = 0, sign_zetaQ = 0;
+  std::vector<double> zetaQ, sign_zetaQ;
   /** Propulsion strength */
-  double alpha = 0;
+  std::vector<double> alpha;
   /** Substrate friction parameter */
-  double xi = 1;
+  std::vector<double> xi;
   /** Prefered radii (area = pi*R*R) and radius growth */
-  double R = 8;
+  std::vector<double> R;
   /** Base area: a0 = Pi*R*R */
-  double a0;
+  std::vector<double> a0;
   /** Repuslion by the wall */
   double wall_kappa = 0.5;
   /** Adhesion on the wall */
   double wall_omega = 0;
   /** Elasitc parameters */
-  double Knem = 0, Kpol = 0;
+  std::vector<double> Knem, Kpol;
   /** Strength of polarity / nematic tensor */
-  double Spol = 0, Snem = 0;
+  std::vector<double> Spol, Snem;
   /** Flow alignment strenght */
-  double Jpol = 0, Jnem = 0;
+  std::vector<double> Jpol, Jnem;
   /** Vorticity coupling */
-  double Wnem = 0;
+  std::vector<double> Wnem;
   /** Noise strength */
-  double Dpol = 0, Dnem = 0;
+  std::vector<double> Dpol, Dnem;
 
   /** @} */
   /** Multi-threading parameters
@@ -262,8 +262,11 @@ struct Model
   // ===========================================================================
   // Options. Implemented in options.cpp
 
-  /** the variables map used to collect options */
+  /** Variables map used to collect options */
   opt::variables_map vm;
+
+  /** Same but for the individual cell types */
+  std::vector<std::pair<std::string, opt::variables_map>> vm_cells;
 
   /** Set parameters from input */
   void ParseProgramOptions(int ac, char **av);
@@ -330,11 +333,8 @@ struct Model
   /** Write run parameters */
   void WriteParams();
 
-  /** Remove old files */
+  /** Remove old files and recreate output dir if needed */
   void ClearOutput();
-
-  /** Create output directory */
-  void CreateOutputDir();
 
   // ==========================================================================
   // Initialization. Implemented in init.cpp
@@ -563,6 +563,7 @@ struct Model
        & auto_name(nphases)
        & auto_name(init_config)
        & auto_name(kappa)
+       & auto_name(types)
        & auto_name(xi)
        & auto_name(R)
        & auto_name(alpha)

@@ -15,7 +15,7 @@
 
 cmake_minimum_required(VERSION 3.0)
 project(celadro)
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17)
 
 # default is release
 if(NOT CMAKE_BUILD_TYPE)
@@ -52,6 +52,9 @@ add_executable(celadro ${sources})
 ################################################################################
 # dependencies
 ################################################################################
+
+# file system
+target_link_libraries(celadro stdc++fs)
 
 # check for boost libraries
 find_package(Boost 1.36.0 COMPONENTS program_options REQUIRED)

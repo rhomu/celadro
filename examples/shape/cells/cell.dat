@@ -1,0 +1,17 @@
+#
+# Description of the cell type
+#
+
+nphases = 135
+
+# Elastic constants for each phase
+gamma = .02
+# Area energy penalty for each phase
+mu      = 3
+# Preferred radius (in units of lattice spacing)
+R     = 8
+# Cell-substrate friction
+xi    = 1.5
+
+# Shape-driven activity
+zetaS = 3e-3

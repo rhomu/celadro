@@ -6,8 +6,8 @@ CELADRO=../build/celadro
 THREADS=4
 
 set -e  # stop on any error
-for runcard in $(find */*.dat); do
+for runcard in $(find */config.dat); do
   directory=${runcard%/*}
-  $CELADRO $runcard -fco $directory/output -t$THREADS
-  python3 $directory/plot.py $directory/output $directory
+  $CELADRO $directory -fct$THREADS
+  python3 $directory/plot.py $directory/data $directory
 done

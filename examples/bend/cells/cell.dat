@@ -1,0 +1,25 @@
+#
+# Description of the cell type
+#
+
+nphases = 60
+
+# Elastic constants for each phase
+gamma = .05
+# Area energy penalty for each phase
+mu      = 5
+# Preferred radius (in units of lattice spacing)
+R     = 8
+# Cell-substrate friction
+xi    = 1.5
+
+# Strength of activity
+zetaQ = 1e-6
+# Strength of order
+S-nem = 1
+# Elastic alignment parameter
+K-nem = 1e-6
+# Nematic alignment parameter
+J-nem = 5e-2
+# Response to flows
+W-nem = 0 # 3e-4

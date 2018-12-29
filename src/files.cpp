@@ -19,18 +19,6 @@
 #include "files.hpp"
 using namespace std;
 
-void create_directory(const string& dir)
-{
-  const int ret = system(inline_str("mkdir -p ", dir).c_str());
-  if(ret) throw error_msg("can not create output directory, mkdir returned ", ret, ".");
-}
-
-void remove_file(const string& fname)
-{
-  const int ret = system(inline_str("rm -rf ", fname).c_str());
-  if(ret) throw error_msg("rm returned non-zero value ", ret, ".");
-}
-
 void compress_file(const string& iname, const string& oname)
 {
   const int ret = system(inline_str("zip -jm ", oname, ".zip ", iname,

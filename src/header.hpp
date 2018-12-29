@@ -59,6 +59,10 @@
 #include <boost/program_options.hpp>
 namespace opt = boost::program_options;
 
+// filesystem
+#include <filesystem>
+namespace fs = std::filesystem;
+
 // =============================================================================
 // Constants
 

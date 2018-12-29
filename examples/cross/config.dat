@@ -1,0 +1,26 @@
+#
+# Sample runcard showing cells in a cross-shaped box.
+#
+
+config     = random
+nsteps     = 5000
+ninfo      = 20
+LX         = 134
+LY         = 134
+nsubsteps  = 5
+margin     = 25
+relax-time = 200
+bc          = 4
+cross-ratio = 0.333333
+
+# Interface thickness parameter
+lambda  = 2.5
+# Interaction strength
+kappa = .2
+
+# Thickness of the wall profile
+wall-thickness = .8
+# Wall repulsion
+wall-kappa     = .2
+# Wall adhesion
+wall-omega     = 0

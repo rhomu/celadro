@@ -63,8 +63,13 @@ void Model::Initialize()
 
   // ---------------------------------------------------------------------------
 
-  if(zetaQ!=0.) sign_zetaQ = zetaQ>0. ? 1 : -1;
-  if(zetaS!=0.) sign_zetaS = zetaS>0. ? 1 : -1;
+  sign_zetaQ.resize(nphases, 0.);
+  sign_zetaS.resize(nphases, 0.);
+  for(unsigned n=0; n<nphases; ++n)
+  {
+    if(zetaQ[n]!=0.) sign_zetaQ[n] = zetaQ[n]>0. ? 1 : -1;
+    if(zetaS[n]!=0.) sign_zetaS[n] = zetaS[n]>0. ? 1 : -1;
+  }
 
   // compute tables
   for(unsigned i=0; i<Size[0]; ++i)
@@ -76,7 +81,7 @@ void Model::Initialize()
 
   // check parameters
   for(unsigned n=0; n<nphases; ++n)
-    if(margin<R) throw error_msg("Margin is too small, make it bigger than R.");
+    if(margin<R[n]) throw error_msg("Margin is too small, make it bigger than R.");
 
   // check birth boundaries
   if(birth_bdries.size()==0)
@@ -87,9 +92,14 @@ void Model::Initialize()
   if(wall_omega!=0)
     throw error_msg("Wall adhesion is not working for the moment.");
 
+  // fill missing values with the last one
+  gam.resize(nphases, gam.back());
+
   // ---------------------------------------------------------------------------
 
-  a0 = Pi*R*R;
+  a0.reserve(nphases);
+  for(unsigned n=0; n<nphases; ++n)
+    a0.push_back(Pi*R[n]*R[n]);
 }
 
 void Model::SetCellNumber(unsigned new_nphases)

@@ -1,0 +1,25 @@
+#
+# Sample runcard showing cells going around.
+#
+
+config     = random
+nsteps     = 5000
+ninfo      = 20
+LX         = 50
+LY         = 50
+nsubsteps  = 5
+bc         = 1
+margin     = 25
+relax-time = 0
+
+# ...interface thickness parameter
+lambda  = 3
+# ...interaction strength
+kappa = .1
+
+# Thickness of the wall profile
+wall-thickness = .5
+# Wall repulsion
+wall-kappa     = 1
+# Wall adhesion
+wall-omega     = 0

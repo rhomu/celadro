@@ -27,16 +27,16 @@ void Model::Pre()
   // we make the system relax (without activity)
   if(relax_time>0)
   {
-    double save_alpha  = 0; swap(alpha,  save_alpha);
-    double save_zetaS  = 0; swap(zetaS,  save_zetaS);
-    double save_zetaQ  = 0; swap(zetaQ,  save_zetaQ);
-    double save_Dnem  = 0; swap(Dnem,  save_Dnem);
-    double save_Dpol  = 0; swap(Dpol,  save_Dpol);
-    double save_Jnem  = 0; swap(Jnem,  save_Jnem);
-    double save_Jpol  = 0; swap(Jpol,  save_Jpol);
-    double save_Kpol  = 0; swap(Kpol,  save_Kpol);
-    double save_Knem  = 0; swap(Knem,  save_Knem);
-    double save_Wnem  = 0; swap(Wnem,  save_Wnem);
+    std::vector<double> save_alpha(nphases, 0); swap(alpha,  save_alpha);
+    std::vector<double> save_zetaS(nphases, 0); swap(zetaS,  save_zetaS);
+    std::vector<double> save_zetaQ(nphases, 0); swap(zetaQ,  save_zetaQ);
+    std::vector<double> save_Dnem(nphases, 0); swap(Dnem,  save_Dnem);
+    std::vector<double> save_Dpol(nphases, 0); swap(Dpol,  save_Dpol);
+    std::vector<double> save_Jnem(nphases, 0); swap(Jnem,  save_Jnem);
+    std::vector<double> save_Jpol(nphases, 0); swap(Jpol,  save_Jpol);
+    std::vector<double> save_Kpol(nphases, 0); swap(Kpol,  save_Kpol);
+    std::vector<double> save_Knem(nphases, 0); swap(Knem,  save_Knem);
+    std::vector<double> save_Wnem(nphases, 0); swap(Wnem,  save_Wnem);
 
     if(relax_nsubsteps) swap(nsubsteps, relax_nsubsteps);
 
@@ -71,7 +71,7 @@ void Model::PreRunStats()
     // total cell area
     double packing = 0.;
     for(unsigned n=0; n<nphases; ++n)
-      packing += R*R;
+      packing += R[n]*R[n];
     packing *= Pi;
 
     // divide by available area
@@ -93,7 +93,7 @@ void Model::RuntimeChecks()
 {
   // check that the area is more or less conserved (20%)
   for(unsigned n=0; n<nphases; ++n)
-    if(abs(1.-area[n]/(Pi*R*R))>.2)
+    if(abs(1.-area[n]/(Pi*R[n]*R[n]))>.2)
       throw warning_msg("area is not conserved.");
 
   for(unsigned n=0; n<nphases; ++n)
@@ -124,10 +124,10 @@ void Model::UpdateSumsAtNode(unsigned n, unsigned q)
   thirdp[k]  += p*p*p;
   fourthp[k] += p*p*p*p;
   sumA[k]    += p*p*area[n];
-  sumS00[k]  += p*S00[n];
-  sumS01[k]  += p*S01[n];
-  sumQ00[k]  += p*Q00[n];
-  sumQ01[k]  += p*Q01[n];
+  sumS00[k]  += p*S00[n]*zetaS[n];
+  sumS01[k]  += p*S01[n]*zetaS[n];
+  sumQ00[k]  += p*Q00[n]*zetaQ[n];
+  sumQ01[k]  += p*Q01[n]*zetaQ[n];
   P0[k]      += p*polarization[n][0];
   P1[k]      += p*polarization[n][1];
   U0[k]      += p*velocity[n][0];
@@ -147,9 +147,9 @@ void Model::UpdatePotAtNode(unsigned n, unsigned q)
 
   const double internal = (
       // CH term
-      + gam*(8*p*(1-p)*(1-2*p)/lambda - 2*lambda*ll)
+      + gam[n]*(8*p*(1-p)*(1-2*p)/lambda - 2*lambda*ll)
       // area conservation term
-      - 4*mu/a0*(1-a/a0)*p
+      - 4*mu[n]/a0[n]*(1-a/a0[n])*p
     );
 
   const double interactions = (
@@ -181,15 +181,15 @@ void Model::UpdateForcesAtNode(unsigned n, unsigned q)
   const auto dxs = derivX(sum, s);
   const auto dys = derivY(sum, s);
 
-  stress_xx[k] = - pressure[k] - zetaS*sumS00[k] - zetaQ*sumQ00[k];
-  stress_yy[k] = - pressure[k] + zetaS*sumS00[k] + zetaQ*sumQ00[k];
-  stress_xy[k] = - zetaS*sumS01[k] - zetaQ*sumQ01[k];
+  stress_xx[k] = - pressure[k] - sumS00[k] - sumQ00[k];
+  stress_yy[k] = - pressure[k] + sumS00[k] + sumQ00[k];
+  stress_xy[k] = - sumS01[k] - sumQ01[k];
 
   Fpressure[n] += { pressure[k]*dx, pressure[k]*dy };
-  Fshape[n]    += { zetaS*sumS00[k]*dx + zetaS*sumS01[k]*dy,
-                    zetaS*sumS01[k]*dx - zetaS*sumS00[k]*dy };
-  Fnem[n]      += { zetaQ*sumQ00[k]*dx + zetaQ*sumQ01[k]*dy,
-                    zetaQ*sumQ01[k]*dx - zetaQ*sumQ00[k]*dy };
+  Fshape[n]    += { sumS00[k]*dx + sumS01[k]*dy,
+                    sumS01[k]*dx - sumS00[k]*dy };
+  Fnem[n]      += { sumQ00[k]*dx + sumQ01[k]*dy,
+                    sumQ01[k]*dx - sumQ00[k]*dy };
 
   // store derivatives
   phi_dx[n][q] = dx;
@@ -249,7 +249,7 @@ void Model::UpdateNematic(unsigned n, bool store)
 {
   // euler-marijuana update
   if(store)
-    theta_nem_old[n] = theta_nem[n] + sqrt_time_step*Dnem*random_normal();
+    theta_nem_old[n] = theta_nem[n] + sqrt_time_step*Dnem[n]*random_normal();
 
   double F00 = 0, F01 = 0;
   switch(align_nematic_to)
@@ -278,18 +278,18 @@ void Model::UpdateNematic(unsigned n, bool store)
   const auto strength = pow(F01*F01 + F00*F00, 0.25);
 
   theta_nem[n] = theta_nem_old[n] - time_step*(
-      + Knem*tau[n]
-      + Jnem*strength*atan2(F00*Q01[n]-F01*Q00[n], F00*Q00[n]+F01*Q01[n]))
-      + Wnem*vorticity[n];
-  Q00[n] = Snem*cos(2*theta_nem[n]);
-  Q01[n] = Snem*sin(2*theta_nem[n]);
+      + Knem[n]*tau[n]
+      + Jnem[n]*strength*atan2(F00*Q01[n]-F01*Q00[n], F00*Q00[n]+F01*Q01[n]))
+      + Wnem[n]*vorticity[n];
+  Q00[n] = Snem[n]*cos(2*theta_nem[n]);
+  Q01[n] = Snem[n]*sin(2*theta_nem[n]);
 }
 
 void Model::UpdatePolarization(unsigned n, bool store)
 {
   // euler-marijuana update
   if(store)
-    theta_pol_old[n] = theta_pol[n] + sqrt_time_step*Dpol*random_normal();
+    theta_pol_old[n] = theta_pol[n] + sqrt_time_step*Dpol[n]*random_normal();
 
   vec<double, 2> ff = {0, 0};
   switch(align_polarization_to)
@@ -303,9 +303,9 @@ void Model::UpdatePolarization(unsigned n, bool store)
   }
 
   theta_pol[n] = theta_pol_old[n] - time_step*(
-      + Kpol*delta_theta_pol[n]
-      + Jpol*ff.abs()*atan2(ff[0]*polarization[n][1]-ff[1]*polarization[n][0], ff*polarization[n]));
-  polarization[n] = { Spol*cos(theta_pol[n]), Spol*sin(theta_pol[n]) };
+      + Kpol[n]*delta_theta_pol[n]
+      + Jpol[n]*ff.abs()*atan2(ff[0]*polarization[n][1]-ff[1]*polarization[n][0], ff*polarization[n]));
+  polarization[n] = { Spol[n]*cos(theta_pol[n]), Spol[n]*sin(theta_pol[n]) };
 }
 
 void Model::ComputeCoM(unsigned n)
@@ -399,8 +399,8 @@ void Model::Update(bool store, unsigned nstart)
 
     // normalise and compute total forces and vel
     tau[n]     /= lambda;
-    Fpol[n]     = alpha*polarization[n];
-    velocity[n] = (Fpressure[n] + Fnem[n] + Fshape[n] + Fpol[n])/xi;
+    Fpol[n]     = alpha[n]*polarization[n];
+    velocity[n] = (Fpressure[n] + Fnem[n] + Fshape[n] + Fpol[n])/xi[n];
   }
 
   // Predictor-corrector function for updating the phase fields

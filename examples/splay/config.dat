@@ -1,0 +1,19 @@
+#
+# Sample runcard showing cells creating waves in a box.
+#
+
+config     = random
+nsteps     = 3000
+ninfo      = 20
+LX         = 100
+LY         = 100
+nsubsteps  = 5
+bc         = 0
+margin     = 25
+relax-time = 200
+noise      = 0
+
+# Interface thickness parameter
+lambda  = 3
+# Interaction strength
+kappa = .2

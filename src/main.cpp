@@ -33,7 +33,7 @@ string title = R"(
                 \____/\___/_/\__,_/\__,_/_/   \____/
                 -----------------------------------
                  Celadro: Cells as active droplets
-                    (c) 2016-17, Romain Mueller
+                    (c) 2016-19, Romain Mueller
 
 )";
 
@@ -115,9 +115,6 @@ void Model::Setup(int argc, char **argv)
   if(argc<2) throw error_msg("no argument provided. Type -h for help.");
   // parse program options
   ParseProgramOptions(argc, argv);
-  // check that we have a run name
-  if(runname.empty())
-    throw error_msg("please specify a file path for this run.");
   // print simulation parameters
   if(verbose)
   {
@@ -199,17 +196,13 @@ void Model::Setup(int argc, char **argv)
     if(verbose) cout << "create output directory " << " ...";
     try {
       ClearOutput();
-      CreateOutputDir();
     } catch(...) {
       if(verbose) cout << " error" << endl;
       throw;
     }
     if(verbose) cout << " done" << endl;
 
-
-    if(verbose and compress_full)
-      cout << "create output file " << runname << ".zip ...";
-    if(verbose and not compress_full)
+    if(verbose)
       cout << "write parameters ...";
 
     try {

@@ -1,0 +1,20 @@
+#
+# Sample runcard showing a small cluster of cells with adhesion.
+#
+
+config     = cluster
+nsteps     = 2000
+ninfo      = 20
+LX         = 75
+LY         = 75
+nsubsteps  = 5
+bc         = 0
+margin     = 25
+relax-time = 0
+
+# Interface thickness parameter
+lambda  = 3
+# Interaction strength
+kappa = .1
+# Adhesion
+omega = 0 # 0.01
