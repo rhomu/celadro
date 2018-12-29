@@ -47,8 +47,8 @@ void Model::AddCellAtNode(unsigned n, unsigned q, const coord& center)
     thirdp[k]    += 1.;
     fourthp[k]   += 1.;
     sum[k]       += 1.;
-    sumQ00[k]    += Q00[n];
-    sumQ01[k]    += Q01[n];
+    sumQ00[k]    += zetaQ[n]*Q00[n];
+    sumQ01[k]    += zetaQ[n]*Q01[n];
   }
   else
   {
