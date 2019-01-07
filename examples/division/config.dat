@@ -1,0 +1,25 @@
+#
+# Sample runcard showing cells creating waves in a box.
+#
+
+config     = random
+nsteps     = 2000
+ninfo      = 20
+LX         = 100
+LY         = 100
+nsubsteps  = 5
+bc         = 1
+margin     = 25
+relax-time = 200
+
+# Interface thickness parameter
+lambda  = 3
+# Interaction strength
+kappa = .2
+
+# Thickness of the wall profile
+wall-thickness = .5
+# Wall repulsion
+wall-kappa     = 1
+# Wall adhesion
+wall-omega     = 0

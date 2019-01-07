@@ -27,16 +27,16 @@ void Model::Pre()
   // we make the system relax (without activity)
   if(relax_time>0)
   {
-    std::vector<double> save_alpha(nphases, 0); swap(alpha,  save_alpha);
-    std::vector<double> save_zetaS(nphases, 0); swap(zetaS,  save_zetaS);
-    std::vector<double> save_zetaQ(nphases, 0); swap(zetaQ,  save_zetaQ);
-    std::vector<double> save_Dnem(nphases, 0); swap(Dnem,  save_Dnem);
-    std::vector<double> save_Dpol(nphases, 0); swap(Dpol,  save_Dpol);
-    std::vector<double> save_Jnem(nphases, 0); swap(Jnem,  save_Jnem);
-    std::vector<double> save_Jpol(nphases, 0); swap(Jpol,  save_Jpol);
-    std::vector<double> save_Kpol(nphases, 0); swap(Kpol,  save_Kpol);
-    std::vector<double> save_Knem(nphases, 0); swap(Knem,  save_Knem);
-    std::vector<double> save_Wnem(nphases, 0); swap(Wnem,  save_Wnem);
+    vector<double> save_alpha(nphases, 0); swap(alpha,  save_alpha);
+    vector<double> save_zetaS(nphases, 0); swap(zetaS,  save_zetaS);
+    vector<double> save_zetaQ(nphases, 0); swap(zetaQ,  save_zetaQ);
+    vector<double> save_Dnem(nphases, 0); swap(Dnem,  save_Dnem);
+    vector<double> save_Dpol(nphases, 0); swap(Dpol,  save_Dpol);
+    vector<double> save_Jnem(nphases, 0); swap(Jnem,  save_Jnem);
+    vector<double> save_Jpol(nphases, 0); swap(Jpol,  save_Jpol);
+    vector<double> save_Kpol(nphases, 0); swap(Kpol,  save_Kpol);
+    vector<double> save_Knem(nphases, 0); swap(Knem,  save_Knem);
+    vector<double> save_Wnem(nphases, 0); swap(Wnem,  save_Wnem);
 
     if(relax_nsubsteps) swap(nsubsteps, relax_nsubsteps);
 

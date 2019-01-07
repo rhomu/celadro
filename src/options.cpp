@@ -132,7 +132,13 @@ void Model::ParseProgramOptions(int ac, char **av)
     ("D-nem", opt::value<double>()->default_value(0),
       "Nematic noise strength")
     ("S-nem", opt::value<double>()->default_value(0),
-      "Order of the nematic tensors");
+      "Order of the nematic tensors")
+    ("division", opt::value<bool>()->default_value(false),
+      "Does the cell and its descendents divide?")
+    ("division-rate", opt::value<double>()->default_value(0),
+      "Rate of division (in time steps)")
+    ("division-time", opt::value<double>()->default_value(100),
+      "Time scale for the division");
 
   // init config options
   opt::options_description init("Initial configuration options");
@@ -222,6 +228,7 @@ void Model::ParseProgramOptions(int ac, char **av)
     gam.resize(nphases, vm["gamma"].as<double>());
     mu.resize(nphases, vm["mu"].as<double>());
     R.resize(nphases, vm["R"].as<double>());
+    target_R.resize(nphases, vm["R"].as<double>());
     xi.resize(nphases, vm["xi"].as<double>());
     alpha.resize(nphases, vm["alpha"].as<double>());
     Dpol.resize(nphases, vm["D-pol"].as<double>());
@@ -235,6 +242,9 @@ void Model::ParseProgramOptions(int ac, char **av)
     Wnem.resize(nphases, vm["W-nem"].as<double>());
     zetaQ.resize(nphases, vm["zetaQ"].as<double>());
     zetaS.resize(nphases, vm["zetaS"].as<double>());
+    division.resize(nphases, vm["division"].as<bool>());
+    division_time.resize(nphases, vm["division-time"].as<double>());
+    division_rate.resize(nphases, vm["division-rate"].as<double>());
     types.resize(nphases, p.path().stem());
 
     // store variable map in case we need it later
