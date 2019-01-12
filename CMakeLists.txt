@@ -83,7 +83,7 @@ endif()
 # add hydra support (boost is fucked up there)
 option(HYDRA "Make linking work on hydra work (as of 2017)" OFF)
 if(HYDRA)
-  set_target_properties(celadro PROPERTIES LINK_FLAGS "${CMAKE_LINK_FLAGS} -L/usr/local/shared/boost/1.64.0-gcc5.4.0/lib")
+  set_target_properties(celadro PROPERTIES LINK_FLAGS "${CMAKE_LINK_FLAGS} -L/usr/local/shared/boost/1.69.0-gcc8.2/lib")
 endif()
 
 ################################################################################
