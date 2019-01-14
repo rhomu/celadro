@@ -48,7 +48,6 @@ void Model::Divide(unsigned n)
     Dpol.resize(nphases, Dpol[n]);
     Spol.resize(nphases, Spol[n]);
     Jpol.resize(nphases, Jpol[n]);
-    Kpol.resize(nphases, Kpol[n]);
     Dnem.resize(nphases, Dnem[n]);
     Snem.resize(nphases, Snem[n]);
     Jnem.resize(nphases, Jnem[n]);
@@ -90,7 +89,6 @@ void Model::Divide(unsigned n)
     offset.resize(nphases, {0u, 0u});
     theta_pol.resize(nphases, 0.);
     theta_pol_old.resize(nphases, 0.);
-    delta_theta_pol.resize(nphases, 0.);
     theta_nem.resize(nphases, 0.);
     theta_nem_old.resize(nphases, 0.);
     vorticity.resize(nphases, 0.);
@@ -123,7 +121,6 @@ void Model::Divide(unsigned n)
     vector<double> save_Dpol(nphases, 0); swap(Dpol,  save_Dpol);
     vector<double> save_Jnem(nphases, 0); swap(Jnem,  save_Jnem);
     vector<double> save_Jpol(nphases, 0); swap(Jpol,  save_Jpol);
-    vector<double> save_Kpol(nphases, 0); swap(Kpol,  save_Kpol);
     vector<double> save_Knem(nphases, 0); swap(Knem,  save_Knem);
     vector<double> save_Wnem(nphases, 0); swap(Wnem,  save_Wnem);
 
@@ -151,7 +148,6 @@ void Model::Divide(unsigned n)
     swap(Jpol, save_Jpol);
     swap(Dnem, save_Dnem);
     swap(Dpol, save_Dpol);
-    swap(Kpol, save_Kpol);
     swap(Knem, save_Knem);
     swap(Wnem, save_Wnem);
 
@@ -174,7 +170,6 @@ void Model::Divide(unsigned n)
     Dpol.resize(nphases, Dpol[n]);
     Spol.resize(nphases, Spol[n]);
     Jpol.resize(nphases, Jpol[n]);
-    Kpol.resize(nphases, Kpol[n]);
     Dnem.resize(nphases, Dnem[n]);
     Snem.resize(nphases, Snem[n]);
     Jnem.resize(nphases, Jnem[n]);
@@ -216,7 +211,6 @@ void Model::Divide(unsigned n)
     offset.resize(nphases, {0u, 0u});
     theta_pol.resize(nphases, 0.);
     theta_pol_old.resize(nphases, 0.);
-    delta_theta_pol.resize(nphases, 0.);
     theta_nem.resize(nphases, 0.);
     theta_nem_old.resize(nphases, 0.);
     vorticity.resize(nphases, 0.);

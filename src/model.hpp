@@ -93,8 +93,6 @@ struct Model
   std::vector<double> theta_pol, theta_pol_old;
   /** Direction of the nematics */
   std::vector<double> theta_nem, theta_nem_old;
-  /** Polarisation total torque */
-  std::vector<double> delta_theta_pol;
   /** Stress tensor */
   field stress_xx, stress_xy , stress_yy, pressure;
   /** Elastic torque for the nematic */
@@ -238,7 +236,7 @@ struct Model
   /** Adhesion on the wall */
   double wall_omega = 0;
   /** Elasitc parameters */
-  std::vector<double> Knem, Kpol;
+  std::vector<double> Knem;
   /** Strength of polarity / nematic tensor */
   std::vector<double> Spol, Snem;
   /** Flow alignment strenght */
@@ -604,7 +602,6 @@ struct Model
        & auto_name(npc)
        & auto_name(seed)
        & auto_name(Knem)
-       & auto_name(Kpol)
        & auto_name(Snem)
        & auto_name(Spol)
        & auto_name(Jnem)

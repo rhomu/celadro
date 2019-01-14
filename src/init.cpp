@@ -88,7 +88,6 @@ void Model::Initialize()
   offset.resize(nphases, {0u, 0u});
   theta_pol.resize(nphases, 0.);
   theta_pol_old.resize(nphases, 0.);
-  delta_theta_pol.resize(nphases, 0.);
   theta_nem.resize(nphases, 0.);
   theta_nem_old.resize(nphases, 0.);
   vorticity.resize(nphases, 0.);
@@ -175,7 +174,6 @@ void Model::SwapCells(unsigned n, unsigned m)
   swap(Dpol[n], Dpol[m]);
   swap(Spol[n], Spol[m]);
   swap(Jpol[n], Jpol[m]);
-  swap(Kpol[n], Kpol[m]);
   swap(Dnem[n], Dnem[m]);
   swap(Snem[n], Snem[m]);
   swap(Jnem[n], Jnem[m]);
@@ -205,7 +203,6 @@ void Model::SwapCells(unsigned n, unsigned m)
   swap(offset[n], offset[m]);
   swap(theta_pol[n], theta_pol[m]);
   swap(theta_pol_old[n], theta_pol_old[m]);
-  swap(delta_theta_pol[n], delta_theta_pol[m]);
   swap(theta_nem[n], theta_nem[m]);
   swap(theta_nem_old[n], theta_nem_old[m]);
   swap(vorticity[n], vorticity[m]);

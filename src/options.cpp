@@ -234,7 +234,6 @@ void Model::ParseProgramOptions(int ac, char **av)
     Dpol.resize(nphases, vm["D-pol"].as<double>());
     Spol.resize(nphases, vm["S-pol"].as<double>());
     Jpol.resize(nphases, vm["J-pol"].as<double>());
-    Kpol.resize(nphases, vm["K-pol"].as<double>());
     Dnem.resize(nphases, vm["D-nem"].as<double>());
     Snem.resize(nphases, vm["S-nem"].as<double>());
     Jnem.resize(nphases, vm["J-nem"].as<double>());

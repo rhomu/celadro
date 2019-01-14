@@ -34,7 +34,6 @@ void Model::Pre()
     vector<double> save_Dpol(nphases, 0); swap(Dpol,  save_Dpol);
     vector<double> save_Jnem(nphases, 0); swap(Jnem,  save_Jnem);
     vector<double> save_Jpol(nphases, 0); swap(Jpol,  save_Jpol);
-    vector<double> save_Kpol(nphases, 0); swap(Kpol,  save_Kpol);
     vector<double> save_Knem(nphases, 0); swap(Knem,  save_Knem);
     vector<double> save_Wnem(nphases, 0); swap(Wnem,  save_Wnem);
 
@@ -52,7 +51,6 @@ void Model::Pre()
     swap(Jpol, save_Jpol);
     swap(Dnem, save_Dnem);
     swap(Dpol, save_Dpol);
-    swap(Kpol, save_Kpol);
     swap(Knem, save_Knem);
     swap(Wnem, save_Wnem);
   }
@@ -173,13 +171,10 @@ void Model::UpdatePotAtNode(unsigned n, unsigned q)
 void Model::UpdateForcesAtNode(unsigned n, unsigned q)
 {
   const auto  k  = GetIndexFromPatch(n, q);
-  const auto& s  = neighbors[k];
   const auto& sq = neighbors_patch[q];
 
   const auto dx  = derivX(phi[n], sq);
   const auto dy  = derivY(phi[n], sq);
-  const auto dxs = derivX(sum, s);
-  const auto dys = derivY(sum, s);
 
   stress_xx[k] = - pressure[k] - sumS00[k] - sumQ00[k];
   stress_yy[k] = - pressure[k] + sumS00[k] + sumQ00[k];
@@ -198,12 +193,6 @@ void Model::UpdateForcesAtNode(unsigned n, unsigned q)
   // nematic torques
   tau[n]       += sumQ00[k]*Q01[n] - sumQ01[k]*Q00[n];
   vorticity[n] += U0[k]*dy - U1[k]*dx;
-
-  // polarisation torques (not super nice)
-  const double ovlap = -(dx*(dxs-dx)+dy*(dys-dy));
-  const vec<double, 2> P = {P0[k]-phi[n][q]*polarization[n][0], P1[k]-phi[n][q]*polarization[n][1]};
-  delta_theta_pol[n] += ovlap*atan2(P[0]*polarization[n][1]-P[1]*polarization[n][0],
-                                    P[0]*polarization[n][0]+P[1]*polarization[n][1]);
 }
 
 void Model::UpdatePhaseFieldAtNode(unsigned n, unsigned q, bool store)
@@ -303,7 +292,6 @@ void Model::UpdatePolarization(unsigned n, bool store)
   }
 
   theta_pol[n] = theta_pol_old[n] - time_step*(
-      + Kpol[n]*delta_theta_pol[n]
       + Jpol[n]*ff.abs()*atan2(ff[0]*polarization[n][1]-ff[1]*polarization[n][0], ff*polarization[n]));
   polarization[n] = { Spol[n]*cos(theta_pol[n]), Spol[n]*sin(theta_pol[n]) };
 }
@@ -391,7 +379,7 @@ void Model::Update(bool store, unsigned nstart)
   for(unsigned n=nstart; n<nphases; ++n)
   {
     Fpol[n] = Fshape[n] = Fpressure[n] = {0, 0};
-    delta_theta_pol[n] = tau[n] = vorticity[n] = 0;
+    tau[n] = vorticity[n] = 0;
 
     // update in restricted patch only
     for(unsigned q=0; q<patch_N; ++q)
