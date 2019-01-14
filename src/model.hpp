@@ -193,7 +193,7 @@ struct Model
   /** effective time step */
   double time_step, sqrt_time_step;
   /** Number of phases */
-  unsigned nphases;
+  unsigned nphases = 0;
   /** angle in degrees (input variable only) */
   double angle_deg;
   /** Margin for the definition of patches */
