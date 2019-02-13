@@ -64,9 +64,9 @@ struct Model
   /** Sum of phi at each node */
   field sum;
   /** Sum_i S_i phi_i */
-  field sumS00, sumS01;
+  field sumS00, sumS01, sumS00zeta, sumS01zeta;
   /** Sum_i Q_i phi_i */
-  field sumQ00, sumQ01;
+  field sumQ00, sumQ01, sumQ00zeta, sumQ01zeta;
   /** Sum_i Area_i phi_i */
   field sumA;
   /** Sum of square, third, and fourth powers of phi at each node */
@@ -93,8 +93,6 @@ struct Model
   std::vector<double> theta_pol, theta_pol_old;
   /** Direction of the nematics */
   std::vector<double> theta_nem, theta_nem_old;
-  /** Polarisation total torque */
-  std::vector<double> delta_theta_pol;
   /** Stress tensor */
   field stress_xx, stress_xy , stress_yy, pressure;
   /** Elastic torque for the nematic */
@@ -229,8 +227,8 @@ struct Model
   std::vector<double> alpha;
   /** Substrate friction parameter */
   std::vector<double> xi;
-  /** Prefered radii (area = pi*R*R) and radius growth */
-  std::vector<double> R;
+  /** Prefered radii (area = pi*R*R) and target radius (for division) */
+  std::vector<double> R, target_R;
   /** Base area: a0 = Pi*R*R */
   std::vector<double> a0;
   /** Repuslion by the wall */
@@ -238,7 +236,7 @@ struct Model
   /** Adhesion on the wall */
   double wall_omega = 0;
   /** Elasitc parameters */
-  std::vector<double> Knem, Kpol;
+  std::vector<double> Knem;
   /** Strength of polarity / nematic tensor */
   std::vector<double> Spol, Snem;
   /** Flow alignment strenght */
@@ -341,9 +339,6 @@ struct Model
 
   /** Initialize memory for field */
   void Initialize();
-
-  /** Allocate memory for individual cells */
-  void SetCellNumber(unsigned new_nphases);
 
   /** Initialize neighbors list (stencils) */
   void InitializeNeighbors();
@@ -551,6 +546,33 @@ struct Model
   void Update(bool, unsigned=0);
 
   // ===========================================================================
+  // Division. Implemented in division.cpp
+
+  /** Division flag */
+  std::vector<bool> division;
+  /** Time scale of the division */
+  std::vector<double> division_time;
+  /** Division rate */
+  std::vector<double> division_rate;
+  /** Growth facto before division */
+  double division_growth = 1.5;
+  /** Relaxation time for division */
+  int division_relax_time = 100;
+  /** Relaxation time after division */
+  int division_refract_time = 300;
+  /** Count the number of time steps before the next division */
+  std::vector<int> division_counter;
+
+  /** Reset division counter for single cell */
+  void ResetDivisionCounter(unsigned);
+
+  /** Make a cell divide
+   *
+   * TBD
+   * */
+  void Divide(unsigned i);
+
+  // ===========================================================================
   // Serialization
 
   /** Serialization of parameters (in and out) */
@@ -580,7 +602,6 @@ struct Model
        & auto_name(npc)
        & auto_name(seed)
        & auto_name(Knem)
-       & auto_name(Kpol)
        & auto_name(Snem)
        & auto_name(Spol)
        & auto_name(Jnem)

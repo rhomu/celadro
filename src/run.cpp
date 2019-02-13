@@ -27,16 +27,15 @@ void Model::Pre()
   // we make the system relax (without activity)
   if(relax_time>0)
   {
-    std::vector<double> save_alpha(nphases, 0); swap(alpha,  save_alpha);
-    std::vector<double> save_zetaS(nphases, 0); swap(zetaS,  save_zetaS);
-    std::vector<double> save_zetaQ(nphases, 0); swap(zetaQ,  save_zetaQ);
-    std::vector<double> save_Dnem(nphases, 0); swap(Dnem,  save_Dnem);
-    std::vector<double> save_Dpol(nphases, 0); swap(Dpol,  save_Dpol);
-    std::vector<double> save_Jnem(nphases, 0); swap(Jnem,  save_Jnem);
-    std::vector<double> save_Jpol(nphases, 0); swap(Jpol,  save_Jpol);
-    std::vector<double> save_Kpol(nphases, 0); swap(Kpol,  save_Kpol);
-    std::vector<double> save_Knem(nphases, 0); swap(Knem,  save_Knem);
-    std::vector<double> save_Wnem(nphases, 0); swap(Wnem,  save_Wnem);
+    vector<double> save_alpha(nphases, 0); swap(alpha,  save_alpha);
+    vector<double> save_zetaS(nphases, 0); swap(zetaS,  save_zetaS);
+    vector<double> save_zetaQ(nphases, 0); swap(zetaQ,  save_zetaQ);
+    vector<double> save_Dnem(nphases, 0); swap(Dnem,  save_Dnem);
+    vector<double> save_Dpol(nphases, 0); swap(Dpol,  save_Dpol);
+    vector<double> save_Jnem(nphases, 0); swap(Jnem,  save_Jnem);
+    vector<double> save_Jpol(nphases, 0); swap(Jpol,  save_Jpol);
+    vector<double> save_Knem(nphases, 0); swap(Knem,  save_Knem);
+    vector<double> save_Wnem(nphases, 0); swap(Wnem,  save_Wnem);
 
     if(relax_nsubsteps) swap(nsubsteps, relax_nsubsteps);
 
@@ -52,7 +51,6 @@ void Model::Pre()
     swap(Jpol, save_Jpol);
     swap(Dnem, save_Dnem);
     swap(Dpol, save_Dpol);
-    swap(Kpol, save_Kpol);
     swap(Knem, save_Knem);
     swap(Wnem, save_Wnem);
   }
@@ -124,10 +122,14 @@ void Model::UpdateSumsAtNode(unsigned n, unsigned q)
   thirdp[k]  += p*p*p;
   fourthp[k] += p*p*p*p;
   sumA[k]    += p*p*area[n];
-  sumS00[k]  += p*S00[n]*zetaS[n];
-  sumS01[k]  += p*S01[n]*zetaS[n];
-  sumQ00[k]  += p*Q00[n]*zetaQ[n];
-  sumQ01[k]  += p*Q01[n]*zetaQ[n];
+  sumS00zeta[k]  += p*S00[n]*zetaS[n];
+  sumS01zeta[k]  += p*S01[n]*zetaS[n];
+  sumQ00zeta[k]  += p*Q00[n]*zetaQ[n];
+  sumQ01zeta[k]  += p*Q01[n]*zetaQ[n];
+  sumS00[k]  += p*S00[n];
+  sumS01[k]  += p*S01[n];
+  sumQ00[k]  += p*Q00[n];
+  sumQ01[k]  += p*Q01[n];
   P0[k]      += p*polarization[n][0];
   P1[k]      += p*polarization[n][1];
   U0[k]      += p*velocity[n][0];
@@ -173,23 +175,20 @@ void Model::UpdatePotAtNode(unsigned n, unsigned q)
 void Model::UpdateForcesAtNode(unsigned n, unsigned q)
 {
   const auto  k  = GetIndexFromPatch(n, q);
-  const auto& s  = neighbors[k];
   const auto& sq = neighbors_patch[q];
 
   const auto dx  = derivX(phi[n], sq);
   const auto dy  = derivY(phi[n], sq);
-  const auto dxs = derivX(sum, s);
-  const auto dys = derivY(sum, s);
 
-  stress_xx[k] = - pressure[k] - sumS00[k] - sumQ00[k];
-  stress_yy[k] = - pressure[k] + sumS00[k] + sumQ00[k];
-  stress_xy[k] = - sumS01[k] - sumQ01[k];
+  stress_xx[k] = - pressure[k] - sumS00zeta[k] - sumQ00zeta[k];
+  stress_yy[k] = - pressure[k] + sumS00zeta[k] + sumQ00zeta[k];
+  stress_xy[k] = - sumS01zeta[k] - sumQ01zeta[k];
 
   Fpressure[n] += { pressure[k]*dx, pressure[k]*dy };
-  Fshape[n]    += { sumS00[k]*dx + sumS01[k]*dy,
-                    sumS01[k]*dx - sumS00[k]*dy };
-  Fnem[n]      += { sumQ00[k]*dx + sumQ01[k]*dy,
-                    sumQ01[k]*dx - sumQ00[k]*dy };
+  Fshape[n]    += { sumS00zeta[k]*dx + sumS01zeta[k]*dy,
+                    sumS01zeta[k]*dx - sumS00zeta[k]*dy };
+  Fnem[n]      += { sumQ00zeta[k]*dx + sumQ01zeta[k]*dy,
+                    sumQ01zeta[k]*dx - sumQ00zeta[k]*dy };
 
   // store derivatives
   phi_dx[n][q] = dx;
@@ -198,12 +197,6 @@ void Model::UpdateForcesAtNode(unsigned n, unsigned q)
   // nematic torques
   tau[n]       += sumQ00[k]*Q01[n] - sumQ01[k]*Q00[n];
   vorticity[n] += U0[k]*dy - U1[k]*dx;
-
-  // polarisation torques (not super nice)
-  const double ovlap = -(dx*(dxs-dx)+dy*(dys-dy));
-  const vec<double, 2> P = {P0[k]-phi[n][q]*polarization[n][0], P1[k]-phi[n][q]*polarization[n][1]};
-  delta_theta_pol[n] += ovlap*atan2(P[0]*polarization[n][1]-P[1]*polarization[n][0],
-                                    P[0]*polarization[n][0]+P[1]*polarization[n][1]);
 }
 
 void Model::UpdatePhaseFieldAtNode(unsigned n, unsigned q, bool store)
@@ -303,7 +296,6 @@ void Model::UpdatePolarization(unsigned n, bool store)
   }
 
   theta_pol[n] = theta_pol_old[n] - time_step*(
-      + Kpol[n]*delta_theta_pol[n]
       + Jpol[n]*ff.abs()*atan2(ff[0]*polarization[n][1]-ff[1]*polarization[n][0], ff*polarization[n]));
   polarization[n] = { Spol[n]*cos(theta_pol[n]), Spol[n]*sin(theta_pol[n]) };
 }
@@ -356,6 +348,10 @@ void Model::ReinitSumsAtNode(unsigned k)
   sumS01[k] = 0;
   sumQ00[k] = 0;
   sumQ01[k] = 0;
+  sumS00zeta[k] = 0;
+  sumS01zeta[k] = 0;
+  sumQ00zeta[k] = 0;
+  sumQ01zeta[k] = 0;
   pressure[k] = 0;
   U0[k] = 0;
   U1[k] = 0;
@@ -391,7 +387,7 @@ void Model::Update(bool store, unsigned nstart)
   for(unsigned n=nstart; n<nphases; ++n)
   {
     Fpol[n] = Fshape[n] = Fpressure[n] = {0, 0};
-    delta_theta_pol[n] = tau[n] = vorticity[n] = 0;
+    tau[n] = vorticity[n] = 0;
 
     // update in restricted patch only
     for(unsigned q=0; q<patch_N; ++q)
