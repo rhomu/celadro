@@ -64,9 +64,9 @@ struct Model
   /** Sum of phi at each node */
   field sum;
   /** Sum_i S_i phi_i */
-  field sumS00, sumS01;
+  field sumS00, sumS01, sumS00zeta, sumS01zeta;
   /** Sum_i Q_i phi_i */
-  field sumQ00, sumQ01;
+  field sumQ00, sumQ01, sumQ00zeta, sumQ01zeta;
   /** Sum_i Area_i phi_i */
   field sumA;
   /** Sum of square, third, and fourth powers of phi at each node */

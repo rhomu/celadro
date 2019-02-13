@@ -122,10 +122,14 @@ void Model::UpdateSumsAtNode(unsigned n, unsigned q)
   thirdp[k]  += p*p*p;
   fourthp[k] += p*p*p*p;
   sumA[k]    += p*p*area[n];
-  sumS00[k]  += p*S00[n]*zetaS[n];
-  sumS01[k]  += p*S01[n]*zetaS[n];
-  sumQ00[k]  += p*Q00[n]*zetaQ[n];
-  sumQ01[k]  += p*Q01[n]*zetaQ[n];
+  sumS00zeta[k]  += p*S00[n]*zetaS[n];
+  sumS01zeta[k]  += p*S01[n]*zetaS[n];
+  sumQ00zeta[k]  += p*Q00[n]*zetaQ[n];
+  sumQ01zeta[k]  += p*Q01[n]*zetaQ[n];
+  sumS00[k]  += p*S00[n];
+  sumS01[k]  += p*S01[n];
+  sumQ00[k]  += p*Q00[n];
+  sumQ01[k]  += p*Q01[n];
   P0[k]      += p*polarization[n][0];
   P1[k]      += p*polarization[n][1];
   U0[k]      += p*velocity[n][0];
@@ -176,15 +180,15 @@ void Model::UpdateForcesAtNode(unsigned n, unsigned q)
   const auto dx  = derivX(phi[n], sq);
   const auto dy  = derivY(phi[n], sq);
 
-  stress_xx[k] = - pressure[k] - sumS00[k] - sumQ00[k];
-  stress_yy[k] = - pressure[k] + sumS00[k] + sumQ00[k];
-  stress_xy[k] = - sumS01[k] - sumQ01[k];
+  stress_xx[k] = - pressure[k] - sumS00zeta[k] - sumQ00zeta[k];
+  stress_yy[k] = - pressure[k] + sumS00zeta[k] + sumQ00zeta[k];
+  stress_xy[k] = - sumS01zeta[k] - sumQ01zeta[k];
 
   Fpressure[n] += { pressure[k]*dx, pressure[k]*dy };
-  Fshape[n]    += { sumS00[k]*dx + sumS01[k]*dy,
-                    sumS01[k]*dx - sumS00[k]*dy };
-  Fnem[n]      += { sumQ00[k]*dx + sumQ01[k]*dy,
-                    sumQ01[k]*dx - sumQ00[k]*dy };
+  Fshape[n]    += { sumS00zeta[k]*dx + sumS01zeta[k]*dy,
+                    sumS01zeta[k]*dx - sumS00zeta[k]*dy };
+  Fnem[n]      += { sumQ00zeta[k]*dx + sumQ01zeta[k]*dy,
+                    sumQ01zeta[k]*dx - sumQ00zeta[k]*dy };
 
   // store derivatives
   phi_dx[n][q] = dx;
@@ -344,6 +348,10 @@ void Model::ReinitSumsAtNode(unsigned k)
   sumS01[k] = 0;
   sumQ00[k] = 0;
   sumQ01[k] = 0;
+  sumS00zeta[k] = 0;
+  sumS01zeta[k] = 0;
+  sumQ00zeta[k] = 0;
+  sumQ01zeta[k] = 0;
   pressure[k] = 0;
   U0[k] = 0;
   U1[k] = 0;

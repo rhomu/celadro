@@ -50,6 +50,10 @@ void Model::Initialize()
   sumS01.resize(N, 0.);
   sumQ00.resize(N, 0.);
   sumQ01.resize(N, 0.);
+  sumS00zeta.resize(N, 0.);
+  sumS01zeta.resize(N, 0.);
+  sumQ00zeta.resize(N, 0.);
+  sumQ01zeta.resize(N, 0.);
   square.resize(N, 0.);
   thirdp.resize(N, 0.);
   fourthp.resize(N, 0.);
