@@ -6,7 +6,15 @@ Phase-field modelling of epithelial cells using finite-difference integrator.
 
 ## Publications
 
-TBD
+This code has served as a basis for the simulations included in the following papers:
+
+- Emergence of active nematic behavior in monolayers of isotropic cells<br/>
+  R Mueller, JM Yeomans, A Doostmohammadi<br/>
+  Physical review letters 122 (4), 048004<br/>
+  [Movie 1](https://arxiv.org/src/1811.05040v2/anc/movie_1.mp4) [Movie 1](https://arxiv.org/src/1811.05040v2/anc/movie_2.mp4)
+- Sustained oscillations of epithelial cell sheets<br/>
+  G Peyret, R Mueller, J d'Alessandro, et al.<br/>
+  bioRxiv, 492082
 
 ## Building
 
