@@ -49,9 +49,10 @@ class archive(archive_base.archive):
             phi.append(p)
         frame.phi = phi
 
-        frame.stress_xx.shape = (lx, ly)
-        frame.stress_xy.shape = (lx, ly)
-        frame.stress_yy.shape = (lx, ly)
+        if hasattr(frame, 'stress_xx'):
+            frame.stress_xx.shape = (lx, ly)
+            frame.stress_xy.shape = (lx, ly)
+            frame.stress_yy.shape = (lx, ly)
 
         return frame
 

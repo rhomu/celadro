@@ -3,7 +3,7 @@
 # Celadro: Cells as active droplets
 
 Phase-field modelling of epithelial cells using finite-difference integrator.<br/>
-[Example movie 1](movie1.mp4) [Example movie 2](movie2.mp4)
+[Example movie 1](movie1.mp4?raw=true) [Example movie 2](movie2.mp4?raw=true)
 
 ## Publications
 

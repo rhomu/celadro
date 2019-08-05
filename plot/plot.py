@@ -1,4 +1,4 @@
-# This file is part of CELADRO, Copyright (C) 2016-17, Romain Mueller
+# This file is part of CELADRO, Copyright (C) 2016-19, Romain Mueller
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,6 +19,18 @@ from math import sqrt, pi, atan2, cos, sin
 from matplotlib.colors import LinearSegmentedColormap
 from scipy import ndimage
 from itertools import product
+
+
+def _update_dict(d, k, v):
+    """
+    Update dictionary with k:v pair if k is not in d.
+
+    Args:
+        d: The dictionary to update.
+        k, v: The key/value pair.
+    """
+    if k not in d:
+        d[k] = v
 
 
 def _get_field(phases, vals, size=1, mode='wrap'):
@@ -328,7 +340,7 @@ def defects(Q00, Q01, engine=plt, arrow_len=0):
             engine.plot(d["pos"][0], d["pos"][1], 'b^')
 
 
-def cell(frame, i, engine=plt, color='k'):
+def cell(frame, i, engine=plt, **kwargs):
     """
     Plot a single phase field as a contour.
 
@@ -337,13 +349,14 @@ def cell(frame, i, engine=plt, color='k'):
         i: Index of the cell to plot.
         engine: Plotting engine or axis.
         color: Color to use for the contour.
+        **kwargs: Keyword arguments passed to contour().
     """
     p = frame.phi[i]
+    _update_dict(kwargs, 'color', 'k')
+    _update_dict(kwargs, 'levels', [.5])
     engine.contour(np.arange(0, frame.parameters['Size'][0]),
                    np.arange(0, frame.parameters['Size'][1]),
-                   p.T,
-                   levels=[.5],
-                   colors=color)
+                   p.T, **kwargs)
 
 
 def cells(frame, engine=plt, colors='k'):
@@ -437,14 +450,16 @@ def com(frame, engine=plt):
         engine.plot(c[0], c[1], 'ro')
 
 
-def shape(frame, engine=plt):
+def shape(frame, engine=plt, **kwargs):
     """
     Print shape tensor of each cell as the director of a nematic tensor.
 
     Args:
         frame: Frame to plot, from archive module.
         engine: Plotting engine or axis.
+        **kwargs: Keyword arguments passed to the arrow function.
     """
+    _update_dict(kwargs, 'color', 'k')
     for i in range(frame.nphases):
         Q00 = frame.S00[i]
         Q01 = frame.S01[i]
@@ -454,11 +469,11 @@ def shape(frame, engine=plt):
         ny = sin(w)
         c = frame.com[i]
         a = S
-        engine.arrow(c[0], c[1],  a*nx,  a*ny, color='k')
-        engine.arrow(c[0], c[1], -a*nx, -a*ny, color='k')
+        engine.arrow(c[0], c[1],  a*nx,  a*ny, **kwargs)
+        engine.arrow(c[0], c[1], -a*nx, -a*ny, **kwargs)
 
 
-def director(Qxx, Qxy, avg=1, scale=False, engine=plt):
+def director(Qxx, Qxy, avg=1, scale=False, engine=plt, **kwargs):
     """
     Plot director field associated with a given nematic field.
 
@@ -467,6 +482,7 @@ def director(Qxx, Qxy, avg=1, scale=False, engine=plt):
         avg: Coarse-graining size.
         scale: Scale factor that controls the size of the director.
         engine: Plotting engine or axis.
+        **kwargs: Keyword arguments passed to the plot function.
     """
 
     # obtain S, nx, and ny
@@ -494,11 +510,13 @@ def director(Qxx, Qxy, avg=1, scale=False, engine=plt):
         y.append(j + .5 + f*ny[i, j]/2.)
         y.append(None)
 
-    engine.plot(x, y, color='k', linestyle='-', linewidth=1)
+    _update_dict(kwargs, 'linestyle', '-')
+    _update_dict(kwargs, 'linewidth', 1)
+    engine.plot(x, y, **kwargs)
 
 
 def nematic_field(frame, size=1, avg=1, show_def=False, arrow_len=0,
-                  engine=plt):
+                  engine=plt, **kwargs):
     """
     Plot nematic field associated with the internal degree of freedom
 
@@ -509,6 +527,7 @@ def nematic_field(frame, size=1, avg=1, show_def=False, arrow_len=0,
         show_def: If true, show defects.
         arrow_len: If non-zero, prints defect speed.
         engine: Plotting engine or axis.
+        **kwargs: Keyword arguments passed to the director function.
     """
     # get field
     mode = 'wrap' if frame.parameters['BC'] == 0 else 'constant'
@@ -520,11 +539,11 @@ def nematic_field(frame, size=1, avg=1, show_def=False, arrow_len=0,
     if show_def:
         defects(Qxx, Qxy, engine=engine, arrow_len=arrow_len)
     # plot
-    director(Qxx, Qxy, avg=avg, engine=engine)
+    director(Qxx, Qxy, avg=avg, engine=engine, **kwargs)
 
 
 def shape_field(frame, size=1, avg=1, show_def=False, arrow_len=0,
-                engine=plt):
+                engine=plt, **kwargs):
     """
     Plot nematic field associated with the shape tensor of each cell.
 
@@ -535,6 +554,7 @@ def shape_field(frame, size=1, avg=1, show_def=False, arrow_len=0,
         show_def: If true, show defects.
         arrow_len: If non-zero, prints defect speed.
         engine: Plotting engine or axis.
+        **kwargs: Keyword arguments passed to the director function.
     """
     # get field
     mode = 'wrap' if frame.parameters['BC'] == 0 else 'constant'
@@ -546,7 +566,7 @@ def shape_field(frame, size=1, avg=1, show_def=False, arrow_len=0,
     if show_def:
         defects(Qxx, Qxy, engine=engine, arrow_len=arrow_len)
     # plot
-    director(Qxx, Qxy, avg=avg, engine=engine)
+    director(Qxx, Qxy, avg=avg, engine=engine, **kwargs)
 
 
 def velocity_field(frame, size=15, engine=plt, magn=True, cbar=True, avg=1):
