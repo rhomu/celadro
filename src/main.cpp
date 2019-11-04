@@ -198,7 +198,6 @@ void Model::Setup(int argc, char **argv)
   {
     if(verbose) cout << "create output directory " << " ...";
     try {
-      ClearOutput();
       CreateOutputDir();
     } catch(...) {
       if(verbose) cout << " error" << endl;

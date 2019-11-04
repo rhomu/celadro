@@ -97,7 +97,7 @@ void Model::ClearOutput()
     {
       // ask
       char answ = 0;
-      cout << "remove output file '" << fname << "'? ";
+      cout << " remove output file '" << fname << "'? ";
       cin >> answ;
 
       if(answ != 'y' and answ != 'Y')
@@ -124,7 +124,7 @@ void Model::ClearOutput()
     {
       // ask
       char answ = 0;
-      cout << "remove output files in directory '" << output_dir << "'? ";
+      cout << " remove output files in directory '" << output_dir << "'? ";
       cin >> answ;
 
       if(answ != 'y' and answ != 'Y')
@@ -133,7 +133,7 @@ void Model::ClearOutput()
     }
 
     // delete all output files
-    remove_file(output_dir+"/");
+    remove_file(output_dir);
   }
 }
 
@@ -151,6 +151,9 @@ void Model::CreateOutputDir()
   else
     // note that runname can not be empty from options.cpp
     output_dir = runname + ( runname.back()=='/' ? "" : "/" );
+
+  // clear output if needed
+  ClearOutput();
 
   // create output dir if needed
   create_directory(output_dir);
