@@ -1,0 +1,43 @@
+#
+# Sample runcard showing cells moving on a substrate
+#
+
+config     = random
+nsteps     = 3000
+ninfo      = 20
+LX         = 50
+LY         = 50
+nsubsteps  = 5
+bc         = 0
+margin     = 25
+relax-time = 200
+noise      = 0
+substrate  = 1
+
+# model parameters...
+# ...number of phases
+nphases = 15
+# ...elastic constants for each phase
+gamma   = .02
+# ...area energy penalty for each phase
+mu      = 5
+# ...interface thickness parameter
+lambda  = 3
+# ...interaction strength
+kappa = .2
+# ...preferred radius (in units of lattice spacing)
+R     = 8
+# ...cell-substrate friction
+xi    = 1
+
+# nematic dynamics...
+zetaQ = 1e-6
+S-nem = 1
+K-nem = 1e-6
+J-nem = 5e-2
+W-nem = 0 # 3e-4
+
+# substrate properties
+substrate-gamma = -8e-3
+substrate-A = 1.2e-4
+substrate-C = 2.5e-4
