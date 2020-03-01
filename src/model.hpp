@@ -1,5 +1,5 @@
 /*
- * This file is part of CELADRO, Copyright (C) 2016-17, Romain Mueller
+ * This file is part of CELADRO, Copyright (C) 2016-20, Romain Mueller
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -249,15 +249,36 @@ struct Model
   double Dpol = 0, Dnem = 0;
 
   /** @} */
+
+  /** Substrate fields and properties
+   * @{ */
+
+  /** Scalar field of the substrate and difference */
+  field substrate_phi;
+  /** Predicted phi and phi difference in a P(C)^n step */
+  field substrate_phi_old, substrate_dphi_old;
+  /** Second order derivatives of the phi field */
+  field substrate_dxx_phi, substrate_dyy_phi;
+
+  /** TBD */
+  double substrate_gamma = -0.08;
+  /** TBD */
+  double substrate_A = 1.2e-3;
+  /** TBD */
+  double substrate_C = 2.5e-3;
+
+  /** @} */
+
+
+#ifdef _OPENMP
   /** Multi-threading parameters
    * @{ */
-  #ifdef _OPENMP
 
   /** number of threads */
   unsigned nthreads;
 
-  #endif
   /** @} */
+#endif
 
   // ===========================================================================
   // Options. Implemented in options.cpp
@@ -296,6 +317,8 @@ struct Model
   std::string init_config;
   /** Boundary conditions flag */
   unsigned BC = 0;
+  /** Type of substrate to simulate */
+  int substrate_type = 0;
   /** Noise level for the nematic tensor initial configuration */
   double noise = 1;
   /** Wall thickness */
@@ -519,6 +542,12 @@ struct Model
   void UpdateStructureTensorAtNode(unsigned, unsigned);
 
   /** Subfunction for update */
+  void UpdateSubstrateDerivativesAtNode(unsigned);
+
+  /** Subfunction for update */
+  void UpdateSubstrateAtNode(unsigned, bool);
+
+  /** Subfunction for update */
   void UpdateSumsAtNode(unsigned, unsigned);
 
   /** Subfunction for update */
@@ -588,7 +617,11 @@ struct Model
        & auto_name(Dpol)
        & auto_name(Dnem)
        & auto_name(margin)
-       & auto_name(patch_size);
+       & auto_name(patch_size)
+       & auto_name(substrate_type)
+       & auto_name(substrate_gamma)
+       & auto_name(substrate_A)
+       & auto_name(substrate_C);
   }
 
   /** Serialization of parameters (in and out) */
@@ -615,7 +648,7 @@ struct Model
        & auto_name(theta_pol)
        & auto_name(theta_nem)
        & auto_name(patch_min)
-       & auto_name(patch_max);
+       & auto_name(substrate_phi);
   }
 
   // ===========================================================================

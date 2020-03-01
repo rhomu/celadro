@@ -1,5 +1,5 @@
 /*
- * This file is part of CELADRO, Copyright (C) 2016-17, Romain Mueller
+ * This file is part of CELADRO, Copyright (C) 2016-20, Romain Mueller
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,7 +33,7 @@ string title = R"(
                 \____/\___/_/\__,_/\__,_/_/   \____/
                 -----------------------------------
                  Celadro: Cells as active droplets
-                    (c) 2016-17, Romain Mueller
+                    (c) 2016-20, Romain Mueller
 
 )";
 

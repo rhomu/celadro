@@ -1,5 +1,5 @@
 /*
- * This file is part of CELADRO, Copyright (C) 2016-17, Romain Mueller
+ * This file is part of CELADRO, Copyright (C) 2016-20, Romain Mueller
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -67,7 +67,9 @@ void Model::ParseProgramOptions(int ac, char **av)
     ("nstart", opt::value<unsigned>(&nstart)->default_value(0u),
      "time at which to start the output")
     ("bc", opt::value<unsigned>(&BC)->default_value(0u),
-     "boundary conditions flag (0=pbc, 1=box, 2=channel, 3=ellipse)");
+     "boundary conditions flag (0=pbc, 1=box, 2=channel, 3=ellipse)")
+    ("substrate", opt::value<int>(&substrate_type)->default_value(0u),
+     "Substrate type (0=none, 1=TBD)");
 
   // model specific options
   opt::options_description simulation("Simulation options");
@@ -84,7 +86,20 @@ void Model::ParseProgramOptions(int ac, char **av)
     ("ninfo", opt::value<unsigned>(&ninfo),
      "save frame every so many steps")
     ("nphases", opt::value<unsigned>(&nphases),
-      "Number of phases")
+      "Number of phases (cells)")
+    ("npc", opt::value<unsigned>(&npc)->default_value(1u),
+      "Number of predictor-corrector steps")
+    ("margin", opt::value<unsigned>(&margin)->default_value(0u),
+      "Margin for the definition of restricted domains (if 0: update full box)")
+    ("wall-thickness", opt::value<double>(&wall_thickness),
+      "Wall thickness (typical decay length)")
+    ("wall-kappa", opt::value<double>(&wall_kappa)->default_value(kappa),
+      "Wall repulsion")
+    ("wall-omega", opt::value<double>(&wall_omega)->default_value(0.),
+      "Wall adhesion");
+
+  opt::options_description cells("Cell options");
+  cells.add_options()
     ("gamma", opt::value<double>(&gam),
       "Elastic constant of each phase (array)")
     ("mu", opt::value<double>(&mu),
@@ -93,10 +108,6 @@ void Model::ParseProgramOptions(int ac, char **av)
       "Interface thickness parameter")
     ("kappa", opt::value<double>(&kappa),
       "Interaction strength")
-    ("npc", opt::value<unsigned>(&npc)->default_value(1u),
-      "Number of predictor-corrector steps")
-    ("margin", opt::value<unsigned>(&margin)->default_value(0u),
-      "Margin for the definition of restricted domains (if 0: update full box)")
     //("friction", opt::value<double>(&f),
     //  "Cell-cell friction parameter")
     //("friction-walls", opt::value<double>(&f_walls),
@@ -131,18 +142,21 @@ void Model::ParseProgramOptions(int ac, char **av)
      "Activity from shape")
     ("omega", opt::value<double>(&omega),
       "Adhesion parameter")
-    ("wall-thickness", opt::value<double>(&wall_thickness),
-      "Wall thickness (typical decay length)")
-    ("wall-kappa", opt::value<double>(&wall_kappa)->default_value(kappa),
-      "Wall repulsion")
-    ("wall-omega", opt::value<double>(&wall_omega)->default_value(0.),
-      "Wall adhesion")
     ("R", opt::value<double>(&R),
       "Preferred radius (defines area Pi*R*R)")
     ("align-polarization-to", opt::value<int>(&align_polarization_to),
      "Align polarization to velocity (=0) or pressure force (=1)")
     ("align-nematic-to", opt::value<int>(&align_nematic_to),
      "Align nematic tensor to velocity (=0), pressure force (=1), or shape (=2)");
+
+  opt::options_description substrate("Substrate options");
+  substrate.add_options()
+    ("substrate-gamma", opt::value<double>(&substrate_gamma),
+      "Gamma parameter for the substrate")
+    ("substrate-A", opt::value<double>(&substrate_A),
+      "A parameter for the substrate")
+    ("substrate-C", opt::value<double>(&substrate_C),
+      "C parameter for the substrate");
 
   // init config options
   opt::options_description init("Initial configuration options");
@@ -171,10 +185,21 @@ void Model::ParseProgramOptions(int ac, char **av)
 
   // command line options
   opt::options_description cmdline_options;
-  cmdline_options.add(generic).add(config).add(simulation).add(init);
+  cmdline_options
+    .add(generic)
+    .add(config)
+    .add(simulation)
+    .add(cells)
+    .add(substrate)
+    .add(init);
   // config file options
   opt::options_description config_file_options;
-  config_file_options.add(config).add(simulation).add(init);
+  config_file_options
+    .add(config)
+    .add(simulation)
+    .add(cells)
+    .add(substrate)
+    .add(init);
 
   // first unnamed argument is the input file
   opt::positional_options_description p;

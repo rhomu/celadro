@@ -1,5 +1,5 @@
 /*
- * This file is part of CELADRO, Copyright (C) 2016-17, Romain Mueller
+ * This file is part of CELADRO, Copyright (C) 2016-20, Romain Mueller
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -58,19 +58,36 @@ void Model::Initialize()
   U0.resize(N, 0.);
   U1.resize(N, 0.);
 
+  // initialize substrate
+  if(substrate_type)
+  {
+    substrate_phi.resize(N);
+    substrate_phi_old.resize(N);
+    substrate_dphi_old.resize(N);
+    substrate_dxx_phi.resize(N);
+    substrate_dyy_phi.resize(N);
+
+    // set phi to small non-zero random values
+    for(unsigned k=0; k<N; ++k)
+      substrate_phi[k] = random_real(-1e-2, 1e-2);
+  }
+
   // allocate memory for individual cells
   SetCellNumber(nphases);
 
   // ---------------------------------------------------------------------------
 
+  // compute the sign of the activity coefficients
   if(zetaQ!=0.) sign_zetaQ = zetaQ>0. ? 1 : -1;
   if(zetaS!=0.) sign_zetaS = zetaS>0. ? 1 : -1;
 
   // compute tables
   for(unsigned i=0; i<Size[0]; ++i)
-    com_x_table.push_back({ cos(-Pi+2.*Pi*i/Size[0]), sin(-Pi+2.*Pi*i/Size[0]) });
+    com_x_table.push_back({ cos(-Pi+2.*Pi*i/Size[0]),
+                            sin(-Pi+2.*Pi*i/Size[0]) });
   for(unsigned i=0; i<Size[1]; ++i)
-    com_y_table.push_back({ cos(-Pi+2.*Pi*i/Size[1]), sin(-Pi+2.*Pi*i/Size[1]) });
+    com_y_table.push_back({ cos(-Pi+2.*Pi*i/Size[1]),
+                            sin(-Pi+2.*Pi*i/Size[1]) });
 
   // ---------------------------------------------------------------------------
 
@@ -86,6 +103,9 @@ void Model::Initialize()
 
   if(wall_omega!=0)
     throw error_msg("Wall adhesion is not working for the moment.");
+
+  if(substrate_type and BC!=0)
+    throw error_msg("Substrate is only supported with PBC for the moment.");
 
   // ---------------------------------------------------------------------------
 
@@ -145,7 +165,8 @@ void Model::InitializeNeighbors()
     const unsigned y = GetYPosition(k);
     for(int dx=-1; dx<=1; ++dx)
       for(int dy=-1; dy<=1; ++dy)
-        neighbors[k][dx][dy] = GetIndex({(x+Size[0]+dx)%Size[0], (y+Size[1]+dy)%Size[1]});
+        neighbors[k][dx][dy] = GetIndex({ (x+Size[0]+dx)%Size[0],
+                                          (y+Size[1]+dy)%Size[1] });
   }
 
   // define the neighbours, accounting for the boundary layer

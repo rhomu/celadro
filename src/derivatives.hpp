@@ -1,5 +1,5 @@
 /*
- * This file is part of CELADRO, Copyright (C) 2016-17, Romain Mueller
+ * This file is part of CELADRO, Copyright (C) 2016-20, Romain Mueller
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,6 +33,18 @@ inline double derivX(const field& f, const stencil& s)
 inline double derivY(const field& f, const stencil& s)
 {
   return .5*( f[s[0][+1]] - f[s[0][-1]] );
+}
+
+/** Symmetric finite difference second derivative along the x direction */
+inline double derivXX(const field& f, const stencil& s)
+{
+  return f[s[+1][0]] + f[s[-1][0]] - 2.0*f[s[0][0]];
+}
+
+/** Symmetric finite difference second derivative along the y direction */
+inline double derivYY(const field& f, const stencil& s)
+{
+  return f[s[0][+1]] + f[s[0][-1]] - 2.0*f[s[0][0]];
 }
 
 /** Five-point finite difference laplacian */

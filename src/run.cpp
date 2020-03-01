@@ -1,5 +1,5 @@
 /*
- * This file is part of CELADRO, Copyright (C) 2016-17, Romain Mueller
+ * This file is part of CELADRO, Copyright (C) 2016-20, Romain Mueller
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -105,9 +105,9 @@ void Model::RuntimeChecks()
     for(const auto v : phi[n]) if(v<.5) a += v*v;
     // check that it is less than 5%
     if(a/area[n]>.90)
-      throw warning_msg("your cells are leaking!");
+      throw warning_msg("cells are loosing their phase field!");
 
-    // check that the phase fields stay between 0 and 1
+    // check that the phase fields stay roughly between 0 and 1
     for(const auto& p : phi[n])
       if(p<-0.5 or p>1.5)
         throw warning_msg("phase-field is not in [0,1]!");
@@ -201,7 +201,8 @@ void Model::UpdateForcesAtNode(unsigned n, unsigned q)
 
   // polarisation torques (not super nice)
   const double ovlap = -(dx*(dxs-dx)+dy*(dys-dy));
-  const vec<double, 2> P = {P0[k]-phi[n][k]*polarization[n][0], P1[k]-phi[n][k]*polarization[n][1]};
+  const vec<double, 2> P = { P0[k]-phi[n][k]*polarization[n][0],
+                             P1[k]-phi[n][k]*polarization[n][1] };
   delta_theta_pol[n] += ovlap*atan2(P[0]*polarization[n][1]-P[1]*polarization[n][0],
                                     P[0]*polarization[n][0]+P[1]*polarization[n][1]);
 }
@@ -304,7 +305,9 @@ void Model::UpdatePolarization(unsigned n, bool store)
 
   theta_pol[n] = theta_pol_old[n] - time_step*(
       + Kpol*delta_theta_pol[n]
-      + Jpol*ff.abs()*atan2(ff[0]*polarization[n][1]-ff[1]*polarization[n][0], ff*polarization[n]));
+      + Jpol*ff.abs()*atan2(ff[0]*polarization[n][1]-ff[1]*polarization[n][0],
+                            ff*polarization[n])
+  );
   polarization[n] = { Spol*cos(theta_pol[n]), Spol*sin(theta_pol[n]) };
 }
 
@@ -393,7 +396,7 @@ void Model::Update(bool store, unsigned nstart)
     Fpol[n] = Fshape[n] = Fpressure[n] = {0, 0};
     delta_theta_pol[n] = tau[n] = vorticity[n] = 0;
 
-    // update in restricted patch only
+    // update only patch (not in parallel)
     for(unsigned q=0; q<patch_N; ++q)
       UpdateForcesAtNode(n, q);
 
@@ -401,6 +404,18 @@ void Model::Update(bool store, unsigned nstart)
     tau[n]     /= lambda;
     Fpol[n]     = alpha*polarization[n];
     velocity[n] = (Fpressure[n] + Fnem[n] + Fshape[n] + Fpol[n])/xi;
+  }
+
+  // Update substrate
+  if(substrate_type)
+  {
+    PRAGMA_OMP(omp parallel for num_threads(nthreads) if(nthreads))
+    for(unsigned k=0; k<N; ++k)
+      UpdateSubstrateDerivativesAtNode(k);
+
+    PRAGMA_OMP(omp parallel for num_threads(nthreads) if(nthreads))
+    for(unsigned k=0; k<N; ++k)
+      UpdateSubstrateAtNode(k, store);
   }
 
   // Predictor-corrector function for updating the phase fields
