@@ -33,9 +33,9 @@ void Model::ParseProgramOptions(int ac, char **av)
     ("verbose,v", opt::value<unsigned>(&verbose)->implicit_value(2),
      "verbosity level (0=none, 1=little, 2=normal, 3=debug)")
     ("input,i", opt::value<string>(&inputname),
-     "input file")
+     "input directory")
     ("force-delete,f", opt::bool_switch(&force_delete),
-     "force deletion of existing output file")
+     "force deletion of existing output files")
 #ifdef _OPENMP
     ("threads,t",
      opt::value<unsigned>(&nthreads)->default_value(0)->implicit_value(1),
@@ -44,18 +44,8 @@ void Model::ParseProgramOptions(int ac, char **av)
 #endif
     ("compress,c", opt::bool_switch(&compress),
      "compress individual files using zip")
-    ("compress-full", opt::bool_switch(&compress_full),
-     "compress full output using zip (might be slow)")
     ("no-write", opt::bool_switch(&no_write),
-     "disable file output (for testing purposes)");
-
-  // options allowed both in the command line and config file
-  opt::options_description config("Program options");
-  config.add_options()
-    ("output,o", opt::value<string>(&runname),
-     "output name (if compression is on, then .zip is added automatically)")
-    ("seed", opt::value<unsigned long>(&seed),
-     "set seed for random number generation (random if unset)")
+     "disable file output (for testing purposes)")
     ("no-warning", opt::bool_switch(&no_warning),
      "disable model specific runtime warnings")
     ("stop-at-warning", opt::bool_switch(&stop_at_warning),
@@ -63,11 +53,7 @@ void Model::ParseProgramOptions(int ac, char **av)
     ("check", opt::bool_switch(&runtime_check),
      "perform runtime checks")
     ("stat", opt::bool_switch(&runtime_stats),
-     "print runtime stats")
-    ("nstart", opt::value<unsigned>(&nstart)->default_value(0u),
-     "time at which to start the output")
-    ("bc", opt::value<unsigned>(&BC)->default_value(0u),
-     "boundary conditions flag (0=pbc, 1=box, 2=channel, 3=ellipse)");
+     "print runtime stats");
 
   // model specific options
   opt::options_description simulation("Simulation options");
@@ -76,6 +62,12 @@ void Model::ParseProgramOptions(int ac, char **av)
      "# of nodes in the x direction")
     ("LY", opt::value<unsigned>(&Size[1]),
      "# of nodes in the y direction")
+    ("seed", opt::value<unsigned long>(&seed),
+     "set seed for random number generation (random if unset)")
+    ("nstart", opt::value<unsigned>(&nstart)->default_value(0u),
+     "time at which to start the output")
+    ("bc", opt::value<unsigned>(&BC)->default_value(0u),
+     "boundary conditions flag (0=pbc, 1=box, 2=channel, 3=ellipse)")
     ("nsteps", opt::value<unsigned>(&nsteps),
      "iterate this many steps in total")
     ("nsubsteps", opt::value<unsigned>(&nsubsteps)->default_value(1u),
@@ -83,12 +75,6 @@ void Model::ParseProgramOptions(int ac, char **av)
      "(effective time step is 1/nsubsteps)")
     ("ninfo", opt::value<unsigned>(&ninfo),
      "save frame every so many steps")
-    ("nphases", opt::value<unsigned>(&nphases),
-      "Number of phases")
-    ("gamma", opt::value<double>(&gam),
-      "Elastic constant of each phase (array)")
-    ("mu", opt::value<double>(&mu),
-      "Energy penalty for area of each phase (array)")
     ("lambda", opt::value<double>(&lambda),
       "Interface thickness parameter")
     ("kappa", opt::value<double>(&kappa),
@@ -97,52 +83,88 @@ void Model::ParseProgramOptions(int ac, char **av)
       "Number of predictor-corrector steps")
     ("margin", opt::value<unsigned>(&margin)->default_value(0u),
       "Margin for the definition of restricted domains (if 0: update full box)")
-    //("friction", opt::value<double>(&f),
-    //  "Cell-cell friction parameter")
-    //("friction-walls", opt::value<double>(&f_walls),
-    //  "Cell-wall friction parameter")
-    ("xi", opt::value<double>(&xi),
-      "Substrate friction parameter")
-    ("K-pol", opt::value<double>(&Kpol),
-     "elastic constant for the polarisation")
-    ("K-nem", opt::value<double>(&Knem),
-     "elastic constant for the nematic")
-    //("C-pol", opt::value<double>(&Cpol),
-    // "Strength of LdG potential for the polarisation")
-    ("J-pol", opt::value<double>(&Jpol),
-     "Nematic flow alignment strength")
-    ("J-nem", opt::value<double>(&Jnem),
-     "Nematic flow alignment strength")
-    ("W-nem", opt::value<double>(&Wnem),
-     "Strength of vorticity torque")
-    ("D-nem", opt::value<double>(&Dnem),
-      "Nematic noise strength")
-    ("D-pol", opt::value<double>(&Dpol),
-      "Polarisation noise strength")
-    ("S-nem", opt::value<double>(&Snem),
-      "Order of the nematic tensors")
-    ("S-pol", opt::value<double>(&Spol),
-      "Norm of the polarisation vector")
-    ("alpha", opt::value<double>(&alpha),
-     "Strength of propulsion")
-    ("zetaQ", opt::value<double>(&zetaQ),
-     "Activity from internal nematic tensor")
-    ("zetaS", opt::value<double>(&zetaS),
-     "Activity from shape")
     ("omega", opt::value<double>(&omega),
       "Adhesion parameter")
+    ("eta", opt::value<double>(&eta),
+      "Magnitude penalty of polarisation for CIL") 
+    ("wall-type", opt::value<string>(&wall_type)->default_value("nonadhesive"),
+      "type of walls:nonadhesive or hard") 
     ("wall-thickness", opt::value<double>(&wall_thickness),
       "Wall thickness (typical decay length)")
     ("wall-kappa", opt::value<double>(&wall_kappa)->default_value(kappa),
       "Wall repulsion")
     ("wall-omega", opt::value<double>(&wall_omega)->default_value(0.),
       "Wall adhesion")
-    ("R", opt::value<double>(&R),
+    ("obstacle-type", opt::value<string>(&obstacle_type)->default_value("nonadhesive"),
+      "type of obstacle:nonadhesive or hard") 
+    ("obstacle-radius", opt::value<int>(&obstacle_radius)->default_value(-1),
+    "the radius of the obstacle")
+    ("obstacle-center-x", opt::value<unsigned>(&obstacle_center_x)->default_value(Size[0]/2),
+    "x coordinate of the obstacle center")
+    ("obstacle-center-y", opt::value<unsigned>(&obstacle_center_y)->default_value(Size[1]/2),
+    "y coordinate of the obstacle center")
+    ("obstacle-omega", opt::value<double>(&obstacle_omega)->default_value(0.),
+      "obstacle adhesion")
+    ("obstacle-kappa", opt::value<double>(&obstacle_kappa)->default_value(kappa),
+      "obstacle repulsion")
+    ("align-polarization-to", opt::value<int>(&align_polarization_to)->default_value(0u),
+     "Align polarization to velocity (=0), pressure force (=1) or effective nematic director(=2)")
+    ("align-nematic-to", opt::value<int>(&align_nematic_to)->default_value(0u),
+     "Align nematic tensor to velocity (=0), pressure force (=1), or shape (=2)")
+    ("pol-distribution",opt::value<int>(&pol_distribution)->default_value(0u),
+    "Polarization distributed at the whole cell(=0) or at the front end of the cell(=1)")
+    ("self-deformation",opt::value<unsigned>(&self_deformation)->default_value(1u),
+    "cells are able to deform by them selves(=1) or not (=0)")
+    ("contact-inhibition",opt::value<bool>(&contact_inhibition)->default_value(false),
+    "contact inhibition of locamotion (=true) or not (=false)")
+    ("neighbour-tracking",opt::value<bool>(&neighbour_tracking)->default_value(false),
+      "true-traking neighbout false-not tracking neighbour");
+
+  // cells options
+  opt::options_description cells("Cells options");
+  cells.add_options()
+    ("nphases", opt::value<unsigned>(),
+      "Number of phases")
+    ("gamma", opt::value<double>(),
+     "Elastic constant of each phase (array)")
+    ("mu", opt::value<double>(),
+      "Energy penalty for area of each phase (array)")
+    ("R", opt::value<double>(),
       "Preferred radius (defines area Pi*R*R)")
-    ("align-polarization-to", opt::value<int>(&align_polarization_to),
-     "Align polarization to velocity (=0) or pressure force (=1)")
-    ("align-nematic-to", opt::value<int>(&align_nematic_to),
-     "Align nematic tensor to velocity (=0), pressure force (=1), or shape (=2)");
+    ("xi", opt::value<double>(),
+      "Substrate friction parameter")
+    ("alpha", opt::value<double>()->default_value(0),
+     "Strength of propulsion")
+     ("beta", opt::value<double>()->default_value(0),
+     "Strength of propulsion in the unit of targeted vector")
+    ("J-pol", opt::value<double>()->default_value(0),
+     "Nematic flow alignment strength")
+    ("S-pol", opt::value<double>()->default_value(0),
+      "Norm of the polarisation vector")
+    ("D-pol", opt::value<double>()->default_value(0),
+      "Polarisation noise strength")
+    ("K-pol", opt::value<double>()->default_value(0),
+     "elastic constant for the polarisation")
+    ("zetaQ", opt::value<double>()->default_value(0),
+     "Activity from internal nematic tensor")
+    ("zetaS", opt::value<double>()->default_value(0),
+     "Activity from shape")
+    ("K-nem", opt::value<double>()->default_value(0),
+     "elastic constant for the nematic")
+    ("J-nem", opt::value<double>()->default_value(0),
+     "Nematic flow alignment strength")
+    ("W-nem", opt::value<double>()->default_value(0),
+     "Strength of vorticity torque")
+    ("D-nem", opt::value<double>()->default_value(0),
+      "Nematic noise strength")
+    ("S-nem", opt::value<double>()->default_value(0),
+      "Order of the nematic tensors")
+    ("division", opt::value<bool>()->default_value(false),
+      "Does the cell and its descendents divide?")
+    ("division-rate", opt::value<double>()->default_value(0),
+      "Rate of division (in time steps)")
+    ("division-time", opt::value<double>()->default_value(100),
+      "Time scale for the division");
 
   // init config options
   opt::options_description init("Initial configuration options");
@@ -151,8 +173,12 @@ void Model::ParseProgramOptions(int ac, char **av)
       "Initial configuration")
     ("relax-time", opt::value<unsigned>(&relax_time)->default_value(0u),
       "Relaxation time steps at initialization.")
+    ("rm-confine-after-relax", opt::value<bool>(&rm_confine_after_relax)->default_value(false),
+      "remove confinement after relaxation steps(true) or not (false)")
     ("noise", opt::value<double>(&noise),
       "Noise level for initial nematic angle, in (0,1).")
+    ("confinement-ratio", opt::value<double>(&confinement_ratio),
+      "Ratio of the size of the confinement compared to the domain size (for BC=3)")
     ("cross-ratio", opt::value<double>(&cross_ratio),
       "Ratio of the size of the cross compared to the domain size (for BC=4)")
     ("wound-ratio", opt::value<double>(&wound_ratio),
@@ -164,19 +190,30 @@ void Model::ParseProgramOptions(int ac, char **av)
      "when the initial configuration 'random' is choosed. "
      "Format: {min x, max, x, min y, max y}")
     ("relax-nsubsteps", opt::value<unsigned>(&relax_nsubsteps)->default_value(0u),
-      "Value of nsubsteps to use at initial relaxation (0 means use nsubsteps).");
+      "Value of nsubsteps to use at initial relaxation (0 means use nsubsteps).")
+    ("initial-cell-configuration-file", opt::value<string>(&init_config_file),
+      "initial configuration of cells directory + file")
+    ("initial-cell-shape",opt::value<unsigned>(&init_cell_shape)->default_value(0u),
+      "Initial shape of cells(0 for circle, 1 for ellipse)")
+    ("initial-aspect-ratio",opt::value<double>(&init_aspect_ratio)->default_value(1u),
+      "Aspect ratio, if the initial shape of cells is ellipse")
+    ("initial-alignment",opt::value<string>(&init_alignment)->default_value("random"),
+      "initial polarization/nametic director alignemt");
 
   // ===========================================================================
   // Parsing
 
   // command line options
   opt::options_description cmdline_options;
-  cmdline_options.add(generic).add(config).add(simulation).add(init);
+  cmdline_options.add(generic);
   // config file options
   opt::options_description config_file_options;
-  config_file_options.add(config).add(simulation).add(init);
+  config_file_options.add(simulation).add(init);
+  // cells file options
+  opt::options_description cells_file_options;
+  cells_file_options.add(cells);
 
-  // first unnamed argument is the input file
+  // first unnamed argument is the input directory
   opt::positional_options_description p;
   p.add("input", 1);
 
@@ -194,35 +231,70 @@ void Model::ParseProgramOptions(int ac, char **av)
   // print help msg and exit
   if(vm.count("help"))
   {
+    cout << cmdline_options << endl;
     cout << config_file_options << endl;
+    cout << cells_file_options << endl;
     exit(0);
   }
 
-  // parse input file (values are not erased, such that cmd line args
-  // are 'stronger')
-  if(inputname.empty())
-    throw error_msg("please provide an input file / type -h for help.");
+  // parse main config file
+  if(inputname.empty() or not fs::is_directory(inputname))
+    throw error_msg("please provide an input directory. Type -h for help.");
   else
   {
-    std::fstream file(inputname.c_str(), std::fstream::in);
-    if(!file.good()) throw error_msg("can not open runcard file ", inputname);
+    string config_file_name = inputname + "/config.dat";
+    std::fstream file(config_file_name.c_str(), std::fstream::in);
+    if(!file.good())
+      throw error_msg("can not open runcard file ", config_file_name);
     opt::store(opt::parse_config_file(file, config_file_options), vm);
     opt::notify(vm);
   }
 
+  // parse cells files
+  for(auto& p: fs::directory_iterator(inputname + "/cells/"))
+  {
+    opt::variables_map vm;
+
+    std::fstream file(p.path().c_str(), std::fstream::in);
+    if(!file.good())
+      throw error_msg("can not open runcard file ", p.path());
+    opt::store(opt::parse_config_file(file, cells_file_options), vm);
+    
+    // add cells properties
+    nphases += vm["nphases"].as<unsigned>();
+
+    gam.resize(nphases, vm["gamma"].as<double>());
+    mu.resize(nphases, vm["mu"].as<double>());
+    R.resize(nphases, vm["R"].as<double>());
+    target_R.resize(nphases, vm["R"].as<double>());
+    xi.resize(nphases, vm["xi"].as<double>());
+    alpha.resize(nphases, vm["alpha"].as<double>());
+    beta.resize(nphases,vm["beta"].as<double>());
+    Dpol.resize(nphases, vm["D-pol"].as<double>());
+    Spol.resize(nphases, vm["S-pol"].as<double>());
+    Jpol.resize(nphases, vm["J-pol"].as<double>());
+    Dnem.resize(nphases, vm["D-nem"].as<double>());
+    Snem.resize(nphases, vm["S-nem"].as<double>());
+    Jnem.resize(nphases, vm["J-nem"].as<double>());
+    Knem.resize(nphases, vm["K-nem"].as<double>());
+    Wnem.resize(nphases, vm["W-nem"].as<double>());
+    zetaQ.resize(nphases, vm["zetaQ"].as<double>());
+    zetaS.resize(nphases, vm["zetaS"].as<double>());
+    division.resize(nphases, vm["division"].as<bool>());
+    division_time.resize(nphases, vm["division-time"].as<double>());
+    division_rate.resize(nphases, vm["division-rate"].as<double>());
+    types.resize(nphases, p.path().stem());
+
+    // store variable map in case we need it later
+    vm_cells.emplace_back(p.path().stem(), vm);
+  }
+
+  if(nphases==0)
+    throw error_msg("no cells found, add the relevant config files in the "
+                    "cell/ directory");
+
   // ===========================================================================
   // Fixing some secondary values
-
-  // fix compression mode: if we compress the full archive we do not compress
-  // individual files.
-  if(compress_full) compress=false;
-
-  // Set default value for runname (depends on compression)
-  if(vm.count("output")==0)
-  {
-    if(compress_full) runname = "output";
-    else runname = "./";
-  }
 
   // init random numbers?
   set_seed = vm.count("seed");
@@ -319,6 +391,11 @@ void print_vm(const opt::variables_map& vm, unsigned padding)
 
 void Model::PrintProgramOptions()
 {
-  // print the simulation parameters
   print_vm(vm, width);
+
+  for(const auto& p: vm_cells)
+  {
+    cout << "\nCell type " << p.first << ":" << endl;
+    print_vm(p.second, width);
+  }
 }

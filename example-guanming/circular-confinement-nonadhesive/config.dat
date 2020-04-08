@@ -1,0 +1,36 @@
+#circular confinement by nonadehsive walls 
+#polarization dynamics:CIL
+
+config     = random
+nsteps     = 6000
+ninfo      = 20
+LX         = 100
+LY         = 100
+nsubsteps  = 5
+bc         = 3
+margin     = 25
+relax-time = 2000
+align-polarization-to = 4
+# model parameters...
+# ...interface thickness parameter
+lambda  = 2
+# ...interaction strength
+kappa = .3
+
+omega = 2e-2
+
+neighbour-tracking = 1
+
+wall-type = nonadhesive
+
+confinement-ratio = 0.60
+
+contact-inhibition = 0
+
+pol-distribution = 0 #polarization at the whole cell
+
+initial-alignment = random
+ 
+eta = 5.0
+
+

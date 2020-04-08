@@ -20,7 +20,38 @@
 #include "derivatives.hpp"
 
 using namespace std;
-
+// add elongated cell at node
+void Model::AddElongatedCellAtNode(unsigned n,unsigned q,const coord& center, double ratio){
+	// A cell elongated along x direction is added
+    const auto      k = GetIndexFromPatch(n, q);
+    const unsigned xk = GetXPosition(k);
+    const unsigned yk = GetYPosition(k);
+    double semi_major = R[n]*sqrt(ratio); //length of semi_major axis for relaxation
+    double semi_minor = R[n]/sqrt(ratio); //length of semi_minor axis for relaxation
+    // A point (x0,y0) is inside a ellipse((x-xc)^2/a^2 + (y-yc)^/b^2 = 1)
+    // iff (x0-xc)^2/a^2 + (y0-yc)^2/b^2 < 1  
+    if(
+      (BC==0 and pow(wrap(diff(yk, center[1]), Size[1]), 2)/(semi_minor*semi_minor)
+       + pow(wrap(diff(xk, center[0]), Size[0]), 2)/(semi_major*semi_major) <=1.0)
+      or
+      (BC>=1 and pow(diff(yk, center[1]), 2)/(semi_minor*semi_minor)
+       + pow(diff(xk, center[0]), 2)/(semi_major*semi_major)<=1.0)
+    ){
+	     phi[n][q]     = 1.;
+       phi_old[n][q] = 1.;
+       area[n]      += 1.;
+       square[k]    += 1.;
+       thirdp[k]    += 1.;
+       fourthp[k]   += 1.;
+       sum[k]       += 1.;
+       sumQ00[k]    += Q00[n];
+       sumQ01[k]    += Q01[n];
+	}
+	else{
+	   phi[n][q]     = 0.;
+       phi_old[n][q] = 0.;
+	}
+}
 void Model::AddCellAtNode(unsigned n, unsigned q, const coord& center)
 {
   const auto      k = GetIndexFromPatch(n, q);
@@ -29,7 +60,7 @@ void Model::AddCellAtNode(unsigned n, unsigned q, const coord& center)
 
   // we create smaller cells that will then relax
   // this improves greatly the stability at the first steps
-  const auto radius = max(R/2., 4.);
+  const auto radius = max(R[n]/2., 4.);
 
   // round shape (do not wrap if no PBC)
   if(
@@ -49,6 +80,8 @@ void Model::AddCellAtNode(unsigned n, unsigned q, const coord& center)
     sum[k]       += 1.;
     sumQ00[k]    += Q00[n];
     sumQ01[k]    += Q01[n];
+    sumQ00zeta[k] += zetaQ[n]*Q00[n];
+    sumQ01zeta[k] += zetaQ[n]*Q01[n];
   }
   else
   {
@@ -62,17 +95,43 @@ void Model::AddCell(unsigned n, const coord& center)
   // update patch coordinates
   patch_min[n] = (center+Size-patch_margin)%Size;
   patch_max[n] = (center+patch_margin-1u)%Size;
-
-  // init polarisation and nematic
-  theta_pol[n] = noise*Pi*(1-2*random_real());
-  polarization[n] = { Spol*cos(theta_pol[n]), Spol*sin(theta_pol[n]) };
-  theta_nem[n] = noise*Pi*(1-2*random_real());
-  Q00[n] = Snem*cos(2*theta_nem[n]);
-  Q01[n] = Snem*sin(2*theta_nem[n]);
+  if (!init_config_file.empty()){
+    init_alignment = "loaded-from-file";
+  }
+    // init polarisation and nematic
+  else if (init_alignment == "random"){
+      theta_pol[n] = theta_pol_old[n] = noise*Pi*(1-2*random_real());
+      theta_nem[n] = theta_pol_old[n] = noise*Pi*(1-2*random_real());
+  }
+  else if (init_alignment == "align-x"){
+      theta_pol[n] = 0.0; 
+      theta_nem[n] = 0.0;
+  }
+  else{
+	   throw error_msg("initial alignement undefined");  
+  }
+  Q00[n] = Snem[n]*cos(2*theta_nem[n]);
+  Q01[n] = Snem[n]*sin(2*theta_nem[n]);
+  if (align_polarization_to == 3){
+    polarization[n] = { beta[n]*Spol[n]*cos(theta_pol[n]), beta[n]*Spol[n]*sin(theta_pol[n]) };
+  }
+  else{
+    polarization[n] = { alpha[n]*Spol[n]*cos(theta_pol[n]), alpha[n]*Spol[n]*sin(theta_pol[n]) };
+  }
 
   // create the cells at the centers we just computed
-  for(unsigned q=0; q<patch_N; ++q)
-    AddCellAtNode(n, q, center);
+  for(unsigned q=0; q<patch_N; ++q){
+      if (init_cell_shape == 0){
+      AddCellAtNode(n, q, center);
+      }
+      else if(init_cell_shape == 1){
+	    AddElongatedCellAtNode(n,q,center,init_aspect_ratio);
+	  }
+	  else{
+		throw error_msg("initial shape of cells undefined");  
+	  }  
+
+  }
 
   com[n]   = vec<double, 2>(center);
 }
@@ -84,13 +143,11 @@ void Model::Configure()
                     (birth_bdries[3]-birth_bdries[2]);
   // target radius for spacing between cells
   unsigned radius = sqrt(double(Nbirth/nphases)/Pi);
-
+  
   // ===========================================================================
   // adding cells at random while trying to keep their center non overlapping
   if(init_config=="random" and BC==0)
   {
-    // list of all centers
-    vector<coord> centers;
 
     for(unsigned n=0; n<nphases; ++n)
     {
@@ -103,9 +160,14 @@ void Model::Configure()
           static_cast<unsigned>(birth_bdries[2]
               +random_real()*(birth_bdries[3]-birth_bdries[2]))
         };
-
+        if (obstacle_radius>0.0){ // the obstacle exist
+          double d = sqrt(pow(center[0]-obstacle_center_x,2.0) + pow(center[1]-obstacle_center_y,2.0)) - obstacle_radius;
+          if (d < 0.9*R[n]){
+              continue; // overlap with the obstacle
+          }
+        }
         bool is_overlapping = false;
-        for(const auto& c : centers)
+        for(const auto& c : init_centers)
         {
           if(pow(wrap(diff(center[0], c[0]), Size[0]), 2)
               + pow(wrap(diff(center[1], c[1]), Size[1]), 2) < 0.9*radius*radius)
@@ -117,41 +179,45 @@ void Model::Configure()
 
         if(!is_overlapping)
         {
-          centers.emplace_back(center);
+          init_centers.emplace_back(center);
           break;
         }
       }
 
       // add cell
-      AddCell(n, centers.back());
+      AddCell(n, init_centers.back());
     }
   }
   // ===========================================================================
   // same but with walls: we need to be careful not to create cells on the wall
   else if(init_config=="random" and BC>=1)
   {
-    // list of all centers
-    vector<coord> centers;
-
     for(unsigned n=0; n<nphases; ++n)
     {
       // generate new center while trying to keep safe distance
       while(true)
       {
-        const coord center = {
+        coord center = {
           static_cast<unsigned>(birth_bdries[0]
               +random_real()*(birth_bdries[1]-birth_bdries[0])),
           static_cast<unsigned>(birth_bdries[2]
               +random_real()*(birth_bdries[3]-birth_bdries[2]))
         };
+        // detect obstacle
+        if (obstacle_radius>0.0){ // the obstacle exist
+          double d = sqrt(pow(center[0]-obstacle_center_x,2.0) + pow(center[1]-obstacle_center_y,2.0)) - obstacle_radius;
+          if (d < 0.9*R[n]){
+              continue; // overlap with the obstacle
+          }
+        }
 
         // detect walls
         // ... box only
         if(BC==1)
-          if(center[0]<0.9*R or Size[0]-center[0]<0.9*R) continue;
+          if(center[0]<0.9*R[n] or Size[0]-center[0]<0.9*R[n]) continue;
         // ... box and channel
         if(BC==1 or BC==2)
-          if(center[1]<0.9*R or Size[1]-center[1]<0.9*R) continue;
+          if(center[1]<0.9*R[n] or Size[1]-center[1]<0.9*R[n]) continue;
         // ... ellipse
         if(BC==3)
         {
@@ -161,29 +227,29 @@ void Model::Configure()
           // ... small helper function to compute radius
           auto rad = [](auto x, auto y) { return sqrt(x*x + y*y); };
           // ... distance is the difference between wall and current point
-          const auto d = rad(Size[0]/2.*cos(theta), Size[1]/2.*sin(theta))
+          const auto d = rad(Size[0]/2.*cos(theta)*confinement_ratio, Size[1]/2.*sin(theta)*confinement_ratio)
                         -rad(Size[0]/2.-center[0], Size[1]/2.-center[1]);
 
-          if(d<0.9*R) continue;
+          if(d<0.9*R[n]) continue;
         }
         // ... cross
         if(BC==4)
         {
-          if(fabs(center[0]-Size[0]/2.)+0.9*R>cross_ratio*.5*Size[0] and
-             fabs(center[1] - Size[1]/2.)+0.9*R>cross_ratio*.5*Size[1])
+          if(fabs(center[0]-Size[0]/2.)+0.9*R[n]>cross_ratio*.5*Size[0] and
+             fabs(center[1] - Size[1]/2.)+0.9*R[n]>cross_ratio*.5*Size[1])
             continue;
         }
         // ... wound
         if(BC==5)
         {
           // wall boundary condition
-          if(center[0]<0.9*R or Size[0]-center[0]<0.9*R) continue;
-          if(center[1]<0.9*R or Size[1]-center[1]<0.9*R) continue;
+          if(center[0]<0.9*R[n] or Size[0]-center[0]<0.9*R[n]) continue;
+          if(center[1]<0.9*R[n] or Size[1]-center[1]<0.9*R[n]) continue;
 
           double xl = Size[0]*.5*(1.-wound_ratio);
           double xr = Size[0]*.5*(1.+wound_ratio);
 
-          if(xl-center[0]<0.9*R and center[0]-xr<0.9*R) continue;
+          if((xl-center[0]<0.9*R[n]) and (center[0]-xr<0.9*R[n])) continue;
         }
         // ... two phase ellipse
         if(BC==6)
@@ -197,23 +263,37 @@ void Model::Configure()
           const auto d = rad(Size[0]/2.*cos(theta)*tumor_ratio, Size[1]/2.*sin(theta)*tumor_ratio)
                         -rad(Size[0]/2.-center[0], Size[1]/2.-center[1]);
 
-          if(fabs(d)<0.9*R) continue;
+          if(fabs(d)<0.9*R[n]) continue;
         }
         // ... wound on one side
         if(BC==7)
         {
           // wall boundary condition
-          if(center[0]<0.9*R or Size[0]-center[0]<0.9*R) continue;
-          if(center[1]<0.9*R or Size[1]-center[1]<0.9*R) continue;
+          if(center[0]<0.9*R[n] or Size[0]-center[0]<0.9*R[n]) continue;
+          if(center[1]<0.9*R[n] or Size[1]-center[1]<0.9*R[n]) continue;
 
           double xl = Size[0]*(1.-wound_ratio);
 
-          if(xl-center[0]<0.9*R) continue;
+          if(xl-center[0]<0.9*R[n]) continue;
         }
+        // cells at the center, wound on the two sides
+        if(BC==8)
+        {
+          double xl = Size[0]*.5*wound_ratio;
+          double xr = Size[0]*(1 - 0.5*wound_ratio);
+          center[0] = static_cast<unsigned>(xl+random_real()*(xr-xl));
+          center[1] = static_cast<unsigned>(birth_bdries[2] +random_real()*(birth_bdries[3]-birth_bdries[2]));
+          // wall boundary condition
+          if(center[0]<0.9*R[n] or Size[0]-center[0]<0.9*R[n]) continue;
+          if(center[1]<0.9*R[n] or Size[1]-center[1]<0.9*R[n]) continue;
+
+          if((center[0]<xl+0.9*R[n]) or (center[0]>xr-0.9*R[n])) continue;
+        }
+        
 
         // overlapp between cells
         bool is_overlapping = false;
-        for(const auto& c : centers)
+        for(const auto& c : init_centers)
         {
           if(pow(wrap(diff(center[0], c[0]), Size[0]), 2)
               + pow(wrap(diff(center[1], c[1]), Size[1]), 2) < 0.9*radius*radius)
@@ -225,13 +305,13 @@ void Model::Configure()
 
         if(!is_overlapping)
         {
-          centers.emplace_back(center);
+          init_centers.emplace_back(center);
           break;
         }
       }
 
       // add cell
-      AddCell(n, centers.back());
+      AddCell(n, init_centers.back());
     }
   }
   // ===========================================================================
@@ -239,12 +319,11 @@ void Model::Configure()
   else if(init_config=="cluster")
   {
     const double theta  = 2*Pi/nphases;
-
-    for(unsigned n=0; n<nphases; ++n)
-    {
-      const double radius = R + nphases - 2;
-      AddCell(n, {unsigned(Size[0]/2+radius*(cos(n*theta)+noise*random_real())),
-                  unsigned(Size[1]/2+radius*(sin(n*theta)+noise*random_real())) });
+    for(unsigned n=0; n<nphases; ++n){
+        const coord center ={unsigned(Size[0]/2+radius*(cos(n*theta)+noise*random_real())),
+                  unsigned(Size[1]/2+radius*(sin(n*theta)+noise*random_real()))};
+        init_centers.emplace_back(center);
+        AddCell(n, center);
     }
   }
   // ===========================================================================
@@ -254,8 +333,18 @@ void Model::Configure()
     if(nphases!=1)
       throw error_msg("error: initial conditions require "
                       "nphases=1.");
-
-    AddCell(0, {Size[0]/2, Size[1]/2});
+    const coord center ={Size[0]/2,Size[1]/2};
+    init_centers.emplace_back(center);
+    AddCell(0, center);
+  }
+  else if (init_config == "load_config"){
+    ReadConfig(init_config_file);
+    unsigned n = 0;
+    for (auto it = init_centers.begin();it != init_centers.end();it++){
+      AddCell(n,*it);
+      n++;
+    }
+    ReadConfig(init_config_file);
   }
   else throw error_msg("error: initial configuration '",
       init_config, "' unknown.");
@@ -309,7 +398,7 @@ void Model::ConfigureWalls(int BC_)
       // ... small helper function to compute radius
       const auto rad = [](auto x, auto y) { return sqrt(x*x + y*y); };
       // ... distance is the difference between wall and current point
-      const auto d = rad(Size[0]/2.*cos(theta), Size[1]/2.*sin(theta))
+      const auto d = rad(Size[0]/2.*cos(theta)*confinement_ratio, Size[1]/2.*sin(theta)*confinement_ratio)
                     -rad(Size[0]/2.-x, Size[1]/2.-y);
       // set the wall
       if(d<0)
@@ -361,7 +450,7 @@ void Model::ConfigureWalls(int BC_)
         if(x >= xb and y >= yb) walls[k] += exp(-(Size[0]-1-x)/wall_thickness);
       }
 
-      if(x < Size[0]/2 && y >= Size[1]/2){// left top corner
+      if(x < Size[0]/2 && y >= Size[1]/2){ // left top corner
         const double xb = Size[0]*b1;
         const double yb = Size[1]*b2;
 
@@ -400,8 +489,8 @@ void Model::ConfigureWalls(int BC_)
     {
       const double x  = GetXPosition(k);
       const double y  = GetYPosition(k);
-      const double xl = Size[0]*.5*(1.-wound_ratio);
-      const double xr = Size[0]*.5*(1.+wound_ratio);
+      const double xl = Size[0]*.5*(1.- wound_ratio);
+      const double xr = Size[0]*.5*(1.+ wound_ratio);
 
       // this is the easiest way: each wall contributes as an exponentially
       // falling potential and we do not care about overalps
@@ -453,6 +542,27 @@ void Model::ConfigureWalls(int BC_)
     }
     break;
   // Same as above but channel.
+  case 8:
+    for(unsigned k=0; k<N; ++k)
+    {
+      const double x  = GetXPosition(k);
+      const double y  = GetYPosition(k);
+      const double xl = Size[0]*.5*wound_ratio;
+      const double xr = Size[0]*(1 - 0.5*wound_ratio);
+
+
+      // this is the easiest way: each wall contributes as an exponentially
+      // falling potential and we do not care about overalps
+      walls[k] =   exp(-y/wall_thickness)
+                 + exp(-x/wall_thickness)
+                 + exp(-(Size[0]-1-x)/wall_thickness)
+                 + exp(-(Size[1]-1-y)/wall_thickness);
+
+      if(x >= xl)           walls[k] += exp(-(x - xl)/wall_thickness);
+      if(x <= xr)           walls[k] += exp(-(xr - x)/wall_thickness);
+      if((x < xl) or (x > xr)) walls[k] =  1.;
+    }
+    break;
   default:
     throw error_msg("boundary condition unknown.");
   }
@@ -465,5 +575,23 @@ void Model::ConfigureWalls(int BC_)
     walls_dx[k] = derivX(walls, s);
     walls_dy[k] = derivY(walls, s);
     walls_laplace[k] = laplacian(walls, s);
+    obstacles_laplace[k] = laplacian(obstacles,s);
+  }
+}
+
+void Model::ConfigureObstacles(){
+  if (obstacle_radius < 0){ // no obstacles
+    return;
+  }
+  for(unsigned k=0; k<N; ++k){
+      const double x = GetXPosition(k);
+      const double y = GetYPosition(k);
+      double d = sqrt(pow(x-obstacle_center_x,2.0) + pow(y-obstacle_center_y,2.0)) - obstacle_radius;
+      if (d<0.0){
+          obstacles[k] = 1.0;
+      }
+      else{
+          obstacles[k] = exp(-d/wall_thickness);
+      }
   }
 }

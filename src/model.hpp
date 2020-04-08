@@ -20,6 +20,7 @@
 
 #include <vector>
 #include <array>
+#include <set>
 #include "vec.hpp"
 #include "stencil.hpp"
 #include "serialization.hpp"
@@ -28,6 +29,8 @@
 using field = std::vector<double>;
 /** Grid coordinate */
 using coord = vec<unsigned, 2>;
+/** 2D vector */
+using vec2d = vec<double, 2>;
 
 /** Model class
  *
@@ -64,15 +67,17 @@ struct Model
   /** Sum of phi at each node */
   field sum;
   /** Sum_i S_i phi_i */
-  field sumS00, sumS01;
+  field sumS00, sumS01, sumS00zeta, sumS01zeta;
   /** Sum_i Q_i phi_i */
-  field sumQ00, sumQ01;
+  field sumQ00, sumQ01, sumQ00zeta, sumQ01zeta;
   /** Sum_i Area_i phi_i */
   field sumA;
   /** Sum of square, third, and fourth powers of phi at each node */
   field square, thirdp, fourthp;
   /** Phase-field for the walls and their derivatives */
   field walls, walls_dx, walls_dy, walls_laplace;
+  /** Phase-field for the obstacles and their dervatives */ 
+  field obstacles,obstacles_laplace;
   /** Total polarization of the tissue */
   field P0, P1;
   /** Total velocity of the tissue */
@@ -80,29 +85,42 @@ struct Model
   /** Area associated with a phase field */
   std::vector<double> area;
   /** Forces */
-  std::vector<vec<double, 2>> Fpol, Fnem, Fshape, Fpressure;
+  std::vector<vec<double, 2>> Fpol, Fnem, Fshape, Fpassive, Fint, Frep;
   /** Velocity */
-  std::vector<vec<double, 2>> velocity;
+  std::vector<vec<double, 2>> com_velocity;
+    /** Velocity field */
+  field velocity_field_x,velocity_field_y;
+  /** Vorticity field */
+  field vorticity_field_x,vorticity_field_y;
+  /** force fields for each cell */
+  std::vector<field> fp_x,fp_y;
+  /** velocity fields for each cell */
+  std::vector<field> vx,vy;
+  /** continuous averaged passive and active force densities over the whole domain*/
+  field fp_field_x,fp_field_y,fpol_field_x,fpol_field_y,fdipole_field_x,fdipole_field_y;
   /** Structure tensor */
   std::vector<double> S00, S01;
   /** Q-tensor */
   std::vector<double> Q00, Q01;
   /** Polarisation */
-  std::vector<vec<double, 2>> polarization;
+  std::vector<vec<double, 2>> polarization,polarization_old;
   /** Direction of the polarisation */
   std::vector<double> theta_pol, theta_pol_old;
   /** Direction of the nematics */
   std::vector<double> theta_nem, theta_nem_old;
-  /** Polarisation total torque */
-  std::vector<double> delta_theta_pol;
   /** Stress tensor */
-  field stress_xx, stress_xy , stress_yy, pressure;
+  field stress_xx, stress_xy , stress_yy;
   /** Elastic torque for the nematic */
   std::vector<double> tau;
   /** Vorticity around each cell */
   std::vector<double> vorticity;
   /** Alignement options (see options.cpp) */
   int align_nematic_to = 0, align_polarization_to = 1;
+  /** distribute polarization over the whole cell or the front end of the cell*/
+  int pol_distribution  = 0;
+  /** overlapping of cells at the cell front */
+  std::vector<double> overlap;
+
 
   /** @} */
 
@@ -142,9 +160,7 @@ struct Model
    * */
   unsigned verbose = 2;
   /** compress output? (we use zip) */
-  bool compress, compress_full;
-  /** name of the run */
-  std::string runname;
+  bool compress;
   /** Output dir (or tmp dir before moving files to the archive) */
   std::string output_dir;
   /** write any output? */
@@ -159,7 +175,7 @@ struct Model
   bool runtime_stats = false;
   /** padding for onscreen output */
   unsigned pad;
-  /** name of the inpute file */
+  /** name of the input directory */
   std::string inputname = "";
   /** Delete output? */
   bool force_delete;
@@ -195,11 +211,13 @@ struct Model
   /** effective time step */
   double time_step, sqrt_time_step;
   /** Number of phases */
-  unsigned nphases;
-  /** angle in degrees (input variable only) */
-  double angle_deg;
+  unsigned nphases = 0;
   /** Margin for the definition of patches */
   unsigned margin = 25;
+  /** Tracking cell neighbours or not */
+  bool neighbour_tracking = false;
+  
+  
   /** Boudaries for cell generation
    *
    * These are the boundaries (min and max x and y components) of the domain in
@@ -212,42 +230,55 @@ struct Model
    * @{ */
 
   /** Elasticity */
-  double gam = 0.1;
+  std::vector<double> gam;
   /** Energy penalty for area */
-  double mu = 3;
+  std::vector<double> mu;
+  /** Cell types */
+  std::vector<std::string> types;
   /** Interface thickness */
   double lambda = 3;
   /**  Interaction stength */
   double kappa = 0.2;
   /** Adhesion */
-  double omega = 0;
+  double omega = 0.0;
+  /**contact inhibition of locomotion penalty**/ 
+  double eta = 0.0;
   /** Activity from shape */
-  double zetaS = 0, sign_zetaS = 0;
+  std::vector<double> zetaS, sign_zetaS;
   /** Activity from internal Q tensor */
-  double zetaQ = 0, sign_zetaQ = 0;
+  std::vector<double> zetaQ, sign_zetaQ;
   /** Propulsion strength */
-  double alpha = 0;
+  std::vector<double> alpha;
+  /** Targeted propulsion stregth in units of relaxation vector**/
+  std::vector<double> beta;
   /** Substrate friction parameter */
-  double xi = 1;
-  /** Prefered radii (area = pi*R*R) and radius growth */
-  double R = 8;
+  std::vector<double> xi;
+  /** Prefered radii (area = pi*R*R) and target radius (for division) */
+  std::vector<double> R, target_R;
   /** Base area: a0 = Pi*R*R */
-  double a0;
-  /** Repuslion by the wall */
-  double wall_kappa = 0.5;
-  /** Adhesion on the wall */
-  double wall_omega = 0;
+  std::vector<double> a0;
   /** Elasitc parameters */
-  double Knem = 0, Kpol = 0;
+  std::vector<double> Knem;
   /** Strength of polarity / nematic tensor */
-  double Spol = 0, Snem = 0;
+  std::vector<double> Spol,Snem;
   /** Flow alignment strenght */
-  double Jpol = 0, Jnem = 0;
+  std::vector<double> Jpol, Jnem;
   /** Vorticity coupling */
-  double Wnem = 0;
+  std::vector<double> Wnem;
   /** Noise strength */
-  double Dpol = 0, Dnem = 0;
-
+  std::vector<double> Dpol, Dnem;
+  /** initial center of cells */
+  std::vector<coord> init_centers;
+  /** initial configuration file*/
+  std::string init_config_file = "";
+  /** initial alignment*/
+  std::string init_alignment = "random";
+  /** initial cell shape 0 for circle 1 for ellipse*/
+  unsigned init_cell_shape = 0;
+  /** initial cell shape 0 for circle 1 for ellipse*/
+  double init_aspect_ratio = 1;
+  /** whether cell can be self-deformed or not*/
+  unsigned self_deformation = 1;
   /** @} */
   /** Multi-threading parameters
    * @{ */
@@ -262,8 +293,11 @@ struct Model
   // ===========================================================================
   // Options. Implemented in options.cpp
 
-  /** the variables map used to collect options */
+  /** Variables map used to collect options */
   opt::variables_map vm;
+
+  /** Same but for the individual cell types */
+  std::vector<std::pair<std::string, opt::variables_map>> vm_cells;
 
   /** Set parameters from input */
   void ParseProgramOptions(int ac, char **av);
@@ -296,16 +330,44 @@ struct Model
   std::string init_config;
   /** Boundary conditions flag */
   unsigned BC = 0;
-  /** Noise level for the nematic tensor initial configuration */
-  double noise = 1;
+
+  /** Type of the wall */
+  std::string wall_type; 
   /** Wall thickness */
   double wall_thickness = 1.;
+  /** Repuslion by the wall */
+  double wall_kappa = 0.5;
+  /** Adhesion on the wall */
+  double wall_omega = 0.;
+
+  /**Type of the obstacle */
+  std::string obstacle_type;
+  /** radius of the obstacle */
+  int obstacle_radius = -1.0; //<0 means no obstacle
+  /** x coordinate of the obstacle center*/
+  unsigned obstacle_center_x;
+  /** y coordinate of the obstacle center*/
+  unsigned obstacle_center_y;
+  /** Repulsion by the obstacle */
+  double obstacle_kappa = 0.5;
+  /** Adhesion by the obstacle */
+  double obstacle_omega = 0.0;
+
+
+  /** Noise level for the nematic tensor initial configuration */
+  double noise = 1;
   /** Ratio of the cross vs size of the domain (BC=4) */
   double cross_ratio = .25;
   /** Ratio of the wound vs size of the domain (BC=5) */
   double wound_ratio = .50;
   /** Ratio of the tumor vs size of the domain (BC=6) */
   double tumor_ratio = .80;
+  /** Ratio of the confinement vs size of the domain (BC=3) */
+  double confinement_ratio = 1.0;
+  /** remove the confinement after relaxatio or not */
+  bool rm_confine_after_relax = false;
+  /** contact inhibition of locamotion or not */
+  bool contact_inhibition = false;
 
   /** @} */
 
@@ -315,11 +377,17 @@ struct Model
   /** Subfunction for AddCell() */
   void AddCellAtNode(unsigned n, unsigned q, const coord& center);
 
+  /** Subfunction of AddCell(),add elongated cells*/
+  void AddElongatedCellAtNode(unsigned n,unsigned q,const coord& center, double ratio);
+
   /** Set initial condition for the fields */
   void Configure();
 
   /** Set initial configuration for the walls */
   void ConfigureWalls(int BC);
+
+  /** Set initial cofiguration for the obstacles */
+  void ConfigureObstacles();
 
   // ==========================================================================
   // Writing to file. Implemented in write.cpp
@@ -329,12 +397,15 @@ struct Model
 
   /** Write run parameters */
   void WriteParams();
-
-  /** Remove old files */
+ 
+  /** Remove old files and recreate output dir if needed */
   void ClearOutput();
 
-  /** Create output directory */
-  void CreateOutputDir();
+  // ==========================================================================
+  /** Read initial configuration of cells file*/
+  void ReadConfig(const std::string& input_dir_file);
+  /** Write configuration of cells to output file*/
+  void WriteConfig();
 
   // ==========================================================================
   // Initialization. Implemented in init.cpp
@@ -342,11 +413,9 @@ struct Model
   /** Initialize memory for field */
   void Initialize();
 
-  /** Allocate memory for individual cells */
-  void SetCellNumber(unsigned new_nphases);
-
   /** Initialize neighbors list (stencils) */
   void InitializeNeighbors();
+
 
   /** Swap two cells in the internal arrays */
   void SwapCells(unsigned n, unsigned m);
@@ -508,6 +577,9 @@ struct Model
 
   /** Subfunction for update */
   void UpdatePotAtNode(unsigned, unsigned);
+  
+    /** Subfunction for update velocity fields*/
+  void UpdateVelocityFieldAtNode(unsigned,unsigned);
 
   /** Subfunction for update */
   void UpdatePhaseFieldAtNode(unsigned, unsigned, bool);
@@ -515,8 +587,17 @@ struct Model
   /** Subfunction for update */
   void UpdateForcesAtNode(unsigned, unsigned);
 
+  /** Subfunction for update stress tensor */
+  void UpdateStress(unsigned);
+  
+  /** Subfunction for update strain rate*/ 
+  void UpdateStrainRate(unsigned);
+
   /** Subfunction for update */
   void UpdateStructureTensorAtNode(unsigned, unsigned);
+
+  /** Subfunction for update cell neighbours */
+  void UpdateNeighbourCells(unsigned,unsigned);
 
   /** Subfunction for update */
   void UpdateSumsAtNode(unsigned, unsigned);
@@ -532,10 +613,10 @@ struct Model
 
   /** Update nematic tensor of a given field */
   void UpdateNematic(unsigned, bool);
-
+  
   /** Compute shape parameters
    *
-   * This function effectively computes the second moment of area, which ca n be used to
+   * This function effectively computes the second moment of area, which can be used to
    * fit the shape of a cell to an ellipse.
    * */
   void ComputeShape(unsigned);
@@ -551,8 +632,45 @@ struct Model
   void Update(bool, unsigned=0);
 
   // ===========================================================================
-  // Serialization
+  // Division. Implemented in division.cpp
 
+  /** Division flag */
+  std::vector<bool> division;
+  /** Time scale of the division */
+  std::vector<double> division_time;
+  /** Division rate */
+  std::vector<double> division_rate;
+  /** Growth facto before division */
+  double division_growth = 1.5;
+  /** Relaxation time for division */
+  int division_relax_time = 100;
+  /** Relaxation time after division */
+  int division_refract_time = 300;
+  /** Count the number of time steps before the next division */
+  std::vector<int> division_counter;
+
+  /** Reset division counter for single cell */
+  void ResetDivisionCounter(unsigned);
+
+  /** Make a cell divide
+   *
+   * TBD
+   * */
+  void Divide(unsigned i);
+
+
+  /** neighbour tracking*/ 
+
+  /** occupation(for neighbour tracking), each point in this "occupation" variable  is filled in by the index of cell occupying this point*/
+  std::vector<int> occupation;
+  /** nbr_cells record the neibouring cells */
+  std::vector<std::set<unsigned>> nbr_cells;
+  /** if the neighbour of a cell is changed or not */
+  std::vector<bool> isNbrChanged;
+
+  
+  // ===========================================================================
+  // Serialization
   /** Serialization of parameters (in and out) */
   template<class Archive>
   void SerializeParameters(Archive& ar)
@@ -563,23 +681,34 @@ struct Model
        & auto_name(nphases)
        & auto_name(init_config)
        & auto_name(kappa)
+       & auto_name(types)
        & auto_name(xi)
        & auto_name(R)
        & auto_name(alpha)
+       & auto_name(beta)
        & auto_name(zetaS)
        & auto_name(zetaQ)
+       & auto_name(zetaQ)
        & auto_name(omega)
+       & auto_name(eta)
+       & auto_name(wall_type)
        & auto_name(wall_thickness)
        & auto_name(wall_kappa)
        & auto_name(wall_omega)
        & auto_name(walls)
+       & auto_name(obstacle_type)
+       & auto_name(obstacle_radius)
+       & auto_name(obstacle_center_x)
+       & auto_name(obstacle_center_y)
+       & auto_name(obstacle_omega)
+       & auto_name(obstacle_kappa)
+       & auto_name(obstacles)
        & auto_name(patch_margin)
        & auto_name(relax_time)
        & auto_name(relax_nsubsteps)
        & auto_name(npc)
        & auto_name(seed)
        & auto_name(Knem)
-       & auto_name(Kpol)
        & auto_name(Snem)
        & auto_name(Spol)
        & auto_name(Jnem)
@@ -588,7 +717,12 @@ struct Model
        & auto_name(Dpol)
        & auto_name(Dnem)
        & auto_name(margin)
-       & auto_name(patch_size);
+       & auto_name(patch_size)
+       & auto_name(init_cell_shape)
+       & auto_name(init_aspect_ratio)
+       & auto_name(self_deformation)
+       & auto_name(rm_confine_after_relax)
+       & auto_name(contact_inhibition);
   }
 
   /** Serialization of parameters (in and out) */
@@ -607,15 +741,30 @@ struct Model
        & auto_name(stress_xx)
        & auto_name(stress_xy)
        & auto_name(stress_yy)
-       & auto_name(velocity)
+       & auto_name(com_velocity)
        & auto_name(Fpol)
        & auto_name(Fnem)
        & auto_name(Fshape)
-       & auto_name(Fpressure)
+       & auto_name(Fpassive)
+       & auto_name(Fint)
+       & auto_name(Frep)
        & auto_name(theta_pol)
        & auto_name(theta_nem)
        & auto_name(patch_min)
-       & auto_name(patch_max);
+       & auto_name(patch_max)
+       & auto_name(polarization)
+      // save force density and velocity_field
+       & auto_name(fp_field_x)
+       & auto_name(fp_field_y)
+       & auto_name(fpol_field_x)
+       & auto_name(fpol_field_y)
+       & auto_name(fdipole_field_x)
+       & auto_name(fdipole_field_y)
+       & auto_name(velocity_field_x)
+       & auto_name(velocity_field_y)
+      //save oberservables
+       & auto_name(nbr_cells) 
+       & auto_name(isNbrChanged);
   }
 
   // ===========================================================================

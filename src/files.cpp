@@ -19,6 +19,12 @@
 #include "files.hpp"
 using namespace std;
 
+void compress_file(const string& iname, const string& oname)
+{
+  const int ret = system(inline_str("zip -jm ", oname, ".zip ", iname,
+                                    " > /dev/null 2>&1").c_str());
+  if(ret!=0) throw error_msg("zip non-zero return value ", ret, ".");
+}
 void create_directory(const string& dir)
 {
   const int ret = system(inline_str("mkdir -p ", dir).c_str());
@@ -29,11 +35,4 @@ void remove_file(const string& fname)
 {
   const int ret = system(inline_str("rm -rf ", fname).c_str());
   if(ret) throw error_msg("rm returned non-zero value ", ret, ".");
-}
-
-void compress_file(const string& iname, const string& oname)
-{
-  const int ret = system(inline_str("zip -jm ", oname, ".zip ", iname,
-                                    " > /dev/null 2>&1").c_str());
-  if(ret!=0) throw error_msg("zip non-zero return value ", ret, ".");
 }

@@ -1,0 +1,32 @@
+{ 
+  "id":"initial_configuration",
+  "BC": {
+    "type":"unsigned",
+    "value":0
+  },
+  "Size":{
+    "type":"array(unsigned)",
+    "value":[100,100]
+  },
+  "nphases":{
+    "type":"unsigned",
+    "value":6
+  },
+  "init_centers":{
+    "type":"array(array(unsigned))",
+    "value":[[56,50], [53,55],[47,55],[44,50],[47,45], [53,45]]
+  },
+  "theta_pol":{
+    "type":"array(double)",
+    "value":[0, 1.0472, 2.0944, 3.14159, 4.18879, 5.23599]
+  },
+  "theta_nem":{
+    "type":"array(double)",
+    "value":[3.14159, 4.18879, 5.23599, 6.28318, 7.33038, 8.37758]
+  },
+  "alpha":{
+    "type":"array(double)",
+    "value":[0.07,0.07,0.07,0.07,0.07,0.07]
+  }
+    
+  }

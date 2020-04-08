@@ -19,7 +19,7 @@
 #include "model.hpp"
 #include "derivatives.hpp"
 #include "tools.hpp"
-
+#include <algorithm>
 using namespace std;
 
 void Model::Pre()
@@ -27,17 +27,16 @@ void Model::Pre()
   // we make the system relax (without activity)
   if(relax_time>0)
   {
-    double save_alpha  = 0; swap(alpha,  save_alpha);
-    double save_zetaS  = 0; swap(zetaS,  save_zetaS);
-    double save_zetaQ  = 0; swap(zetaQ,  save_zetaQ);
-    double save_Dnem  = 0; swap(Dnem,  save_Dnem);
-    double save_Dpol  = 0; swap(Dpol,  save_Dpol);
-    double save_Jnem  = 0; swap(Jnem,  save_Jnem);
-    double save_Jpol  = 0; swap(Jpol,  save_Jpol);
-    double save_Kpol  = 0; swap(Kpol,  save_Kpol);
-    double save_Knem  = 0; swap(Knem,  save_Knem);
-    double save_Wnem  = 0; swap(Wnem,  save_Wnem);
-
+    vector<double> save_alpha(nphases, 0); swap(alpha,  save_alpha);
+    vector<double> save_beta(nphases,0);  swap(beta,save_beta);
+    vector<double> save_zetaS(nphases, 0); swap(zetaS,  save_zetaS);
+    vector<double> save_zetaQ(nphases, 0); swap(zetaQ,  save_zetaQ);
+    vector<double> save_Dnem(nphases, 0); swap(Dnem,  save_Dnem);
+    vector<double> save_Dpol(nphases, 0); swap(Dpol,  save_Dpol);
+    vector<double> save_Jnem(nphases, 0); swap(Jnem,  save_Jnem);
+    vector<double> save_Jpol(nphases, 0); swap(Jpol,  save_Jpol);
+    vector<double> save_Knem(nphases, 0); swap(Knem,  save_Knem);
+    vector<double> save_Wnem(nphases, 0); swap(Wnem,  save_Wnem);
     if(relax_nsubsteps) swap(nsubsteps, relax_nsubsteps);
 
     for(unsigned i=0; i<relax_time*nsubsteps; ++i)
@@ -46,19 +45,32 @@ void Model::Pre()
     if(relax_nsubsteps) swap(nsubsteps, relax_nsubsteps);
 
     swap(alpha, save_alpha);
+    swap(beta,save_beta);
     swap(zetaS, save_zetaS);
     swap(zetaQ, save_zetaQ);
     swap(Jnem, save_Jnem);
     swap(Jpol, save_Jpol);
     swap(Dnem, save_Dnem);
     swap(Dpol, save_Dpol);
-    swap(Kpol, save_Kpol);
     swap(Knem, save_Knem);
     swap(Wnem, save_Wnem);
   }
 
-  if(BC==5 || BC==7) ConfigureWalls(1);
+  if(BC==5 || BC==7 || BC==8) ConfigureWalls(1);
   if(BC==6) ConfigureWalls(0);
+  if(rm_confine_after_relax){
+    std::cout<<"\nremove confinement after relaxation"<<std::endl;
+    wall_type = "nonadhesive";
+    ConfigureWalls(1);
+  }
+  if (wall_type =="nonadhesive"){
+    wall_kappa = wall_omega = 0.;
+    std::cout<<"\nwall_omega and wall_kappa are forced to be zero for nonadhesive walls"<<std::endl;
+  }
+  if (obstacle_type =="nonadhesive"){
+    obstacle_kappa = obstacle_omega = 0.;
+    std::cout<<"\nobstacle_omega and obstacle_kappa are forced to be zero for nonadhesive obstacles"<<std::endl;
+  }
 }
 
 void Model::Post()
@@ -71,15 +83,14 @@ void Model::PreRunStats()
     // total cell area
     double packing = 0.;
     for(unsigned n=0; n<nphases; ++n)
-      packing += R*R;
+      packing += R[n]*R[n];
     packing *= Pi;
 
     // divide by available area
     double area = 0;
     for(unsigned k=0; k<N; ++k)
-      area += 1.-walls[k];
+      area += 1.-walls[k] - obstacles[k];
     packing /= area;
-
     cout << "Packing fraction = " << packing << endl;
   }
 }
@@ -93,7 +104,7 @@ void Model::RuntimeChecks()
 {
   // check that the area is more or less conserved (20%)
   for(unsigned n=0; n<nphases; ++n)
-    if(abs(1.-area[n]/(Pi*R*R))>.2)
+    if(abs(1.-area[n]/(Pi*R[n]*R[n]))>.2)
       throw warning_msg("area is not conserved.");
 
   for(unsigned n=0; n<nphases; ++n)
@@ -124,18 +135,27 @@ void Model::UpdateSumsAtNode(unsigned n, unsigned q)
   thirdp[k]  += p*p*p;
   fourthp[k] += p*p*p*p;
   sumA[k]    += p*p*area[n];
+  sumS00zeta[k]  += p*S00[n]*zetaS[n];
+  sumS01zeta[k]  += p*S01[n]*zetaS[n];
+  sumQ00zeta[k]  += p*Q00[n]*zetaQ[n];
+  sumQ01zeta[k]  += p*Q01[n]*zetaQ[n];
   sumS00[k]  += p*S00[n];
   sumS01[k]  += p*S01[n];
   sumQ00[k]  += p*Q00[n];
   sumQ01[k]  += p*Q01[n];
   P0[k]      += p*polarization[n][0];
   P1[k]      += p*polarization[n][1];
-  U0[k]      += p*velocity[n][0];
-  U1[k]      += p*velocity[n][1];
+  U0[k]      += p*com_velocity[n][0];
+  U1[k]      += p*com_velocity[n][1];
 }
 
 void Model::UpdatePotAtNode(unsigned n, unsigned q)
 {
+  // supress  = x/sqrt(1 + eps*x*x)
+  auto supress = [](double x,double eps){
+      return x/sqrt(1 + eps*x*x);
+  };
+
   const auto  k  = GetIndexFromPatch(n, q);
   const auto& s  = neighbors[k];
   const auto& sq = neighbors_patch[q];
@@ -144,53 +164,153 @@ void Model::UpdatePotAtNode(unsigned n, unsigned q)
   const auto a  = area[n];
   const auto ll = laplacian(phi[n], sq);
   const auto ls = laplacian(sum, s);
-
+  
   const double internal = (
       // CH term
-      + gam*(8*p*(1-p)*(1-2*p)/lambda - 2*lambda*ll)
+      + gam[n]*(8*p*(1-p)*(1-2*p)/lambda - 2*lambda*ll)
       // area conservation term
-      - 4*mu/a0*(1-a/a0)*p
+      - 4*mu[n]/a0[n]*(1-a/a0[n])*p
     );
-
-  const double interactions = (
+  double interactions = (
       // repulsion term
       + 2*kappa/lambda*p*(square[k]-p*p)
       // adhesion term
-      - 2*omega*lambda*(ls-ll)
-      // repulsion with walls
-      + 2*wall_kappa/lambda*p*walls[k]*walls[k]
-      // adhesion with walls
-      - 2*wall_omega*lambda*walls_laplace[k]
+      - 2*omega*lambda*supress(ls-ll,1.0)
     );
-
+  if (wall_type == "hard"){
+      interactions += (    
+      // repulsion with walls+ 
+      2.0*wall_kappa/lambda*p*walls[k]*walls[k]
+      // adhesion with walls
+      - 2.0*wall_omega*lambda*supress(walls_laplace[k],1.0)
+      );
+  }
+  if (obstacle_type == "hard"){
+      interactions += (    
+      // repulsion with obstacles 
+      2.0*obstacle_kappa/lambda*p*obstacles[k]*obstacles[k]
+      // adhesion with obstacles
+      - 2.0*obstacle_omega*lambda*supress(obstacles_laplace[k],1.0)
+      );
+  }
   // delta F / delta phi_i
   V[n][q] = internal + interactions;
 
-  // pressure
-  pressure[k] += p*interactions;
 }
 
+void Model::UpdateVelocityFieldAtNode(unsigned n,unsigned q){
+  const auto k = GetIndexFromPatch(n,q);
+  velocity_field_x[k] += phi[n][q]*vx[n][q];
+  velocity_field_y[k] += phi[n][q]*vy[n][q];
+}
 void Model::UpdateForcesAtNode(unsigned n, unsigned q)
 {
+  // step function
+  auto step = [](double x){
+      if (x>0.0){
+        return 1.0;
+      }
+      return 0.0;
+  };
   const auto  k  = GetIndexFromPatch(n, q);
-  const auto& s  = neighbors[k];
   const auto& sq = neighbors_patch[q];
-
+  const auto p  = phi[n][q];
   const auto dx  = derivX(phi[n], sq);
   const auto dy  = derivY(phi[n], sq);
-  const auto dxs = derivX(sum, s);
-  const auto dys = derivY(sum, s);
 
-  stress_xx[k] = - pressure[k] - zetaS*sumS00[k] - zetaQ*sumQ00[k];
-  stress_yy[k] = - pressure[k] + zetaS*sumS00[k] + zetaQ*sumQ00[k];
-  stress_xy[k] = - zetaS*sumS01[k] - zetaQ*sumQ01[k];
+  fp_x[n][q] = V[n][q]*dx;
+  fp_y[n][q] = V[n][q]*dy; 
+  double fpol_x = 0.0, fpol_y = 0.0;
+  double fnem_x = 0.0, fnem_y = 0.0;
+  double fshape_x = 0.0, fshape_y = 0.0;
+  double dphi_dot_p = dx * polarization[n][0] + dy * polarization[n][1];
 
-  Fpressure[n] += { pressure[k]*dx, pressure[k]*dy };
-  Fshape[n]    += { zetaS*sumS00[k]*dx + zetaS*sumS01[k]*dy,
-                    zetaS*sumS01[k]*dx - zetaS*sumS00[k]*dy };
-  Fnem[n]      += { zetaQ*sumQ00[k]*dx + zetaQ*sumQ01[k]*dy,
-                    zetaQ*sumQ01[k]*dx - zetaQ*sumQ00[k]*dy };
+  overlap[n] += step(-dphi_dot_p)*p*p*(square[k] + walls[k]*walls[k] + obstacles[k]*obstacles[k] -p*p);
+  //polarization density distributed at the front of cells or at whole cells
+  if (pol_distribution ==1){  
+          //polarization distributed on the front of a cell
+          fpol_x = -step(-dphi_dot_p)*dphi_dot_p*polarization[n][0];
+          fpol_y = -step(-dphi_dot_p)*dphi_dot_p*polarization[n][1];
+  }
+  else if(pol_distribution == 0){
+        //polarization distributed on the whole cell
+      fpol_x = p*polarization[n][0];
+      fpol_y = p*polarization[n][1];
+  }else{
+      throw error_msg("unknown polarization distribution methodology");
+  }
+  
+  // dipolar force density
+  //fnem_x = -zetaS[n]*(S00[n]*dx + S01[n]*dy) - zetaQ[n]*(Q00[n]*dx + Q01[n]*dy);
+  //fnem_y = -zetaS[n]*(S01[n]*dx - S00[n]*dy) - zetaQ[n]*(Q01[n]*dx - Q00[n]*dy); 
+  // dipolar force density - \nabla \cdot (Q) then expand this using product rule
+  const auto& sq_k = neighbors[k]; //stencil for global index k
 
+  double fnem_self_x = - zetaQ[n]*(Q00[n]*dx + Q01[n]*dy);
+  double fnem_self_y = - zetaQ[n]*(Q01[n]*dx - Q00[n]*dy); 
+  double fshape_self_x = -zetaS[n]*(S00[n]*dx + S01[n]*dy);
+  double fshape_self_y = -zetaS[n]*(S01[n]*dx - S00[n]*dy);
+
+  
+  double fnem_other_x = -(derivX(sumQ00zeta ,sq_k) + derivY(sumQ01zeta,sq_k)) - fnem_self_x; 
+  double fshape_other_x = -(derivX(sumS00zeta,sq_k) + derivY(sumS01zeta,sq_k))- fshape_self_x;
+ 
+  double fnem_other_y = -(derivX(sumQ01zeta,sq_k) - derivY(sumQ00zeta,sq_k)) - fnem_self_x; 
+  double fshape_other_y = -(derivX(sumS01zeta,sq_k) - derivY(sumS00zeta,sq_k)) - fshape_self_y;
+
+  if (wall_type == "nonadhesive"){
+     fpol_x *= (1.0-walls[k]);
+     fpol_y *= (1.0-walls[k]);
+     fnem_self_x *= (1.0-walls[k]);
+     fnem_self_y *= (1.0-walls[k]);
+     fshape_self_x *=(1.0-walls[k]);
+     fshape_self_y *=(1.0-walls[k]);
+  }
+
+  if (obstacle_type == "nonadhesive"){
+     fpol_x *= (1.0-obstacles[k]);
+     fpol_y *= (1.0-obstacles[k]);
+     fnem_self_x *= (1.0-obstacles[k]);
+     fnem_self_y *= (1.0-obstacles[k]);
+     fshape_self_x *=(1.0-obstacles[k]);
+     fshape_self_y *=(1.0-obstacles[k]);
+  } 
+
+
+  if (self_deformation == 1){
+    //exclude the self-elongation term
+    fnem_x = fnem_self_x + fnem_other_x;
+    fnem_y = fnem_self_y + fnem_other_y;
+    fshape_x = fshape_self_x + fshape_other_x;
+    fshape_y = fshape_self_y + fshape_other_y;
+  }
+  else if (self_deformation == 0){
+    fnem_x = fnem_other_x;
+    fnem_y = fnem_other_y;
+    fshape_x = fshape_other_x;
+    fshape_y = fshape_other_y;
+  }
+
+  // weighted averaging field
+  fp_field_x[k] += p*V[n][q]*dx;
+  fp_field_y[k] += p*V[n][q]*dy; 
+  fpol_field_x[k] += p*fpol_x;
+  fpol_field_y[k] += p*fpol_y;
+  fdipole_field_x[k] += p*(fnem_x + fshape_x);
+  fdipole_field_y[k] += p*(fnem_y + fshape_y);
+  
+  vx[n][q] = (fp_x[n][q] + fpol_x + fnem_x + fshape_x)/xi[n];
+  vy[n][q] = (fp_y[n][q] + fpol_y + fnem_y + fshape_y)/xi[n];
+
+
+  Fint[n]  += { fp_x[n][q] + fnem_x + fshape_x, fp_y[n][q] + fnem_y + fshape_y}; //interal force in fp vanishes after integration
+  Fpassive[n] += {fp_x[n][q], fp_y[n][q]};
+  Fshape[n]   += {fshape_x,fshape_y };
+  Fnem[n]     += {fnem_x,fnem_y};
+  Fpol[n]     += {fpol_x,fpol_y};
+  double rep = 2.0*(kappa + wall_kappa + obstacle_kappa)/lambda*p*(square[k]-p*p);
+  Frep[n]     += {rep*dx,rep*dy};
+ 
   // store derivatives
   phi_dx[n][q] = dx;
   phi_dy[n][q] = dy;
@@ -198,12 +318,6 @@ void Model::UpdateForcesAtNode(unsigned n, unsigned q)
   // nematic torques
   tau[n]       += sumQ00[k]*Q01[n] - sumQ01[k]*Q00[n];
   vorticity[n] += U0[k]*dy - U1[k]*dx;
-
-  // polarisation torques (not super nice)
-  const double ovlap = -(dx*(dxs-dx)+dy*(dys-dy));
-  const vec<double, 2> P = {P0[k]-phi[n][k]*polarization[n][0], P1[k]-phi[n][k]*polarization[n][1]};
-  delta_theta_pol[n] += ovlap*atan2(P[0]*polarization[n][1]-P[1]*polarization[n][0],
-                                    P[0]*polarization[n][0]+P[1]*polarization[n][1]);
 }
 
 void Model::UpdatePhaseFieldAtNode(unsigned n, unsigned q, bool store)
@@ -215,8 +329,9 @@ void Model::UpdatePhaseFieldAtNode(unsigned n, unsigned q, bool store)
     // free energy
     - V[n][q]
     // advection term
-    - velocity[n][0]*phi_dx[n][q] - velocity[n][1]*phi_dy[n][q];
+    - vx[n][q]*phi_dx[n][q] - vy[n][q]*phi_dy[n][q];
     ;
+  
 
   // store values
   if(store)
@@ -232,10 +347,10 @@ void Model::UpdatePhaseFieldAtNode(unsigned n, unsigned q, bool store)
 
     // update for next call
     phi[n][q]    = p;
-
     com_x[n] += com_x_table[GetXPosition(k)]*p;
     com_y[n] += com_y_table[GetYPosition(k)]*p;
     area[n]  += p*p;
+
   }
 
   // reinit values: we do reinit values here for the simple reason that it is
@@ -249,63 +364,107 @@ void Model::UpdateNematic(unsigned n, bool store)
 {
   // euler-marijuana update
   if(store)
-    theta_nem_old[n] = theta_nem[n] + sqrt_time_step*Dnem*random_normal();
+    theta_nem_old[n] = theta_nem[n] + sqrt_time_step*Dnem[n]*random_normal();
 
   double F00 = 0, F01 = 0;
   switch(align_nematic_to)
   {
-    case 0:
+    case 0: // center of mass velocity
     {
-      const auto ff = velocity[n];
+      const auto ff = com_velocity[n];
       F00 =   ff[0]*ff[0]
             - ff[1]*ff[1];
       F01 = 2*ff[0]*ff[1];
       break;
     }
-    case 1:
+    case 1: // interaction force
     {
-      const auto ff = Fpressure[n];
+      const auto ff = Fint[n];
       F00 =   ff[0]*ff[0]
             - ff[1]*ff[1];
       F01 = 2*ff[0]*ff[1];
       break;
     }
-    case 2:
+    case 2: // deformation tensor
+    {
       F00 = S00[n];
       F01 = S01[n];
       break;
+    }
+    case 3: // polarisation
+      const auto ff = polarization[n];
+      F00 =   ff[0]*ff[0]
+            - ff[1]*ff[1];
+      F01 = 2*ff[0]*ff[1];
+      break;
+     
   }
   const auto strength = pow(F01*F01 + F00*F00, 0.25);
 
   theta_nem[n] = theta_nem_old[n] - time_step*(
-      + Knem*tau[n]
-      + Jnem*strength*atan2(F00*Q01[n]-F01*Q00[n], F00*Q00[n]+F01*Q01[n]))
-      + Wnem*vorticity[n];
-  Q00[n] = Snem*cos(2*theta_nem[n]);
-  Q01[n] = Snem*sin(2*theta_nem[n]);
+      + Knem[n]*tau[n]
+      + Jnem[n]*strength*atan2(F00*Q01[n]-F01*Q00[n], F00*Q00[n]+F01*Q01[n]))
+      + Wnem[n]*vorticity[n];
+  Q00[n] = Snem[n]*cos(2*theta_nem[n]);
+  Q01[n] = Snem[n]*sin(2*theta_nem[n]);
+  
 }
 
 void Model::UpdatePolarization(unsigned n, bool store)
 {
   // euler-marijuana update
-  if(store)
-    theta_pol_old[n] = theta_pol[n] + sqrt_time_step*Dpol*random_normal();
-
-  vec<double, 2> ff = {0, 0};
-  switch(align_polarization_to)
-  {
-    case 0:
-      ff = velocity[n];
-      break;
-    case 1:
-      ff = Fpressure[n];
-      break;
+  if(store){
+    theta_pol_old[n] = theta_pol[n] + sqrt_time_step*Dpol[n]*random_normal();
+    polarization_old[n] = {polarization[n][0] + sqrt_time_step*Dpol[n]*random_normal(),
+                           polarization[n][1] + sqrt_time_step*Dpol[n]*random_normal()};
   }
 
-  theta_pol[n] = theta_pol_old[n] - time_step*(
-      + Kpol*delta_theta_pol[n]
-      + Jpol*ff.abs()*atan2(ff[0]*polarization[n][1]-ff[1]*polarization[n][0], ff*polarization[n]));
-  polarization[n] = { Spol*cos(theta_pol[n]), Spol*sin(theta_pol[n]) };
+  vec<double, 2> ff = {0, 0};
+  double t = 0.5*atan2(S01[n],S00[n]);
+  vec<double, 2> diff = {0.,0.};
+  switch(align_polarization_to)
+  {
+    case 0: //velocity
+      ff = com_velocity[n];
+      theta_pol[n] = theta_pol_old[n] - time_step*(Jpol[n]*ff.abs()*atan2(ff[0]*polarization[n][1]-ff[1]*polarization[n][0], ff*polarization[n]));
+      polarization[n] = {alpha[n]*Spol[n]*cos(theta_pol[n]), alpha[n]*Spol[n]*sin(theta_pol[n]) };
+      break;
+    case 1: //interaction force
+      ff = Fint[n];
+      theta_pol[n] = theta_pol_old[n] - time_step*(Jpol[n]*ff.abs()*atan2(ff[0]*polarization[n][1]-ff[1]*polarization[n][0], ff*polarization[n]));
+      polarization[n] = { alpha[n]*Spol[n]*cos(theta_pol[n]), alpha[n]*Spol[n]*sin(theta_pol[n]) };
+      break;
+    case 2: // shape(abs(polarization) fixed)
+      ff = {cos(t),sin(t)};
+      //make sure the angle between n and p are smaller thant 90 degree
+      if (ff[0]*polarization[n][0] + ff[1]*polarization[n][1] < 0.0 ){
+        ff = -sqrt(S01[n]*S01[n]+S00[n]*S00[n])*ff;
+      }
+      else{
+        ff = sqrt(S01[n]*S01[n]+S00[n]*S00[n])*ff;
+      }
+      theta_pol[n] = theta_pol_old[n] - time_step*(Jpol[n]*ff.abs()*atan2(ff[0]*polarization[n][1]-ff[1]*polarization[n][0], ff*polarization[n]));
+      polarization[n] = { alpha[n]*Spol[n]*cos(theta_pol[n]), alpha[n]*Spol[n]*sin(theta_pol[n]) };
+      break;
+    case 3: //shape
+      ff = {cos(t),sin(t)};
+      //make sure the angle between n and p are smaller thant 90 degree
+      if (ff[0]*polarization[n][0] + ff[1]*polarization[n][1] < 0.0 ){
+        ff = -sqrt(S01[n]*S01[n]+S00[n]*S00[n])*ff;
+      }
+      else{
+        ff = sqrt(S01[n]*S01[n]+S00[n]*S00[n])*ff;
+      }
+      diff = - time_step*Jpol[n]*(polarization[n] - beta[n]*ff);
+      polarization[n] = polarization_old[n] - time_step*Jpol[n]*(polarization[n] - beta[n]*ff);
+      break;
+    case 4: //interaction force
+      ff = Frep[n];
+      theta_pol[n] = theta_pol_old[n] - time_step*(Jpol[n]*ff.abs()*atan2(ff[0]*polarization[n][1]-ff[1]*polarization[n][0], ff*polarization[n]));
+      polarization[n] = { alpha[n]*Spol[n]*cos(theta_pol[n]), alpha[n]*Spol[n]*sin(theta_pol[n]) };
+      break;
+  }
+  polarization[n] *= exp(-eta*overlap[n]);
 }
 
 void Model::ComputeCoM(unsigned n)
@@ -340,9 +499,20 @@ void Model::UpdateStructureTensorAtNode(unsigned n, unsigned q)
 {
   const auto  dx = phi_dx[n][q];
   const auto  dy = phi_dy[n][q];
-
-  S00[n] += -0.5*(dx*dx-dy*dy);
+  S00[n] += 0.5*dy*dy - 0.5*dx*dx;
   S01[n] += -dx*dy;
+}
+
+void Model::UpdateNeighbourCells(unsigned n,unsigned q){
+  unsigned k = GetIndexFromPatch(n, q);
+  double threshold = 0.1;
+  if ((phi[n][q] > threshold) && (occupation[k] > -1)){
+     nbr_cells[n].insert(occupation[k]);
+     nbr_cells[occupation[k]].insert(n);
+  }
+  if ((phi[n][q] >= threshold) &&(occupation[k] < 0)){
+    occupation[k] = n;
+  }
 }
 
 void Model::ReinitSumsAtNode(unsigned k)
@@ -356,27 +526,33 @@ void Model::ReinitSumsAtNode(unsigned k)
   sumS01[k] = 0;
   sumQ00[k] = 0;
   sumQ01[k] = 0;
-  pressure[k] = 0;
+  sumS00zeta[k] = 0;
+  sumS01zeta[k] = 0;
+  sumQ00zeta[k] = 0;
+  sumQ01zeta[k] = 0;
   U0[k] = 0;
   U1[k] = 0;
 }
 
-#ifndef _CUDA_ENABLED
+void Model::UpdateStress(unsigned k){
+}
 
+#ifndef _CUDA_ENABLED
 void Model::Update(bool store, unsigned nstart)
 {
   // Compute all global sums
   for(unsigned n=nstart; n<nphases; ++n)
-  {
+  { 
     // update only patch (in parallel, each node to a different core)
     PRAGMA_OMP(omp parallel for num_threads(nthreads) if(nthreads))
-    for(unsigned q=0; q<patch_N; ++q)
-      UpdateSumsAtNode(n, q);
+    for(unsigned q=0; q<patch_N; ++q){
+       UpdateSumsAtNode(n, q);    
+    }
   }
-
+  
   // Compute stresses
   //
-  // We need another loop because the pressure involves a double sum over all
+  // We need another loop because the passive force involves a double sum over all
   // the cells.
   for(unsigned n=nstart; n<nphases; ++n)
   {
@@ -385,37 +561,79 @@ void Model::Update(bool store, unsigned nstart)
     for(unsigned q=0; q<patch_N; ++q)
       UpdatePotAtNode(n, q);
   }
-
-  // Compute induced force and passive velocity
-  PRAGMA_OMP(omp parallel for num_threads(nthreads) if(nthreads))
+  
+  //reset fields for calculation
+  for(unsigned k = 0;k <N;k++){
+      fp_field_x[k] = fp_field_y[k] = 0.0;
+      fpol_field_x[k] = fpol_field_y[k] = 0.0;
+      fdipole_field_x[k] = fdipole_field_y[k] = 0.0;
+      velocity_field_x[k] = velocity_field_y[k] = 0.0;
+      occupation[k] = -1;
+      stress_xx[k] = stress_yy[k] = stress_xy[k] = 0.0;
+  }
+  // compute the neighbour of a cell and the rearrangement
+  // std::set is not used because it cannot be serialized properly 
+  if (neighbour_tracking){
+    std::vector<std::set<unsigned> > nbr_old = nbr_cells;
+    for (unsigned n = nstart; n<nphases; n++){
+        nbr_cells[n].clear();
+    }
+    for (unsigned n = nstart; n<nphases;n++){
+      for (unsigned q = 0 ; q<patch_N;q++){
+        UpdateNeighbourCells(n,q);
+      }
+    }
+    /* 
+    for (unsigned n = nstart; n < nphases;n++){
+      std::sort(nbr_cells.begin(),nbr_cells.end());
+      nbr_cells.erase(std::unique(nbr_cells.begin(),nbr_cells.end()),nbr_cells.end());
+    }
+    */
+    for (unsigned n = nstart; n<nphases; n++){
+        if (nbr_old[n] == nbr_cells[n]){
+          isNbrChanged[n] = false;
+        }
+        else{
+          isNbrChanged[n] = true;
+        }
+    }
+  }
+  // Compute induced force (density) and velocity
   for(unsigned n=nstart; n<nphases; ++n)
   {
-    Fpol[n] = Fshape[n] = Fpressure[n] = {0, 0};
-    delta_theta_pol[n] = tau[n] = vorticity[n] = 0;
-
+    Fpol[n] = Fshape[n] = Fpassive[n] = Fnem[n] = Fint[n] = Frep[n] = {0, 0};
+    tau[n] = vorticity[n] = overlap[n] =0;
     // update in restricted patch only
+    PRAGMA_OMP(omp parallel for num_threads(nthreads) if(nthreads))
     for(unsigned q=0; q<patch_N; ++q)
       UpdateForcesAtNode(n, q);
-
     // normalise and compute total forces and vel
     tau[n]     /= lambda;
-    Fpol[n]     = alpha*polarization[n];
-    velocity[n] = (Fpressure[n] + Fnem[n] + Fshape[n] + Fpol[n])/xi;
+    com_velocity[n] = (Fpassive[n] + Fnem[n] + Fshape[n] + Fpol[n])/(xi[n]*area[n]);
   }
-
+  // update stress, this step must be after the force density calculation
+  for (unsigned k = 0;k<N;k++){
+    UpdateStress(k);
+  }
+  
+  for (unsigned n = nstart; n<nphases;n++){
+    //update velocity field
+    PRAGMA_OMP(omp parallel for num_threads(nthreads) if(nthreads))
+    for (unsigned q = 0; q<patch_N;q++){
+      UpdateVelocityFieldAtNode(n,q);
+    }
+  }
   // Predictor-corrector function for updating the phase fields
   PRAGMA_OMP(omp parallel for num_threads(nthreads) if(nthreads))
   for(unsigned n=nstart; n<nphases; ++n)
   {
-    com_x[n] = com_y[n] = S00[n] = S01[n] = area[n] = 0;
-
+    com_x[n] = com_y[n] = area[n] = S00[n] = S01[n]  = 0;
     // only update fields in the restricted patch of field n
     for(unsigned q=0; q<patch_N; ++q)
     {
       UpdatePhaseFieldAtNode(n, q, store);
       UpdateStructureTensorAtNode(n, q);
     }
-
     // update polarisation
     UpdatePolarization(n, store);
     // update Q-tensor

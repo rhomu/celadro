@@ -43,7 +43,6 @@ void Model::WriteFrame(unsigned t)
 
   // compress
   if(compress) compress_file(oname, oname);
-  if(compress_full) compress_file(oname, runname);
 }
 
 void Model::WriteParams()
@@ -76,85 +75,51 @@ void Model::WriteParams()
 
   // compress
   if(compress) compress_file(oname, oname);
-  if(compress_full) compress_file(oname, runname);
 }
 
 void Model::ClearOutput()
 {
-  if(compress_full)
+  output_dir = inputname + ( inputname.back()=='/' ? "data/" : "/data/" );
+
+  // extension of single files
+  string ext = compress ? ".json.zip" : ".json";
+
+  if(fs::is_directory(output_dir))
   {
-    // file name of the output file
-    const string fname = runname + ".zip";
-
+    if(not fs::is_empty(output_dir) and not force_delete)
     {
-      // try open it
-      ifstream infile(fname);
-      // does not exist we are fine
-      if(not infile.good()) return;
-    }
+      auto ans = ask(" remove output files in directory '" + output_dir + "'?");
 
-    if(not force_delete)
-    {
-      // ask
-      char answ = 0;
-      cout << " remove output file '" << fname << "'? ";
-      cin >> answ;
-
-      if(answ != 'y' and answ != 'Y')
-        throw error_msg("output file '", fname,
-                        "' already exist, please provide a different name.");
-    }
-
-    // delete
-    remove_file(fname);
-  }
-  else
-  {
-    // extension of single files
-    string ext = compress ? ".json.zip" : ".json";
-
-    // check that parameters.json does not exist in the output dir and if it
-    // does ask for deletion (this is not completely fool proof, but ok...)
-    {
-      ifstream infile(output_dir + "parameters" + ext);
-      if(not infile.good()) return;
-    }
-
-    if(not force_delete)
-    {
-      // ask
-      char answ = 0;
-      cout << " remove output files in directory '" << output_dir << "'? ";
-      cin >> answ;
-
-      if(answ != 'y' and answ != 'Y')
+      if(not ans)
         throw error_msg("output files already exist in directory '",
-                        output_dir, "'.");
+            output_dir, "'.");
     }
 
-    // delete all output files
-    remove_file(output_dir);
+    fs::remove_all(output_dir);
   }
-}
 
-void Model::CreateOutputDir()
-{
-  // if full compression is on: we need to create a random tmp directory
-  if(compress_full)
+  fs::create_directory(output_dir);
+}
+void Model::WriteConfig(){
+  // a name that makes sense
+  const string oname = inline_str(output_dir, "init_config0.json");
+
+  // write
   {
-    // use hash of runname string plus salt
-    hash<string> hash_fn;
-    unsigned dir_name = hash_fn(inline_str(runname, random_unsigned()));
-    output_dir = inline_str("/tmp/", dir_name, "/");
+    stringstream buffer;
+    {
+      // serialize
+      oarchive ar(buffer, "init_config", 1);
+      // ...program parameters...
+      ar & auto_name(Size)
+         & auto_name(BC);
+      SerializeParameters(ar);
+
+      if(ar.bad_value()) throw error_msg("nan found while writing file.");
+    }
+    // dump to file
+    std::ofstream ofs(oname.c_str(), ios::out);
+    ofs << buffer.rdbuf();
   }
-  // if full compression is off: just dump files where they belong
-  else
-    // note that runname can not be empty from options.cpp
-    output_dir = runname + ( runname.back()=='/' ? "" : "/" );
-
-  // clear output if needed
-  ClearOutput();
-
-  // create output dir if needed
-  create_directory(output_dir);
 }
+
