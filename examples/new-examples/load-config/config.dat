@@ -1,0 +1,26 @@
+#
+# Sample runcard loading configuration from file
+# bc,LX,LY,nphase should match that in init_config.json
+config     = load_config
+initial-cell-configuration-file = ./load-config/init_config.json # path relative to celadro executable file
+nsteps     = 2500
+ninfo      = 20
+LX         = 100
+LY         = 100
+nsubsteps  = 5
+bc         = 0
+margin     =12
+relax-time = 0
+noise      = 0.1
+
+# model parameters...
+# ...interface thickness parameter
+lambda  = 1.5
+# ...interaction strength
+kappa = .3
+
+omega = 0.7e-2
+
+neighbour-tracking = 1
+
+align-polarization-to = 0
