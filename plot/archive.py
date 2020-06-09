@@ -21,13 +21,13 @@ class archive(archive_base.archive):
     """Simply reshape 2d fields after importing"""
 
     def __init__(self, path):
-        super(archive, self).__init__(path)
+        archive_base.archive.__init__(self, path)
         self.parameters['walls'] = np.reshape(self.parameters['walls'],
                                               self.Size)
         self.__dict__.update(self.parameters)
 
     def read_frame(self, frame):
-        frame = super(archive, self).read_frame(frame)
+        frame = archive_base.archive.read_frame(self, frame)
 
         # array sizes
         lx, ly = self.Size
@@ -49,11 +49,20 @@ class archive(archive_base.archive):
             phi.append(p)
         frame.phi = phi
 
-        if hasattr(frame, 'stress_xx'):
-            frame.stress_xx.shape = (lx, ly)
-            frame.stress_xy.shape = (lx, ly)
-            frame.stress_yy.shape = (lx, ly)
 
+        #reshape the velocity field and force density
+        if hasattr(frame,'fdipole_field_x'):
+            frame.fdipole_field_x = np.reshape(frame.fdipole_field_x,(lx,ly))
+            frame.fdipole_field_y = np.reshape(frame.fdipole_field_y,(lx,ly))
+        if hasattr(frame,'fpol_field_x'):
+            frame.fpol_field_x = np.reshape(frame.fpol_field_x,(lx,ly))
+            frame.fpol_field_y = np.reshape(frame.fpol_field_y,(lx,ly))
+        if hasattr(frame,'fp_field_x'):
+            frame.fp_field_x = np.reshape(frame.fp_field_x,(lx,ly))
+            frame.fp_field_y = np.reshape(frame.fp_field_y,(lx,ly))
+        if hasattr(frame,'fa_field_x'):
+            frame.fa_field_x = np.reshape(frame.fa_field_x,(lx,ly))
+            frame.fa_field_y = np.reshape(frame.fa_field_y,(lx,ly))
         return frame
 
 

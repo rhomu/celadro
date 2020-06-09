@@ -1,0 +1,20 @@
+#
+# Description of the cell type
+#
+
+nphases = 6
+
+
+# Elastic constants for each phase
+gamma = .05
+# Area energy penalty for each phase
+mu      = 4
+# Preferred radius (in units of lattice spacing)
+R     = 6
+# Cell-substrate friction
+xi    = 1
+S-pol = 1
+# ...activity from shape deformation
+S-nem = 1
+D-pol = 0.0
+

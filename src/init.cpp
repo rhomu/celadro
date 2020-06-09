@@ -17,6 +17,7 @@
 
 #include "header.hpp"
 #include "model.hpp"
+#include<cmath>
 
 using namespace std;
 
@@ -40,16 +41,18 @@ void Model::Initialize()
   walls_dx.resize(N, 0.);
   walls_dy.resize(N, 0.);
   walls_laplace.resize(N, 0.);
+  obstacles.resize(N,0.);
+  obstacles_laplace.resize(N,0.);
   sum.resize(N, 0.);
-  pressure.resize(N, 0.);
-  stress_xx.resize(N, 0.);
-  stress_xy.resize(N, 0.);
-  stress_yy.resize(N, 0.);
   sumA.resize(N, 0.);
   sumS00.resize(N, 0.);
   sumS01.resize(N, 0.);
   sumQ00.resize(N, 0.);
   sumQ01.resize(N, 0.);
+  sumS00zeta.resize(N, 0.);
+  sumS01zeta.resize(N, 0.);
+  sumQ00zeta.resize(N, 0.);
+  sumQ01zeta.resize(N, 0.);
   square.resize(N, 0.);
   thirdp.resize(N, 0.);
   fourthp.resize(N, 0.);
@@ -57,44 +60,21 @@ void Model::Initialize()
   P1.resize(N, 0.);
   U0.resize(N, 0.);
   U1.resize(N, 0.);
-
-  // allocate memory for individual cells
-  SetCellNumber(nphases);
-
-  // ---------------------------------------------------------------------------
-
-  if(zetaQ!=0.) sign_zetaQ = zetaQ>0. ? 1 : -1;
-  if(zetaS!=0.) sign_zetaS = zetaS>0. ? 1 : -1;
-
-  // compute tables
-  for(unsigned i=0; i<Size[0]; ++i)
-    com_x_table.push_back({ cos(-Pi+2.*Pi*i/Size[0]), sin(-Pi+2.*Pi*i/Size[0]) });
-  for(unsigned i=0; i<Size[1]; ++i)
-    com_y_table.push_back({ cos(-Pi+2.*Pi*i/Size[1]), sin(-Pi+2.*Pi*i/Size[1]) });
-
-  // ---------------------------------------------------------------------------
-
-  // check parameters
-  for(unsigned n=0; n<nphases; ++n)
-    if(margin<R) throw error_msg("Margin is too small, make it bigger than R.");
-
-  // check birth boundaries
-  if(birth_bdries.size()==0)
-    birth_bdries = {0, Size[0], 0, Size[1]};
-  else if(birth_bdries.size()!=4)
-    throw error_msg("Birth boundaries have wrong format, see help.");
-
-  if(wall_omega!=0)
-    throw error_msg("Wall adhesion is not working for the moment.");
-
-  // ---------------------------------------------------------------------------
-
-  a0 = Pi*R*R;
-}
-
-void Model::SetCellNumber(unsigned new_nphases)
-{
-  nphases = new_nphases;
+  occupation.resize(N,-1);
+  // initialize velocity fields,force density and stress
+  fpol_field_x.resize(N,0.);
+  fpol_field_y.resize(N,0.);
+  fdipole_field_x.resize(N,0.);
+  fdipole_field_y.resize(N,0.);
+  fp_field_x.resize(N,0.);
+  fp_field_y.resize(N,0.);
+  velocity_field_x.resize(N,0.);
+  velocity_field_y.resize(N,0.);
+  vorticity_field_x.resize(N,0.);
+  vorticity_field_y.resize(N,0.);
+  stress_xx.resize(N,0.);
+  stress_yy.resize(N,0.);
+  stress_xy.resize(N,0.);
 
   // allocate memory for qties defined on the patches
   phi.resize(nphases, vector<double>(patch_N, 0.));
@@ -104,16 +84,24 @@ void Model::SetCellNumber(unsigned new_nphases)
   V.resize(nphases, vector<double>(patch_N, 0.));
   dphi.resize(nphases, vector<double>(patch_N, 0.));
   dphi_old.resize(nphases, vector<double>(patch_N, 0.));
-
+  fp_x.resize(nphases, vector<double>(patch_N, 0.));
+  fp_y.resize(nphases, vector<double>(patch_N, 0.));
+  vx.resize(nphases,vector<double>(patch_N,0.0));
+  vy.resize(nphases,vector<double>(patch_N,0.0));
+  
   // allocate memory for cell properties
   area.resize(nphases, 0.);
+  overlap.resize(nphases,0.);
   patch_min.resize(nphases, {0, 0});
   patch_max.resize(nphases, Size);
   com.resize(nphases, {0., 0.});
   com_prev.resize(nphases, {0., 0.});
   polarization.resize(nphases, {0., 0.});
-  velocity.resize(nphases, {0., 0.});
-  Fpressure.resize(nphases, {0., 0.});
+  polarization_old.resize(nphases,{0.,0.});
+  com_velocity.resize(nphases, {0., 0.});
+  Fpassive.resize(nphases, {0., 0.});
+  Fint.resize(nphases,{0.,0.});
+  Frep.resize(nphases,{0.,0.});
   Fshape.resize(nphases, {0., 0.});
   Fnem.resize(nphases, {0., 0.});
   Fpol.resize(nphases, {0., 0.});
@@ -126,11 +114,52 @@ void Model::SetCellNumber(unsigned new_nphases)
   offset.resize(nphases, {0u, 0u});
   theta_pol.resize(nphases, 0.);
   theta_pol_old.resize(nphases, 0.);
-  delta_theta_pol.resize(nphases, 0.);
   theta_nem.resize(nphases, 0.);
   theta_nem_old.resize(nphases, 0.);
   vorticity.resize(nphases, 0.);
   tau.resize(nphases, 0.);
+  division_counter.resize(nphases, 0.);
+  sign_zetaQ.resize(nphases, 0.);
+  sign_zetaS.resize(nphases, 0.);
+
+  //allocate menory for observables
+  occupation.resize(N,-1);
+  nbr_cells.resize(nphases,{});
+  isNbrChanged.resize(nphases,false);
+
+  a0.reserve(nphases);
+  for(unsigned n=a0.size(); n<nphases; ++n)
+    a0.push_back(Pi*R[n]*R[n]);
+
+  for(unsigned n=a0.size(); n<nphases; ++n)
+  {
+    if(zetaQ[n]!=0.) sign_zetaQ[n] = zetaQ[n]>0. ? 1 : -1;
+    if(zetaS[n]!=0.) sign_zetaS[n] = zetaS[n]>0. ? 1 : -1;
+  }
+
+  // ---------------------------------------------------------------------------
+
+  // compute tables
+  for(unsigned i=0; i<Size[0]; ++i)
+    com_x_table.push_back({ cos(-Pi+2.*Pi*i/Size[0]), sin(-Pi+2.*Pi*i/Size[0]) });
+  for(unsigned i=0; i<Size[1]; ++i)
+    com_y_table.push_back({ cos(-Pi+2.*Pi*i/Size[1]), sin(-Pi+2.*Pi*i/Size[1]) });
+
+  // ---------------------------------------------------------------------------
+
+  // check parameters
+  for(unsigned n=0; n<nphases; ++n)
+    if(margin<R[n]) throw error_msg("Margin is too small, make it bigger than R.");
+
+  // check birth boundaries
+  if(birth_bdries.size()==0)
+    birth_bdries = {unsigned(0.01+0.5*Size[0]*(1.0-confinement_ratio)), unsigned(0.5*Size[0]*(1.0+confinement_ratio)), 
+                    unsigned(0.01+0.5*Size[1]*(1.0-confinement_ratio)), unsigned(0.5*Size[1]*(1.0+confinement_ratio))};
+  else if(birth_bdries.size()!=4)
+    throw error_msg("Birth boundaries have wrong format, see help.");
+
+  if(wall_omega!=0)
+    throw error_msg("Wall adhesion is not working for the moment.");
 }
 
 void Model::InitializeNeighbors()
@@ -166,3 +195,56 @@ void Model::InitializeNeighbors()
     }
   }
 }
+
+void Model::SwapCells(unsigned n, unsigned m)
+{
+  swap(gam[n], gam[m]);
+  swap(mu[n], mu[m]);
+  swap(R[n], R[m]);
+  swap(xi[n], xi[m]);
+  swap(alpha[n], alpha[m]);
+  swap(beta[n], beta[m]);
+  swap(beta[n],beta[m]);
+  swap(Dpol[n], Dpol[m]);
+  swap(Spol[n], Spol[m]);
+  swap(Jpol[n], Jpol[m]);
+  swap(Dnem[n], Dnem[m]);
+  swap(Snem[n], Snem[m]);
+  swap(Jnem[n], Jnem[m]);
+  swap(Knem[n], Knem[m]);
+  swap(Wnem[n], Wnem[m]);
+  swap(zetaQ[n], zetaQ[m]);
+  swap(zetaS[n], zetaS[m]);
+  swap(types[n], types[m]);
+  swap(target_R[n], target_R[m]);
+  swap(area[n], area[m]);
+  swap(overlap[n],overlap[m]);
+  swap(patch_min[n], patch_min[m]);
+  swap(patch_max[n], patch_max[m]);
+  swap(com[n], com[m]);
+  swap(com_prev[n], com_prev[m]);
+  swap(polarization[n], polarization[m]);
+  swap(polarization_old[n],polarization_old[m]);
+  swap(com_velocity[n], com_velocity[m]);
+  swap(Fpassive[n], Fpassive[m]);
+  swap(Fint[n],Fint[m]);
+  swap(Frep[n],Frep[m]);
+  swap(Fshape[n], Fshape[m]);
+  swap(Fnem[n], Fnem[m]);
+  swap(Fpol[n], Fpol[m]);
+  swap(com_x[n], com_x[m]);
+  swap(com_y[n], com_y[m]);
+  swap(S00[n], S00[m]);
+  swap(S01[n], S01[m]);
+  swap(Q00[n], Q00[m]);
+  swap(Q01[n], Q01[m]);
+  swap(offset[n], offset[m]);
+  swap(theta_pol[n], theta_pol[m]);
+  swap(theta_pol_old[n], theta_pol_old[m]);
+  swap(theta_nem[n], theta_nem[m]);
+  swap(theta_nem_old[n], theta_nem_old[m]);
+  swap(vorticity[n], vorticity[m]);
+  swap(tau[n], tau[m]);
+  swap(division_counter[n], division_counter[m]);
+}
+

@@ -1,0 +1,43 @@
+#
+# Sample runcard showing cells showing bend instability.
+#
+
+config     = random
+nsteps     = 3000
+ninfo      = 20
+LX         = 100
+LY         = 100
+nsubsteps  = 5
+bc         = 3
+margin     = 25
+relax-time = 2000
+align-polarization-to = 4
+# model parameters...
+# ...interface thickness parameter
+lambda  = 2
+# ...interaction strength
+kappa = .3
+
+omega = 2e-2
+
+neighbour-tracking = 1
+
+wall-type = hard
+
+rm-confine-after-relax = 1
+
+wall-kappa = 0.5
+
+wall-thickness = 2
+
+confinement-ratio = 0.60
+
+contact-inhibition = 0
+
+pol-distribution = 1
+
+initial-alignment = random
+ 
+eta = 5.0
+
+

@@ -1,0 +1,76 @@
+Modification of the source code and the python files:
+
+A The dynamics of polarisation
+A.1 The polarisation aligns to elongation axis(magnitude of poliarization is fiexd)
+-parameters: align-polarization-to=2
+            alpha,J-pol,D-pol
+-example:shape1
+
+A.2 The polarisation relaxes to elongation axis(both orientation and magnitude) 
+-parameters: align-polarization-to=3
+            beta,J-pol,D-pol
+-example:shape2
+
+A.3 Contact inhibition of locomotion
+The orientation of polarisation aligns to repulsive force, the magnidue supressed expoentially
+with the overlap between the cell front and other cell bodies.
+-parameters: align-polarisation-to=4
+            eta,alpha,J-pol,D-pol
+magnitude of polarization = alpha*exp(-eta*overlap)
+-example:cluster-CIL
+
+B Polarisation distribution
+B.1 The polarization of a cell is distributed at the front of a cell or 
+in the whole cell.
+-parameters:pol-distribution
+-example:cluster-CIL
+
+C Type of walls
+According to many experiments, cells are always confined by an nonadhesive substrate at the outer
+boundaries.In this region, polarizations and self-elongation are supressed.
+-parameters:wall-type=nonadhesive(or hard)
+-example:circular-confinement-nonadhesive
+
+D Configurations
+D.1 Cluster
+The old configuration option cluster works not fine with large number of cells. To realize the
+cluster configuration, we confine the cell into a elliptical wall and remove the elliptical walls 
+after the relaxation steps(the walls at the simulation box remains).
+-parameter:bc,rm-confine-after-relax,confinement-ratio
+-example:cluster-CIL
+
+D.2 Obstalce
+A circular obstacle can be set in the domain. The size,center,type(hard or nonadhesive) and other properties of this obstacle 
+can be set by this options.
+-parameters:obstacle-type,obstacle-center-x,obstacle-center-y,obstacle-omega,obstacle-kappa
+-example:obstacle
+
+D.3 Load configuration from files
+The initial position,polarisation,and namtic activity can be loaded from a json file
+-parameters:init-config
+-example:load-config
+
+E Adhesion
+E.1 To make the simulation more stable,the adhesion is modified.The laplace term is supressed and a stronger adhesion can be applied. 
+-parameters:omega
+-example:adhesion
+
+F Plot
+F.1 Plot the trajectories of cell centers.
+-function:tractories() in plot.py 
+-example:plot-center-trajectory
+F.2 Plot force,velocity,shape field(and defect),Q field(and defect),polarization field,correlation lengthes
+F.3 plot force density
+-function:force_density() in plot.py
+ 
+
+
+
+
+
+
+
+
+
+
+ 

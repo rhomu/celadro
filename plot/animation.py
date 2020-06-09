@@ -21,8 +21,9 @@ import matplotlib.animation as ani
 ######################################################################
 # animation
 
-
-def animate(oa, fn, rng=[], inter=200, show=True):
+isPaused = False
+position = [] # list of positions in [x,y] form
+def animate(oa, fn, rng=[], inter=30, show=True,show_frame_index = False,window_size =[]):
     """
     Show a frame-by-frame animation.
 
@@ -32,19 +33,37 @@ def animate(oa, fn, rng=[], inter=200, show=True):
         rng -- range of the frames to be ploted
         interval -- time between frames (ms)
     """
+    global isPaused
+    # set range
+    if len(rng) == 0:
+        rng = [1, oa._nframes+1]
+    #local callback fucntion to pause the program
+    def btnOnPause(event):
+       global isPaused
+       if (event.key == "x") or (event.key == "X"):
+           isPaused = True
     # set range
     if len(rng) == 0:
         rng = [1, oa._nframes+1]
 
     # create the figure
     fig = plt.figure()
-
+    fig.canvas.mpl_connect('key_press_event', btnOnPause)
+    if window_size:
+        fig.set_size_inches(window_size[0], window_size[1])
     # the local animation function
     def animate_fn(i):
+        global isPaused
+        if isPaused:
+           print("Please press enter to continue")
+           input()
+           isPaused = False
         # we want a fresh figure everytime
         fig.clf()
         # load the frame
         frame = oa.read_frame(i)
+        position.append(frame.com) # frame.com is a n*2 array
+        fig.suptitle('frame index: {}'.format(i*oa.parameters['ninfo']) )
         # call the global function
         fn(frame, fig)
 
@@ -58,6 +77,6 @@ def animate(oa, fn, rng=[], inter=200, show=True):
         return anim
 
 
-def save(an, fname, fps, tt='ffmpeg', bitrate=-1):
-    writer = ani.writers[tt](fps=fps, bitrate=bitrate)
-    an.save(fname, writer=writer)
+def save(an, fname, fps, tt='ffmpeg', bitrate=-1,dpi = 100):
+    writer = ani.writers[tt](fps=fps,bitrate=bitrate)
+    an.save(fname, writer=writer,dpi = dpi)
