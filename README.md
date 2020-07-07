@@ -3,19 +3,22 @@
 # Celadro: Cells as active droplets
 
 Phase-field modelling of epithelial cells using finite-difference integrator.<br/>
-[Example movie 1](movie1.mp4?raw=true) [Example movie 2](movie2.mp4?raw=true)
+[Example movie 1](assets/movie1.mp4?raw=true) [Example movie 2](assets/movie2.mp4?raw=true)
 
 ## Publications
 
 This code has served as a basis for the simulations included in the following papers:
 
-- Emergence of active nematic behavior in monolayers of isotropic cells<br/>
-  R Mueller, JM Yeomans, A Doostmohammadi<br/>
-  Physical review letters 122 (4), 048004<br/>
+- Active Inter-cellular Forces in Collective Cell Motility  
+  G Zhang, R Mueller, A Doostmohammadi, JM Yeomans  
+  arXiv preprint arXiv:2005.13087, 2020
+- Emergence of active nematic behavior in monolayers of isotropic cells  
+  R Mueller, JM Yeomans, A Doostmohammadi  
+  Physical review letters 122 (4), 048004  
   [Movie 1](https://arxiv.org/src/1811.05040v2/anc/movie_1.mp4) [Movie 1](https://arxiv.org/src/1811.05040v2/anc/movie_2.mp4)
-- Sustained oscillations of epithelial cell sheets<br/>
-  G Peyret, R Mueller, J d'Alessandro, et al.<br/>
-  bioRxiv, 492082
+- Sustained oscillations of epithelial cell sheets  
+  G Peyret, R Mueller, J d'Alessandro, et al.  
+  Biophysical journal 117 (3), 464-478
 
 ## Building
 
@@ -59,9 +62,8 @@ to run `bash make_all_movies.sh` and have a look at the results.
 
 WARNING !!! this feature is currently unmaintained and can not be used for now (2020) !!!
 
-The code supports both multi-threading and CUDA.
-
-The CUDA-enabled version of the code can be built using
+The code supports both multi-threading and CUDA. The CUDA-enabled version of
+the code can be built using
 ```
 mkdir build-cuda
 cd build-cuda
