@@ -57,6 +57,8 @@ to run `bash make_all_movies.sh` and have a look at the results.
 
 ## Multi-threading and CUDA
 
+WARNING !!! this feature is currently unmaintained and can not be used for now (2020) !!!
+
 The code supports both multi-threading and CUDA.
 
 The CUDA-enabled version of the code can be built using

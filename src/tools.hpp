@@ -78,7 +78,7 @@ inline T wrap(const T& x, const U& L)
 inline double wrap(double x, double L)
 {
   const auto y = modu(x, L);
-  if(abs(y)<abs(L-y))
+  if(std::abs(y)<std::abs(L-y))
     return y;
   else
     return L-y;
