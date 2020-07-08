@@ -25,6 +25,9 @@
 #ifndef CUDA_HPP_
 #define CUDA_HPP_
 
+// CUDA support is disabled for now
+#undef _CUDA
+
 #ifdef _CUDA
 
 #define _CUDA_ENABLED
@@ -39,6 +42,7 @@
 
 #define CUDA_host_device __host__ __device__
 
+// #ifdef _CUDA
 #else
 
 #define CUDA_host_device 

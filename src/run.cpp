@@ -361,8 +361,6 @@ void Model::ReinitSumsAtNode(unsigned k)
   U1[k] = 0;
 }
 
-#ifndef _CUDA_ENABLED
-
 void Model::Update(bool store, unsigned nstart)
 {
   // Compute all global sums
@@ -426,5 +424,3 @@ void Model::Update(bool store, unsigned nstart)
     UpdatePatch(n);
   }
 }
-
-#endif
