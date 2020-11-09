@@ -17,6 +17,10 @@ cmake_minimum_required(VERSION 3.0)
 project(celadro)
 set(CMAKE_CXX_STANDARD 14)
 
+# Uncomment if you are having undefined references with
+# boost::program_options when using gcc >= 5.
+# add_definitions(-D_GLIBCXX_USE_CXX11_ABI=0)
+
 # default is release
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)

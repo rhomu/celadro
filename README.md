@@ -70,3 +70,17 @@ cd build-cuda
 cmake ..
 make celadro-cuda
 ```
+
+## Troubleshooting
+
+### Hard to solve linking problems with `boost::program_options`
+
+On some platforms the compiler might be unable to link to the boost library properly
+which results in `undefined reference` errors. This can be due to the installed boost
+libraries using a different ABI than the code when it is compiled with a recent
+compiler. In order to solve this problem, either switch back to an older compiler
+(e.g. `gcc-4.9`) or uncomment the line
+```
+add_definitions(-D_GLIBCXX_USE_CXX11_ABI=0)
+```
+in `CMakeLists.txt`.
