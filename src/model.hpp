@@ -588,7 +588,10 @@ struct Model
        & auto_name(Dpol)
        & auto_name(Dnem)
        & auto_name(margin)
-       & auto_name(patch_size);
+       & auto_name(patch_size)
+       & auto_name(align_nematic_to)
+       & auto_name(align_polarization_to);
+
   }
 
   /** Serialization of parameters (in and out) */
