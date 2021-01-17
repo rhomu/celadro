@@ -34,7 +34,7 @@ def animate(oa, fn, rng=[], inter=200, show=True):
     """
     # set range
     if len(rng) == 0:
-        rng = [1, oa._nframes+1]
+        rng = [1, oa._nframes + 1]
 
     # create the figure
     fig = plt.figure()
@@ -48,9 +48,9 @@ def animate(oa, fn, rng=[], inter=200, show=True):
         # call the global function
         fn(frame, fig)
 
-    anim = ani.FuncAnimation(fig, animate_fn,
-                             frames=np.arange(rng[0], rng[1]),
-                             interval=inter, blit=False)
+    anim = ani.FuncAnimation(
+        fig, animate_fn, frames=np.arange(rng[0], rng[1]), interval=inter, blit=False
+    )
 
     if show:
         return plt.show()
@@ -58,6 +58,6 @@ def animate(oa, fn, rng=[], inter=200, show=True):
         return anim
 
 
-def save(an, fname, fps, tt='ffmpeg', bitrate=-1):
+def save(an, fname, fps, tt="ffmpeg", bitrate=-1):
     writer = ani.writers[tt](fps=fps, bitrate=bitrate)
     an.save(fname, writer=writer)

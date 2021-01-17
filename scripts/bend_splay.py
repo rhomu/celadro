@@ -33,7 +33,7 @@ ar = archive.loadarchive(sys.argv[1])
 ##################################################
 # plot simple animation of phases
 
-ll = ar._nframes+1
+ll = ar._nframes + 1
 ar = archive.loadarchive(sys.argv[1])
 
 bend = np.zeros(ll)
@@ -42,20 +42,22 @@ splay = np.zeros(ll)
 c = 0
 for i in range(0, ll):
     frame = ar.read_frame(i)
-    print("{}/{}".format(i, ar._nframes),)
+    print(
+        "{}/{}".format(i, ar._nframes),
+    )
     Qxx, Qxy = plot.get_Qtensor(frame.phi, frame.Q00, frame.Q01, size=24)
-    S = np.vectorize(sqrt)(Qxy**2 + Qxx**2)
-    nx = np.vectorize(sqrt)((1 + Qxx/S)/2)
-    ny = np.sign(Qxy)*np.vectorize(sqrt)((1 - Qxx/S)/2)
-    nn = nx*nx + ny*ny
-    bend[c] = .5*np.sum(np.square(nn*plot.get_vorticity_field(nx, ny)))
-    splay[c] = .5*np.sum(np.square(plot.get_gradient_field(nx, ny)))
+    S = np.vectorize(sqrt)(Qxy ** 2 + Qxx ** 2)
+    nx = np.vectorize(sqrt)((1 + Qxx / S) / 2)
+    ny = np.sign(Qxy) * np.vectorize(sqrt)((1 - Qxx / S) / 2)
+    nn = nx * nx + ny * ny
+    bend[c] = 0.5 * np.sum(np.square(nn * plot.get_vorticity_field(nx, ny)))
+    splay[c] = 0.5 * np.sum(np.square(plot.get_gradient_field(nx, ny)))
     # bend[c]  = log(bend[c])
     # splay[c] = log(splay[c])
     print("bend={}, splay={}".format(bend[c], splay[c]))
     c += 1
 
-plt.plot(ar.ninfo*np.arange(0, c), bend, label='bend')
-plt.plot(ar.ninfo*np.arange(0, c), splay, label='splay')
+plt.plot(ar.ninfo * np.arange(0, c), bend, label="bend")
+plt.plot(ar.ninfo * np.arange(0, c), splay, label="splay")
 plt.legend()
 plt.show()

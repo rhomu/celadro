@@ -38,7 +38,7 @@ if len(sys.argv) == 3:
 ##################################################
 # compute mean correlations
 
-size = int(sqrt(ar.Size[0]*ar.Size[1])/2)
+size = int(sqrt(ar.Size[0] * ar.Size[1]) / 2)
 count = 0
 vel_tot = np.zeros(size)
 vel_err = np.zeros(size)
@@ -49,7 +49,7 @@ shp_err = np.zeros(size)
 nem_tot = np.zeros(size)
 nem_err = np.zeros(size)
 
-for i in np.arange(int(0.3*ar._nframes), ar._nframes+1, step=1):
+for i in np.arange(int(0.3 * ar._nframes), ar._nframes + 1, step=1):
 
     frame = ar.read_frame(i)
     print("{}/{}".format(i, ar._nframes))
@@ -82,55 +82,55 @@ for i in np.arange(int(0.3*ar._nframes), ar._nframes+1, step=1):
 for i in range(size):
     vel_tot[i] /= count
     vel_err[i] /= count
-    vel_err[i] = sqrt(vel_err[i] - vel_tot[i]**2)
+    vel_err[i] = sqrt(vel_err[i] - vel_tot[i] ** 2)
     vor_tot[i] /= count
     vor_err[i] /= count
-    vor_err[i] = sqrt(vor_err[i] - vor_tot[i]**2)
+    vor_err[i] = sqrt(vor_err[i] - vor_tot[i] ** 2)
     nem_tot[i] /= count
     nem_err[i] /= count
-    nem_err[i] = sqrt(nem_err[i] - nem_tot[i]**2)
+    nem_err[i] = sqrt(nem_err[i] - nem_tot[i] ** 2)
     shp_tot[i] /= count
     shp_err[i] /= count
-    shp_err[i] = sqrt(shp_err[i] - shp_tot[i]**2)
+    shp_err[i] = sqrt(shp_err[i] - shp_tot[i] ** 2)
 
 #
 # nematic
 #
 plt.figure()
-plt.plot(range(size), nem_tot, 'k')
-plt.fill_between(range(size), nem_tot-nem_err, nem_tot+nem_err)
-if oname == '':
+plt.plot(range(size), nem_tot, "k")
+plt.fill_between(range(size), nem_tot - nem_err, nem_tot + nem_err)
+if oname == "":
     plt.show()
 else:
-    plt.savefig(oname+'_corr_nem.png')
-    np.save(oname+'_nem_tot', nem_tot)
-    np.save(oname+'_nem_err', nem_err)
+    plt.savefig(oname + "_corr_nem.png")
+    np.save(oname + "_nem_tot", nem_tot)
+    np.save(oname + "_nem_err", nem_err)
 
 #
 # shape
 #
 plt.figure()
-plt.plot(range(size), shp_tot, 'k')
-plt.fill_between(range(size), shp_tot-shp_err, shp_tot+shp_err)
-if oname == '':
+plt.plot(range(size), shp_tot, "k")
+plt.fill_between(range(size), shp_tot - shp_err, shp_tot + shp_err)
+if oname == "":
     plt.show()
 else:
-    plt.savefig(oname+'_corr_shape.png')
-    np.save(oname+'_shape_tot', shp_tot)
-    np.save(oname+'_shape_err', shp_err)
+    plt.savefig(oname + "_corr_shape.png")
+    np.save(oname + "_shape_tot", shp_tot)
+    np.save(oname + "_shape_err", shp_err)
 
 #
 # velocity
 #
 plt.figure()
-plt.plot(range(size), vel_tot, 'k')
-plt.fill_between(range(size), vel_tot-vel_err, vel_tot+vel_err)
-if oname == '':
+plt.plot(range(size), vel_tot, "k")
+plt.fill_between(range(size), vel_tot - vel_err, vel_tot + vel_err)
+if oname == "":
     plt.show()
 else:
-    plt.savefig(oname+'_corr_vel.png')
-    np.save(oname+'_vel_tot', vel_tot)
-    np.save(oname+'_vel_err', vel_err)
+    plt.savefig(oname + "_corr_vel.png")
+    np.save(oname + "_vel_tot", vel_tot)
+    np.save(oname + "_vel_err", vel_err)
 
 #
 # vorticity
@@ -138,25 +138,25 @@ else:
 
 
 def zero(x, y):
-    indi = np.where(y[1:]*y[0:-1] < 0.0)[0][0]
-    dx = x[indi+1] - x[indi]
-    dy = y[indi+1] - y[indi]
-    z = -y[indi] * (dx/dy) + x[indi]
+    indi = np.where(y[1:] * y[0:-1] < 0.0)[0][0]
+    dx = x[indi + 1] - x[indi]
+    dy = y[indi + 1] - y[indi]
+    z = -y[indi] * (dx / dy) + x[indi]
     return z
 
 
 # get location of zero of the derivative
 dvor_tot = np.gradient(vor_tot)
 xz = zero(range(size), dvor_tot)
-yz = vor_tot[int(xz)]+(xz-int(xz))*(vor_tot[int(xz)+1]-vor_tot[int(xz)])
+yz = vor_tot[int(xz)] + (xz - int(xz)) * (vor_tot[int(xz) + 1] - vor_tot[int(xz)])
 
 plt.figure()
-plt.plot(range(size), vor_tot, 'k')
-plt.plot(xz, yz, 'ro')
-plt.fill_between(range(size), vor_tot-vor_err, vor_tot+vor_err)
-if oname == '':
+plt.plot(range(size), vor_tot, "k")
+plt.plot(xz, yz, "ro")
+plt.fill_between(range(size), vor_tot - vor_err, vor_tot + vor_err)
+if oname == "":
     plt.show()
 else:
-    plt.savefig(oname+'_corr_vor.png')
-    np.save(oname+'_vor_tot', vor_tot)
-    np.save(oname+'_vor_err', vor_err)
+    plt.savefig(oname + "_corr_vor.png")
+    np.save(oname + "_vor_tot", vor_tot)
+    np.save(oname + "_vor_err", vor_err)

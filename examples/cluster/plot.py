@@ -33,7 +33,7 @@ ar = archive.loadarchive(sys.argv[1])
 
 oname = ""
 if len(sys.argv) == 3:
-    oname = "movie_"+sys.argv[2]
+    oname = "movie_" + sys.argv[2]
     print("Output name is", sys.argv[2])
 
 
@@ -54,10 +54,10 @@ def myplot(frame, fig):
     plot.velocity(frame, ax)
     plot.pressure_force(frame, ax)
 
-    ax.axes.set_aspect('equal', adjustable='box')
-    ax.set_xlim([0, frame.parameters['Size'][0]-1])
-    ax.set_ylim([0, frame.parameters['Size'][1]-1])
-    ax.axis('off')
+    ax.axes.set_aspect("equal", adjustable="box")
+    ax.set_xlim([0, frame.parameters["Size"][0] - 1])
+    ax.set_ylim([0, frame.parameters["Size"][1] - 1])
+    ax.axis("off")
 
 
 if len(oname) == 0:
@@ -65,4 +65,4 @@ if len(oname) == 0:
     exit(0)
 else:
     an = animation.animate(ar, myplot, show=False)
-    animation.save(an, oname+'.mp4', 5)
+    animation.save(an, oname + ".mp4", 5)

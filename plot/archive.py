@@ -22,8 +22,7 @@ class archive(archive_base.archive):
 
     def __init__(self, path):
         super(archive, self).__init__(path)
-        self.parameters['walls'] = np.reshape(self.parameters['walls'],
-                                              self.Size)
+        self.parameters["walls"] = np.reshape(self.parameters["walls"], self.Size)
         self.__dict__.update(self.parameters)
 
     def read_frame(self, frame):
@@ -40,8 +39,8 @@ class archive(archive_base.archive):
             p = np.roll(p, frame.offset[i][0], axis=0)
             p = np.roll(p, frame.offset[i][1], axis=1)
             # extend to full size
-            p = np.concatenate((p, np.zeros((px, ly-py))), axis=1)
-            p = np.concatenate((p, np.zeros((lx-px, ly))), axis=0)
+            p = np.concatenate((p, np.zeros((px, ly - py))), axis=1)
+            p = np.concatenate((p, np.zeros((lx - px, ly))), axis=0)
             # put in right postition
             p = np.roll(p, frame.patch_min[i][0], axis=0)
             p = np.roll(p, frame.patch_min[i][1], axis=1)
@@ -49,7 +48,7 @@ class archive(archive_base.archive):
             phi.append(p)
         frame.phi = phi
 
-        if hasattr(frame, 'stress_xx'):
+        if hasattr(frame, "stress_xx"):
             frame.stress_xx.shape = (lx, ly)
             frame.stress_xy.shape = (lx, ly)
             frame.stress_yy.shape = (lx, ly)

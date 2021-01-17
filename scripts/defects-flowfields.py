@@ -28,7 +28,7 @@ if len(sys.argv) < 3:
     exit(1)
 
 qtensor = sys.argv[1]
-if sys.argv[1] not in ['shape', 'nematic']:
+if sys.argv[1] not in ["shape", "nematic"]:
     print("Please set first argument to be 'shape' or 'nematic'.")
     exit(1)
 
@@ -50,10 +50,10 @@ ar = archive.loadarchive(sys.argv[2])
 # https://stackoverflow.com/questions/46657423/rotated-image-coordinates-after-scipy-ndimage-interpolation-rotate
 def rot(image, xy, angle, crop):
     # shift, rotate, and shift
-    org_center = (np.array(image.shape[:2][::-1])-1)/2.
-    im_rot = shift(image, - xy + org_center, mode='wrap')
-    im_rot = rotate(im_rot, np.rad2deg(angle), mode='wrap', reshape=False)
-    im_rot = shift(im_rot, - org_center + 2*[crop/2], mode='wrap')
+    org_center = (np.array(image.shape[:2][::-1]) - 1) / 2.0
+    im_rot = shift(image, -xy + org_center, mode="wrap")
+    im_rot = rotate(im_rot, np.rad2deg(angle), mode="wrap", reshape=False)
+    im_rot = shift(im_rot, -org_center + 2 * [crop / 2], mode="wrap")
     # crop to window size
     return im_rot[0:crop, 0:crop]
 
@@ -64,34 +64,37 @@ Q01_tot = np.zeros((window_size, window_size))
 vx_tot = np.zeros((window_size, window_size))
 vy_tot = np.zeros((window_size, window_size))
 
-for i in np.arange(ar._nframes+1, step=1):
+for i in np.arange(ar._nframes + 1, step=1):
     frame = ar.read_frame(i)
     print("{}/{}".format(i, ar._nframes))
 
     vx, vy = plot.get_velocity_field(frame.phi, frame.velocity, size=24)
-    if qtensor == 'shape':
+    if qtensor == "shape":
         Q00, Q01 = plot.get_nematic_field(frame.phi, frame.S00, frame.S01, size=24)
     else:
         Q00, Q01 = plot.get_nematic_field(frame.phi, frame.Q00, frame.Q01, size=24)
     defects = plot.get_defects(plot.charge_array(Q00, Q01), Q00, Q01)
 
     for d in defects:
-        if d['charge'] == charge:
+        if d["charge"] == charge:
             # rotation angle
-            w = -d['angle']
-            p = d['pos']
+            w = -d["angle"]
+            p = d["pos"]
 
             # Q tensor
             Q00 = rot(Q00, p, w, window_size)
             Q01 = rot(Q01, p, w, window_size)
-            Q00, Q01 = cos(2*w)*Q00 - sin(2*w)*Q01, sin(2*w)*Q00 + cos(2*w)*Q01
+            Q00, Q01 = (
+                cos(2 * w) * Q00 - sin(2 * w) * Q01,
+                sin(2 * w) * Q00 + cos(2 * w) * Q01,
+            )
             Q00_tot += Q00
             Q01_tot += Q01
 
             # velocity field
             vx = rot(vx, p, w, window_size)
             vy = rot(vy, p, w, window_size)
-            vx, vy = cos(w)*vx - sin(w)*vy, sin(w)*vx + cos(w)*vy
+            vx, vy = cos(w) * vx - sin(w) * vy, sin(w) * vx + cos(w) * vy
             vx_tot += vx
             vy_tot += vy
 
@@ -108,29 +111,29 @@ Q01_tot /= c
 
 plt.figure()
 plot.director(Q00_tot, Q01_tot, avg=avg)
-if oname == '':
+if oname == "":
     plt.show()
 else:
-    plt.savefig(oname+'_director.png')
+    plt.savefig(oname + "_director.png")
 
 ################################################################################
 # stress (cheating)
 
 plt.figure()
 plot.director(Q00_tot, Q01_tot, avg=avg)
-cax = plt.imshow(-Q00_tot.T, interpolation='lanczos', cmap='plasma', origin='lower')
-if oname == '':
+cax = plt.imshow(-Q00_tot.T, interpolation="lanczos", cmap="plasma", origin="lower")
+if oname == "":
     plt.show()
 else:
-    plt.savefig(oname+'_sigmaxx.png')
+    plt.savefig(oname + "_sigmaxx.png")
 
 plt.figure()
 plot.director(Q00_tot, Q01_tot, avg=avg)
-cax = plt.imshow(Q01_tot.T, interpolation='lanczos', cmap='plasma', origin='lower')
-if oname == '':
+cax = plt.imshow(Q01_tot.T, interpolation="lanczos", cmap="plasma", origin="lower")
+if oname == "":
     plt.show()
 else:
-    plt.savefig(oname+'_sigmaxy.png')
+    plt.savefig(oname + "_sigmaxy.png")
 
 ################################################################################
 # velocity
@@ -138,20 +141,25 @@ else:
 vx_tot /= c
 vy_tot /= c
 
-m = np.sqrt(vx_tot**2 + vy_tot**2)
-vx_tot = vx_tot.reshape((vx_tot.shape[0]//avg, avg, vx_tot.shape[1]//avg, avg))
+m = np.sqrt(vx_tot ** 2 + vy_tot ** 2)
+vx_tot = vx_tot.reshape((vx_tot.shape[0] // avg, avg, vx_tot.shape[1] // avg, avg))
 vx_tot = np.mean(vx_tot, axis=(1, 3))
-vy_tot = vy_tot.reshape((vy_tot.shape[0]//avg, avg, vy_tot.shape[1]//avg, avg))
+vy_tot = vy_tot.reshape((vy_tot.shape[0] // avg, avg, vy_tot.shape[1] // avg, avg))
 vy_tot = np.mean(vy_tot, axis=(1, 3))
 
 plt.figure()
-plt.quiver(avg*np.arange(vx_tot.shape[0]),
-           avg*np.arange(vx_tot.shape[1]),
-           vx_tot.T, vy_tot.T,
-           pivot='tail', units='dots', scale_units='dots')
-cax = plt.imshow(m.T, interpolation='lanczos', cmap='plasma', origin='lower')
+plt.quiver(
+    avg * np.arange(vx_tot.shape[0]),
+    avg * np.arange(vx_tot.shape[1]),
+    vx_tot.T,
+    vy_tot.T,
+    pivot="tail",
+    units="dots",
+    scale_units="dots",
+)
+cax = plt.imshow(m.T, interpolation="lanczos", cmap="plasma", origin="lower")
 plt.colorbar(cax)
-if oname == '':
+if oname == "":
     plt.show()
 else:
-    plt.savefig(oname+'_flowfield.png')
+    plt.savefig(oname + "_flowfield.png")

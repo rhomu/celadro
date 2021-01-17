@@ -35,16 +35,18 @@ ar = archive.loadarchive(sys.argv[1])
 
 ar = archive.loadarchive(sys.argv[1])
 
-rms = np.zeros(ar._nframes+1)
-tox = np.zeros(ar._nframes+1)
-toy = np.zeros(ar._nframes+1)
+rms = np.zeros(ar._nframes + 1)
+tox = np.zeros(ar._nframes + 1)
+toy = np.zeros(ar._nframes + 1)
 
 c = 0
-for i in range(0, ar._nframes+1):
+for i in range(0, ar._nframes + 1):
     frame = ar.read_frame(i)
-    print("{}/{}".format(i, ar._nframes),)
+    print(
+        "{}/{}".format(i, ar._nframes),
+    )
     vx, vy = plot.get_velocity_field(frame.phi, frame.velocity, size=24)
-    rms[c] = sqrt(np.mean(vx**2+vy**2))
+    rms[c] = sqrt(np.mean(vx ** 2 + vy ** 2))
     tox[c] = np.mean(vx)
     toy[c] = np.mean(vy)
     print("vx={}, vy={}, rms={}".format(tox[c], toy[c], rms[c]))

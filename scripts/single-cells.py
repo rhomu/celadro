@@ -41,7 +41,7 @@ traj = [[] for i in range(size)]
 
 
 # for i in np.arange(int(0.3*ar._nframes), ar._nframes+1, step=1):
-for i in np.arange(0, ar._nframes+1, step=1):
+for i in np.arange(0, ar._nframes + 1, step=1):
 
     frame = ar.read_frame(i)
     print("{}/{}".format(i, ar._nframes))
@@ -52,9 +52,11 @@ for i in np.arange(0, ar._nframes+1, step=1):
 
 def norm(v1, v2, LX, LY):
     return min(
-            [np.linalg.norm(v1-v2+[x*LX, y*LY])
-             for x, y in product([-1, 0, 1], [-1, 0, 1])]
-            )
+        [
+            np.linalg.norm(v1 - v2 + [x * LX, y * LY])
+            for x, y in product([-1, 0, 1], [-1, 0, 1])
+        ]
+    )
 
 
 # compute distance

@@ -15,7 +15,4 @@
 
 from .archive import archive, loadarchive
 
-__all__ = [
-    archive,
-    loadarchive
-]
+__all__ = [archive, loadarchive]

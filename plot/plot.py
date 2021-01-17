@@ -33,7 +33,7 @@ def _update_dict(d, k, v):
         d[k] = v
 
 
-def _get_field(phases, vals, size=1, mode='wrap'):
+def _get_field(phases, vals, size=1, mode="wrap"):
     """
     Compute the coarse grained field from a collection of phase-fields and
     associated values: ret[i] = sum_j phases[j]*values[i, j].
@@ -54,13 +54,13 @@ def _get_field(phases, vals, size=1, mode='wrap'):
         assert len(vlist) == len(phases)
         field = np.zeros(phases[0].shape)
         for n in range(len(phases)):
-            field += vlist[n]*phases[n]
+            field += vlist[n] * phases[n]
         field = ndimage.filters.uniform_filter(field, size=size, mode=mode)
         ret.append(field)
     return ret
 
 
-def get_velocity_field(phases, vel, size=1, mode='wrap'):
+def get_velocity_field(phases, vel, size=1, mode="wrap"):
     """
     Compute coarse-grained nematic field.
 
@@ -76,7 +76,7 @@ def get_velocity_field(phases, vel, size=1, mode='wrap'):
     return _get_field(phases, [v0, v1], size, mode)
 
 
-def get_nematic_field(phases, qxx, qxy, size=1, mode='wrap'):
+def get_nematic_field(phases, qxx, qxy, size=1, mode="wrap"):
     """
     Compute coarse-grained nematic field.
 
@@ -103,8 +103,8 @@ def get_vorticity_field(ux, uy, pbc=True):
         Vorticity field.
     """
     if pbc:
-        dxuy = np.gradient(np.pad(uy, 2, mode='wrap'), axis=0)[2:-2, 2:-2]
-        dyux = np.gradient(np.pad(ux, 2, mode='wrap'), axis=1)[2:-2, 2:-2]
+        dxuy = np.gradient(np.pad(uy, 2, mode="wrap"), axis=0)[2:-2, 2:-2]
+        dyux = np.gradient(np.pad(ux, 2, mode="wrap"), axis=1)[2:-2, 2:-2]
     else:
         dxuy = np.gradient(uy, axis=0)
         dyux = np.gradient(ux, axis=1)
@@ -123,8 +123,8 @@ def get_gradient_field(ux, uy, pbc=True):
         Gradient field.
     """
     if pbc:
-        dxux = np.gradient(np.pad(ux, 2, mode='wrap'), axis=0)[2:-2, 2:-2]
-        dyuy = np.gradient(np.pad(uy, 2, mode='wrap'), axis=1)[2:-2, 2:-2]
+        dxux = np.gradient(np.pad(ux, 2, mode="wrap"), axis=0)[2:-2, 2:-2]
+        dyuy = np.gradient(np.pad(uy, 2, mode="wrap"), axis=1)[2:-2, 2:-2]
     else:
         dxux = np.gradient(ux, axis=0)
         dyuy = np.gradient(uy, axis=1)
@@ -146,12 +146,12 @@ def get_corr(u):
     c = np.fft.rfft2(u)
     c = np.fft.irfft2(np.multiply(c, np.conj(c)))
     # go to polar coords
-    s = int(sqrt(c.size)/2)
+    s = int(sqrt(c.size) / 2)
     r = np.zeros(s)
     n = np.zeros(s)
     k = 0
     for (i, j), v in np.ndenumerate(c):
-        k = int(sqrt(i**2 + j**2))
+        k = int(sqrt(i ** 2 + j ** 2))
         if k >= s:
             continue
         r[k] += v
@@ -179,12 +179,12 @@ def get_corr2(ux, uy):
     cy = np.fft.irfft2(np.multiply(cy, np.conj(cy)))
     c = cx + cy
     # go to polar coords
-    s = int(sqrt(c.size)/2)
+    s = int(sqrt(c.size) / 2)
     r = np.zeros(s)
     n = np.zeros(s)
     k = 0
     for (i, j), v in np.ndenumerate(c):
-        k = int(sqrt(i**2 + j**2))
+        k = int(sqrt(i ** 2 + j ** 2))
         if k >= s:
             continue
         r[k] += v
@@ -208,40 +208,41 @@ def charge_array(Q00, Q01):
     # compute angle
     def wang(a, b):
         """Infamous chinese function"""
-        ang = atan2(abs(a[0]*b[1]-a[1]*b[0]), a[0]*b[0]+a[1]*b[1])
-        if ang > pi/2.:
+        ang = atan2(abs(a[0] * b[1] - a[1] * b[0]), a[0] * b[0] + a[1] * b[1])
+        if ang > pi / 2.0:
             b = [-i for i in b]
-        m = a[0]*b[1]-a[1]*b[0]
-        return -np.sign(m)*atan2(abs(m), a[0]*b[0]+a[1]*b[1])
+        m = a[0] * b[1] - a[1] * b[0]
+        return -np.sign(m) * atan2(abs(m), a[0] * b[0] + a[1] * b[1])
 
     # get shape and init charge array
     (LX, LY) = Q00.shape
     w = np.zeros((LX, LY))
 
     # we use the director field instead of Q
-    S = np.vectorize(sqrt)(Q00**2 + Q01**2)
-    nx = np.vectorize(sqrt)((1 + Q00/S)/2)
-    ny = np.sign(Q01)*np.vectorize(sqrt)((1 - Q00/S)/2)
+    S = np.vectorize(sqrt)(Q00 ** 2 + Q01 ** 2)
+    nx = np.vectorize(sqrt)((1 + Q00 / S) / 2)
+    ny = np.sign(Q01) * np.vectorize(sqrt)((1 - Q00 / S) / 2)
 
     # This mysterious part was stolen from Amin's code.
     for i in range(LX):
         for j in range(LY):
-            ax1 = [nx[(i+1) % LX, j],
-                   ny[(i+1) % LX, j]]
-            ax2 = [nx[(i-1+LX) % LX, j],
-                   ny[(i-1+LX) % LX, j]]
-            ax3 = [nx[i, (j-1+LY) % LY],
-                   ny[i, (j-1+LY) % LY]]
-            ax4 = [nx[i, (j+1) % LY],
-                   ny[i, (j+1) % LY]]
-            ax5 = [nx[(i+1) % LX, (j-1+LY) % LY],
-                   ny[(i+1) % LX, (j-1+LY) % LY]]
-            ax6 = [nx[(i-1+LX) % LX, (j-1+LY) % LY],
-                   ny[(i-1+LX) % LX, (j-1+LY) % LY]]
-            ax7 = [nx[(i+1) % LX, (j+1) % LY],
-                   ny[(i+1) % LX, (j+1) % LY]]
-            ax8 = [nx[(i-1+LX) % LX, (j+1) % LY],
-                   ny[(i-1+LX) % LX, (j+1) % LY]]
+            ax1 = [nx[(i + 1) % LX, j], ny[(i + 1) % LX, j]]
+            ax2 = [nx[(i - 1 + LX) % LX, j], ny[(i - 1 + LX) % LX, j]]
+            ax3 = [nx[i, (j - 1 + LY) % LY], ny[i, (j - 1 + LY) % LY]]
+            ax4 = [nx[i, (j + 1) % LY], ny[i, (j + 1) % LY]]
+            ax5 = [
+                nx[(i + 1) % LX, (j - 1 + LY) % LY],
+                ny[(i + 1) % LX, (j - 1 + LY) % LY],
+            ]
+            ax6 = [
+                nx[(i - 1 + LX) % LX, (j - 1 + LY) % LY],
+                ny[(i - 1 + LX) % LX, (j - 1 + LY) % LY],
+            ]
+            ax7 = [nx[(i + 1) % LX, (j + 1) % LY], ny[(i + 1) % LX, (j + 1) % LY]]
+            ax8 = [
+                nx[(i - 1 + LX) % LX, (j + 1) % LY],
+                ny[(i - 1 + LX) % LX, (j + 1) % LY],
+            ]
 
             w[i, j] = wang(ax1, ax5)
             w[i, j] += wang(ax5, ax3)
@@ -251,7 +252,7 @@ def charge_array(Q00, Q01):
             w[i, j] += wang(ax8, ax4)
             w[i, j] += wang(ax4, ax7)
             w[i, j] += wang(ax7, ax1)
-            w[i, j] /= 2.*pi
+            w[i, j] /= 2.0 * pi
 
     return w
 
@@ -272,16 +273,16 @@ def get_defects(w, Qxx, Qxy):
 
     # bfs recursive function
     def collapse(i, j, s, x=0, y=0, n=0):
-        if s*w[i, j] > .4:
+        if s * w[i, j] > 0.4:
             x += i + 1.5
             y += j + 1.5
             n += 1
             w[i, j] = 0
-            collapse((i+1) % LX, j, s, x, y, n)
-            collapse((i-1+LX) % LX, j, s, x, y, n)
-            collapse(i, (j+1) % LY, s, x, y, n)
-            collapse(i, (j-1+LY) % LY, s, x, y, n)
-        return x/n, y/n
+            collapse((i + 1) % LX, j, s, x, y, n)
+            collapse((i - 1 + LX) % LX, j, s, x, y, n)
+            collapse(i, (j + 1) % LY, s, x, y, n)
+            collapse(i, (j - 1 + LY) % LY, s, x, y, n)
+        return x / n, y / n
 
     (LX, LY) = w.shape
     d = []
@@ -301,18 +302,16 @@ def get_defects(w, Qxx, Qxy):
                     kk = (int(x) + LX + dx) % LX
                     ll = (int(y) + LY + dy) % LY
                     # derivative at these points
-                    dxQxx = .5*(Qxx[(kk+1) % LX, ll] - Qxx[(kk-1+LX) % LX, ll])
-                    dxQxy = .5*(Qxy[(kk+1) % LX, ll] - Qxy[(kk-1+LX) % LX, ll])
-                    dyQxx = .5*(Qxx[kk, (ll+1) % LY] - Qxx[kk, (ll-1+LY) % LY])
-                    dyQxy = .5*(Qxy[kk, (ll+1) % LY] - Qxy[kk, (ll-1+LY) % LY])
+                    dxQxx = 0.5 * (Qxx[(kk + 1) % LX, ll] - Qxx[(kk - 1 + LX) % LX, ll])
+                    dxQxy = 0.5 * (Qxy[(kk + 1) % LX, ll] - Qxy[(kk - 1 + LX) % LX, ll])
+                    dyQxx = 0.5 * (Qxx[kk, (ll + 1) % LY] - Qxx[kk, (ll - 1 + LY) % LY])
+                    dyQxy = 0.5 * (Qxy[kk, (ll + 1) % LY] - Qxy[kk, (ll - 1 + LY) % LY])
                     # accumulate numerator and denominator
-                    num += s*dxQxy - dyQxx
-                    den += dxQxx + s*dyQxy
-                psi = s/(2.-s)*atan2(num, den)
+                    num += s * dxQxy - dyQxx
+                    den += dxQxx + s * dyQxy
+                psi = s / (2.0 - s) * atan2(num, den)
                 # add defect to list
-                d.append({"pos": np.array([x, y]),
-                          "charge": .5*s,
-                          "angle": psi})
+                d.append({"pos": np.array([x, y]), "charge": 0.5 * s, "angle": psi})
     return d
 
 
@@ -328,16 +327,21 @@ def defects(Q00, Q01, engine=plt, arrow_len=0):
     w = charge_array(Q00, Q01)
     defects = get_defects(w, Q00, Q01)
     for d in defects:
-        if d['charge'] == 0.5:
-            engine.plot(d["pos"][0], d["pos"][1], 'go')
+        if d["charge"] == 0.5:
+            engine.plot(d["pos"][0], d["pos"][1], "go")
             # plot direction of pos defects
             if not arrow_len == 0:
-                engine.arrow(d['pos'][0], d['pos'][1],
-                             -arrow_len*cos(d['angle']),
-                             -arrow_len*sin(d['angle']),
-                             color='r', head_width=3, head_length=3)
+                engine.arrow(
+                    d["pos"][0],
+                    d["pos"][1],
+                    -arrow_len * cos(d["angle"]),
+                    -arrow_len * sin(d["angle"]),
+                    color="r",
+                    head_width=3,
+                    head_length=3,
+                )
         else:
-            engine.plot(d["pos"][0], d["pos"][1], 'b^')
+            engine.plot(d["pos"][0], d["pos"][1], "b^")
 
 
 def cell(frame, i, engine=plt, **kwargs):
@@ -352,14 +356,17 @@ def cell(frame, i, engine=plt, **kwargs):
         **kwargs: Keyword arguments passed to contour().
     """
     p = frame.phi[i]
-    _update_dict(kwargs, 'color', 'k')
-    _update_dict(kwargs, 'levels', [.5])
-    engine.contour(np.arange(0, frame.parameters['Size'][0]),
-                   np.arange(0, frame.parameters['Size'][1]),
-                   p.T, **kwargs)
+    _update_dict(kwargs, "colors", "k")
+    _update_dict(kwargs, "levels", [0.5])
+    engine.contour(
+        np.arange(0, frame.parameters["Size"][0]),
+        np.arange(0, frame.parameters["Size"][1]),
+        p.T,
+        **kwargs
+    )
 
 
-def cells(frame, engine=plt, colors='k'):
+def cells(frame, engine=plt, colors="k"):
     """
     Plot all cells as contours.
 
@@ -370,10 +377,10 @@ def cells(frame, engine=plt, colors='k'):
             one for each cell.
     """
     if not isinstance(colors, list):
-        colors = len(frame.phi)*[colors]
+        colors = len(frame.phi) * [colors]
 
     for i in range(len(frame.phi)):
-        cell(frame, i, engine, color=colors[i])
+        cell(frame, i, engine, colors=colors[i])
 
 
 def interfaces(frame, engine=plt):
@@ -385,14 +392,14 @@ def interfaces(frame, engine=plt):
         frame: Frame to plot, from archive module.
         engine: Plotting engine or axis.
     """
-    totphi = np.zeros(frame.parameters['Size'])
+    totphi = np.zeros(frame.parameters["Size"])
     for i in range(len(frame.phi)):
-        totphi += frame.phi[i]*frame.parameters['walls']
-        for j in range(i+1, len(frame.phi)):
-            totphi += frame.phi[i]*frame.phi[j]
+        totphi += frame.phi[i] * frame.parameters["walls"]
+        for j in range(i + 1, len(frame.phi)):
+            totphi += frame.phi[i] * frame.phi[j]
 
-    cmap = LinearSegmentedColormap.from_list('mycmap', ['grey', 'white'])
-    engine.imshow(totphi.T, interpolation='lanczos', cmap=cmap, origin='lower')
+    cmap = LinearSegmentedColormap.from_list("mycmap", ["grey", "white"])
+    engine.imshow(totphi.T, interpolation="lanczos", cmap=cmap, origin="lower")
 
 
 def interfaces2(frame, engine=plt):
@@ -404,20 +411,17 @@ def interfaces2(frame, engine=plt):
         frame: Frame to plot, from archive module.
         engine: Plotting engine or axis.
     """
-    totphi = [np.zeros(frame.parameters['Size']),
-              np.zeros(frame.parameters['Size'])]
+    totphi = [np.zeros(frame.parameters["Size"]), np.zeros(frame.parameters["Size"])]
     for i in range(len(frame.phi)):
         k = 0 if i < 64 else 1
-        totphi[k] += frame.phi[i]*frame.parameters['walls']
-        for j in range(i+1, len(frame.phi)):
-            totphi[k] += frame.phi[i]*frame.phi[j]
+        totphi[k] += frame.phi[i] * frame.parameters["walls"]
+        for j in range(i + 1, len(frame.phi)):
+            totphi[k] += frame.phi[i] * frame.phi[j]
 
-    cmap0 = LinearSegmentedColormap.from_list('mycmap', ['grey', 'white'])
-    cmap1 = LinearSegmentedColormap.from_list('mycmap', ['blue', 'white'])
-    engine.imshow(totphi[0].T, interpolation='lanczos',
-                  cmap=cmap0, origin='lower')
-    engine.imshow(totphi[1].T, interpolation='lanczos',
-                  cmap=cmap1, origin='lower')
+    cmap0 = LinearSegmentedColormap.from_list("mycmap", ["grey", "white"])
+    cmap1 = LinearSegmentedColormap.from_list("mycmap", ["blue", "white"])
+    engine.imshow(totphi[0].T, interpolation="lanczos", cmap=cmap0, origin="lower")
+    engine.imshow(totphi[1].T, interpolation="lanczos", cmap=cmap1, origin="lower")
 
 
 def solidarea(frame, engine=plt):
@@ -429,12 +433,14 @@ def solidarea(frame, engine=plt):
         engine: Plotting engine or axis.
     """
     for i in range(len(frame.phi)):
-        color = str(min(1, frame.area[i]/(pi*frame.parameters['R']**2)))
-        engine.contourf(np.arange(0, frame.parameters['Size'][0]),
-                        np.arange(0, frame.parameters['Size'][1]),
-                        frame.phi[i].T,
-                        levels=[.5, 10.],
-                        colors=color)
+        color = str(min(1, frame.area[i] / (pi * frame.parameters["R"] ** 2)))
+        engine.contourf(
+            np.arange(0, frame.parameters["Size"][0]),
+            np.arange(0, frame.parameters["Size"][1]),
+            frame.phi[i].T,
+            levels=[0.5, 10.0],
+            colors=color,
+        )
 
 
 def com(frame, engine=plt):
@@ -447,7 +453,7 @@ def com(frame, engine=plt):
         engine: Plotting engine or axis.
     """
     for c in frame.com:
-        engine.plot(c[0], c[1], 'ro')
+        engine.plot(c[0], c[1], "ro")
 
 
 def shape(frame, engine=plt, **kwargs):
@@ -459,18 +465,18 @@ def shape(frame, engine=plt, **kwargs):
         engine: Plotting engine or axis.
         **kwargs: Keyword arguments passed to the arrow function.
     """
-    _update_dict(kwargs, 'color', 'k')
+    _update_dict(kwargs, "color", "k")
     for i in range(frame.nphases):
         Q00 = frame.S00[i]
         Q01 = frame.S01[i]
-        S = sqrt(Q00**2 + Q01**2)
-        w = atan2(Q01, Q00)/2
+        S = sqrt(Q00 ** 2 + Q01 ** 2)
+        w = atan2(Q01, Q00) / 2
         nx = cos(w)
         ny = sin(w)
         c = frame.com[i]
         a = S
-        engine.arrow(c[0], c[1],  a*nx,  a*ny, **kwargs)
-        engine.arrow(c[0], c[1], -a*nx, -a*ny, **kwargs)
+        engine.arrow(c[0], c[1], a * nx, a * ny, **kwargs)
+        engine.arrow(c[0], c[1], -a * nx, -a * ny, **kwargs)
 
 
 def director(Qxx, Qxy, avg=1, scale=False, engine=plt, **kwargs):
@@ -486,9 +492,9 @@ def director(Qxx, Qxy, avg=1, scale=False, engine=plt, **kwargs):
     """
 
     # obtain S, nx, and ny
-    S = np.vectorize(sqrt)(Qxy**2 + Qxx**2)
-    nx = np.vectorize(sqrt)((1 + Qxx/S)/2)
-    ny = np.sign(Qxy)*np.vectorize(sqrt)((1 - Qxx/S)/2)
+    S = np.vectorize(sqrt)(Qxy ** 2 + Qxx ** 2)
+    nx = np.vectorize(sqrt)((1 + Qxx / S) / 2)
+    ny = np.sign(Qxy) * np.vectorize(sqrt)((1 - Qxx / S) / 2)
 
     # coarse grain
     S = ndimage.generic_filter(S, np.mean, size=avg)
@@ -500,23 +506,23 @@ def director(Qxx, Qxy, avg=1, scale=False, engine=plt, **kwargs):
     # construct nematic lines
     x = []
     y = []
-    for i, j in product(np.arange(LX, step=avg),
-                        np.arange(LY, step=avg)):
-        f = avg*(S[i, j] if scale else 1.)
-        x.append(i + .5 - f*nx[i, j]/2.)
-        x.append(i + .5 + f*nx[i, j]/2.)
+    for i, j in product(np.arange(LX, step=avg), np.arange(LY, step=avg)):
+        f = avg * (S[i, j] if scale else 1.0)
+        x.append(i + 0.5 - f * nx[i, j] / 2.0)
+        x.append(i + 0.5 + f * nx[i, j] / 2.0)
         x.append(None)
-        y.append(j + .5 - f*ny[i, j]/2.)
-        y.append(j + .5 + f*ny[i, j]/2.)
+        y.append(j + 0.5 - f * ny[i, j] / 2.0)
+        y.append(j + 0.5 + f * ny[i, j] / 2.0)
         y.append(None)
 
-    _update_dict(kwargs, 'linestyle', '-')
-    _update_dict(kwargs, 'linewidth', 1)
+    _update_dict(kwargs, "linestyle", "-")
+    _update_dict(kwargs, "linewidth", 1)
     engine.plot(x, y, **kwargs)
 
 
-def nematic_field(frame, size=1, avg=1, show_def=False, arrow_len=0,
-                  engine=plt, **kwargs):
+def nematic_field(
+    frame, size=1, avg=1, show_def=False, arrow_len=0, engine=plt, **kwargs
+):
     """
     Plot nematic field associated with the internal degree of freedom
 
@@ -530,20 +536,22 @@ def nematic_field(frame, size=1, avg=1, show_def=False, arrow_len=0,
         **kwargs: Keyword arguments passed to the director function.
     """
     # get field
-    mode = 'wrap' if frame.parameters['BC'] == 0 else 'constant'
-    (Qxx, Qxy) = get_nematic_field(frame.phi, frame.Q00, frame.Q01,
-                                   size=size, mode=mode)
-    Qxx *= (1.-frame.parameters['walls'])
-    Qxy *= (1.-frame.parameters['walls'])
+    mode = "wrap" if frame.parameters["BC"] == 0 else "constant"
+    (Qxx, Qxy) = get_nematic_field(
+        frame.phi, frame.Q00, frame.Q01, size=size, mode=mode
+    )
+    Qxx *= 1.0 - frame.parameters["walls"]
+    Qxy *= 1.0 - frame.parameters["walls"]
+    # plot
+    director(Qxx, Qxy, avg=avg, engine=engine, **kwargs)
     # defects
     if show_def:
         defects(Qxx, Qxy, engine=engine, arrow_len=arrow_len)
-    # plot
-    director(Qxx, Qxy, avg=avg, engine=engine, **kwargs)
 
 
-def shape_field(frame, size=1, avg=1, show_def=False, arrow_len=0,
-                engine=plt, **kwargs):
+def shape_field(
+    frame, size=1, avg=1, show_def=False, arrow_len=0, engine=plt, **kwargs
+):
     """
     Plot nematic field associated with the shape tensor of each cell.
 
@@ -557,11 +565,12 @@ def shape_field(frame, size=1, avg=1, show_def=False, arrow_len=0,
         **kwargs: Keyword arguments passed to the director function.
     """
     # get field
-    mode = 'wrap' if frame.parameters['BC'] == 0 else 'constant'
-    (Qxx, Qxy) = get_nematic_field(frame.phi, frame.S00, frame.S01,
-                                   size=size, mode=mode)
-    Qxx *= (1.-frame.parameters['walls'])
-    Qxy *= (1.-frame.parameters['walls'])
+    mode = "wrap" if frame.parameters["BC"] == 0 else "constant"
+    (Qxx, Qxy) = get_nematic_field(
+        frame.phi, frame.S00, frame.S01, size=size, mode=mode
+    )
+    Qxx *= 1.0 - frame.parameters["walls"]
+    Qxy *= 1.0 - frame.parameters["walls"]
     # defects
     if show_def:
         defects(Qxx, Qxy, engine=engine, arrow_len=arrow_len)
@@ -581,27 +590,31 @@ def velocity_field(frame, size=15, engine=plt, magn=True, cbar=True, avg=1):
         cbar: Show color bar?
         avg: Size of the averaging (drops points)
     """
-    mode = 'wrap' if frame.parameters['BC'] == 0 else 'constant'
+    mode = "wrap" if frame.parameters["BC"] == 0 else "constant"
     vx, vy = get_velocity_field(frame.phi, frame.velocity, size, mode=mode)
-    vx *= (1.-frame.parameters['walls'])
-    vy *= (1.-frame.parameters['walls'])
+    vx *= 1.0 - frame.parameters["walls"]
+    vy *= 1.0 - frame.parameters["walls"]
 
     if magn:
-        m = np.sqrt(vx**2 + vy**2)
-        cax = engine.imshow(m.T, interpolation='lanczos', cmap='plasma',
-                            origin='lower')
+        m = np.sqrt(vx ** 2 + vy ** 2)
+        cax = engine.imshow(m.T, interpolation="lanczos", cmap="plasma", origin="lower")
         if cbar:
             plt.colorbar(cax)
 
-    vx = vx.reshape((vx.shape[0]//avg, avg, vx.shape[1]//avg, avg))
+    vx = vx.reshape((vx.shape[0] // avg, avg, vx.shape[1] // avg, avg))
     vx = np.mean(vx, axis=(1, 3))
-    vy = vy.reshape((vy.shape[0]//avg, avg, vy.shape[1]//avg, avg))
+    vy = vy.reshape((vy.shape[0] // avg, avg, vy.shape[1] // avg, avg))
     vy = np.mean(vy, axis=(1, 3))
 
-    cax = engine.quiver(np.arange(0, frame.parameters['Size'][0], step=avg),
-                        np.arange(0, frame.parameters['Size'][1], step=avg),
-                        vx.T, vy.T,
-                        pivot='tail', units='dots', scale_units='dots')
+    cax = engine.quiver(
+        np.arange(0, frame.parameters["Size"][0], step=avg),
+        np.arange(0, frame.parameters["Size"][1], step=avg),
+        vx.T,
+        vy.T,
+        pivot="tail",
+        units="dots",
+        scale_units="dots",
+    )
 
 
 def vorticity_field(frame, size=15, engine=plt, cbar=True):
@@ -616,8 +629,7 @@ def vorticity_field(frame, size=15, engine=plt, cbar=True):
     """
     vx, vy = get_velocity_field(frame.phi, frame.velocity, size)
     w = get_vorticity_field(vx, vy)
-    cax = engine.imshow(w.T, interpolation='lanczos', cmap='viridis',
-                        origin='lower')
+    cax = engine.imshow(w.T, interpolation="lanczos", cmap="viridis", origin="lower")
     if cbar:
         plt.colorbar(cax)
 
@@ -630,7 +642,7 @@ def _force(frame, i, v, engine=plt, **kwargs):
     engine.arrow(c[0], c[1], v[0], v[1], **kwargs)
 
 
-def velocity(frame, engine=plt, color='r'):
+def velocity(frame, engine=plt, color="r"):
     """
     Plot total velocity of each cell.
 
@@ -639,15 +651,12 @@ def velocity(frame, engine=plt, color='r'):
         engine: Plotting engine or axis.
         color: Color of the arrow.
     """
-    scale = frame.parameters['ninfo']*frame.parameters['nsubsteps']
+    scale = frame.parameters["ninfo"] * frame.parameters["nsubsteps"]
     for i in range(frame.nphases):
-        _force(frame, i,
-               scale*frame.velocity[i],
-               engine=engine,
-               color=color)
+        _force(frame, i, scale * frame.velocity[i], engine=engine, color=color)
 
 
-def pressure_force(frame, engine=plt, color='b'):
+def pressure_force(frame, engine=plt, color="b"):
     """
     Plot pressure force of each cell.
 
@@ -656,12 +665,9 @@ def pressure_force(frame, engine=plt, color='b'):
         engine: Plotting engine or axis.
         color: Color of the arrow.
     """
-    scale = frame.parameters['ninfo']*frame.parameters['nsubsteps']
+    scale = frame.parameters["ninfo"] * frame.parameters["nsubsteps"]
     for i in range(frame.nphases):
-        _force(frame, i,
-               scale*frame.Fpressure[i],
-               engine=engine,
-               color=color)
+        _force(frame, i, scale * frame.Fpressure[i], engine=engine, color=color)
 
 
 def nematic(frame, engine=plt):
@@ -675,13 +681,13 @@ def nematic(frame, engine=plt):
     for i in range(frame.nphases):
         Q00 = frame.Q00[i]
         Q01 = frame.Q01[i]
-        S = sqrt(Q00**2 + Q01**2)
-        nx = sqrt((1 + Q00/S)/2)
-        ny = np.sign(Q01)*sqrt((1 - Q00/S)/2)
+        S = sqrt(Q00 ** 2 + Q01 ** 2)
+        nx = sqrt((1 + Q00 / S) / 2)
+        ny = np.sign(Q01) * sqrt((1 - Q00 / S) / 2)
         c = frame.com[i]
-        a = frame.parameters['R']/2.5*S
-        engine.arrow(c[0], c[1],  a*nx,  a*ny, color='k')
-        engine.arrow(c[0], c[1], -a*nx, -a*ny, color='k')
+        a = frame.parameters["R"] / 2.5 * S
+        engine.arrow(c[0], c[1], a * nx, a * ny, color="k")
+        engine.arrow(c[0], c[1], -a * nx, -a * ny, color="k")
 
 
 def phase(frame, n, engine=plt, cbar=False):
@@ -694,8 +700,9 @@ def phase(frame, n, engine=plt, cbar=False):
         engine: Plotting engine or axis.
         cbar: Display cbar?
     """
-    cax = engine.imshow(frame.phi[n].T, interpolation='lanczos', cmap='Greys',
-                        origin='lower')
+    cax = engine.imshow(
+        frame.phi[n].T, interpolation="lanczos", cmap="Greys", origin="lower"
+    )
     if cbar:
         plt.colorbar(cax)
 
@@ -709,8 +716,9 @@ def walls(frame, engine=plt, cbar=False):
         engine: Plotting engine or axis.
         cbar: Display cbar?
     """
-    cax = engine.imshow(frame.parameters['walls'].T, cmap='Greys',
-                        origin='lower', clim=(0., 1.))
+    cax = engine.imshow(
+        frame.parameters["walls"].T, cmap="Greys", origin="lower", clim=(0.0, 1.0)
+    )
     if cbar:
         plt.colorbar(cax)
 
@@ -722,29 +730,35 @@ def patch(frame, n, engine=plt):
         frame: Frame to plot, from archive module.
         engine: Plotting engine or axis.
     """
-    def plot(m, M): engine.fill([m[0], M[0], M[0], m[0], m[0], None],
-                                [m[1], m[1], M[1], M[1], m[1], None],
-                                color='b', alpha=0.04)
-    LX, LY = frame.parameters['Size']
+
+    def plot(m, M):
+        engine.fill(
+            [m[0], M[0], M[0], m[0], m[0], None],
+            [m[1], m[1], M[1], M[1], m[1], None],
+            color="b",
+            alpha=0.04,
+        )
+
+    LX, LY = frame.parameters["Size"]
     m = frame.patch_min[n]
     M = frame.patch_max[n]
 
-    if(m[0] == M[0]):
+    if m[0] == M[0]:
         m[0] += 1e-1
         M[0] -= 1e-1
-    if(m[1] == M[1]):
+    if m[1] == M[1]:
         m[1] += 1e-1
         M[1] -= 1e-1
 
-    if(m[0] > M[0] and m[1] > M[1]):
+    if m[0] > M[0] and m[1] > M[1]:
         plot(m, [LX, LY])
         plot([0, 0], M)
         plot([m[0], 0], [LX, M[1]])
         plot([0, m[1]], [M[0], LY])
-    elif(m[0] > M[0]):
+    elif m[0] > M[0]:
         plot(m, [LX, M[1]])
         plot([0, m[1]], M)
-    elif(m[1] > M[1]):
+    elif m[1] > M[1]:
         plot(m, [M[0], LY])
         plot([m[0], 0], M)
     else:
@@ -774,12 +788,18 @@ def masks(frame, engine=plt):
     m1 = np.array([1 if i else 0 for i in frame.division_mask])
     m2 = np.array([1 if i else 0 for i in frame.death_mask])
 
-    engine.contour(np.arange(0, frame.parameters['LX']),
-                   np.arange(0, frame.parameters['LY']),
-                   m1.reshape(frame.parameters['Size']).T,
-                   levels=[.5], colors=['b'])
+    engine.contour(
+        np.arange(0, frame.parameters["LX"]),
+        np.arange(0, frame.parameters["LY"]),
+        m1.reshape(frame.parameters["Size"]).T,
+        levels=[0.5],
+        colors=["b"],
+    )
 
-    engine.contour(np.arange(0, frame.parameters['LX']),
-                   np.arange(0, frame.parameters['LY']),
-                   m2.reshape(frame.parameters['Size']).T,
-                   levels=[.5], colors=['r'])
+    engine.contour(
+        np.arange(0, frame.parameters["LX"]),
+        np.arange(0, frame.parameters["LY"]),
+        m2.reshape(frame.parameters["Size"]).T,
+        levels=[0.5],
+        colors=["r"],
+    )
