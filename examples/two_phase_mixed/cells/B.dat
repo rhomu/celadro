@@ -1,0 +1,14 @@
+xi = 1
+S-pol = 1.0
+zetaQ = -6e-2
+S-nem = 1.0
+R = 4
+J-pol = 5e-2
+alpha = 0.12
+K-nem = 1.5e-5
+W-nem = 10e-3
+nphases = 82
+D-pol = 1e-3
+D-nem = 0.025
+mu = 4
+gamma = 0.055
