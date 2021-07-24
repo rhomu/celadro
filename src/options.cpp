@@ -205,7 +205,15 @@ void Model::ParseProgramOptions(int ac, char **av)
   else
   {
     std::fstream file(inputname.c_str(), std::fstream::in);
-    if(!file.good()) throw error_msg("can not open runcard file ", inputname);
+    // try to read one char out of file to check that it exists
+    file.get();
+    if(!file.good()) {
+      throw error_msg("can not open runcard file '", inputname, "' or file is empty.");
+    }
+    // rewind file
+    file.clear();
+    file.seekg(0);
+    // parse options
     opt::store(opt::parse_config_file(file, config_file_options), vm);
     opt::notify(vm);
   }
