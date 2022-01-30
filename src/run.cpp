@@ -176,6 +176,7 @@ void Model::UpdateForcesAtNode(unsigned n, unsigned q)
   const auto& s  = neighbors[k];
   const auto& sq = neighbors_patch[q];
 
+  const auto p   = phi[n][q];
   const auto dx  = derivX(phi[n], sq);
   const auto dy  = derivY(phi[n], sq);
   const auto dxs = derivX(sum, s);
@@ -196,8 +197,8 @@ void Model::UpdateForcesAtNode(unsigned n, unsigned q)
   phi_dy[n][q] = dy;
 
   // nematic torques
-  tau[n]       += sumQ00[k]*Q01[n] - sumQ01[k]*Q00[n];
-  vorticity[n] += U0[k]*dy - U1[k]*dx;
+  tau[n]       += p*(Q00[n]*sumQ01[k] - Q01[n]*sumQ00[k]);
+  vorticity[n] += dx*U1[k] - dy*U0[k];
 
   // polarisation torques (not super nice)
   const double ovlap = -(dx*(dxs-dx)+dy*(dys-dy));
@@ -277,9 +278,9 @@ void Model::UpdateNematic(unsigned n, bool store)
   }
   const auto strength = pow(F01*F01 + F00*F00, 0.25);
 
-  theta_nem[n] = theta_nem_old[n] - time_step*(
+  theta_nem[n] = theta_nem_old[n] + time_step*(
       + Knem*tau[n]
-      + Jnem*strength*atan2(F00*Q01[n]-F01*Q00[n], F00*Q00[n]+F01*Q01[n]))
+      - Jnem*strength*atan2(F00*Q01[n]-F01*Q00[n], F00*Q00[n]+F01*Q01[n]))
       + Wnem*vorticity[n];
   Q00[n] = Snem*cos(2*theta_nem[n]);
   Q01[n] = Snem*sin(2*theta_nem[n]);

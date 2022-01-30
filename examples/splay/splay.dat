@@ -32,7 +32,7 @@ R     = 8
 xi    = 1
 
 # nematic dynamics...
-zetaQ = -8e-7
+zetaQ = -5e-8
 S-nem = 1
 K-nem = 2e-5
 W-nem = 4e-3
