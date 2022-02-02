@@ -49,6 +49,7 @@ add_subdirectory(src)
 
 # use all files in src/
 file(GLOB_RECURSE sources src/*.cpp src/*.hpp)
+list(FILTER sources EXCLUDE REGEX "^\\..+")
 
 # main executable
 add_executable(celadro ${sources})
